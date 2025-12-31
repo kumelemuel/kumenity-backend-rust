@@ -1,6 +1,10 @@
-[package]
-name = "kumenity"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+members = [
+    "crates/*",
+    "apps/*"
+]
+resolver = "3"
 
-[dependencies]
+[workspace.dependencies]
+iam = { path = "crates/iam" }
+shared = { path = "crates/shared" }
