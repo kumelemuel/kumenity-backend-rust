@@ -6,6 +6,9 @@ edition = "2024"
 [dependencies]
 uuid = { version = "1.19.0", features = ["v4"] }
 argon2 = "0.5.3"
-rand = "0.8"
+rand = "0.8.5"
+jsonwebtoken = "9"
+serde = { version = "1", features = ["derive"] }
+
 
 shared.workspace = true

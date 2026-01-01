@@ -2,6 +2,8 @@ use shared::application::common_application_error::CommonApplicationError;
 
 pub enum ApplicationError {
     Common(CommonApplicationError),
+    UserNotFound,
+    LoginFailed,
     UsernameAlreadyExists,
     EmailAlreadyExists,
     InvalidEmail,

@@ -1,28 +1,43 @@
 mod http;
 mod state;
+mod routes;
+mod config;
 
-use self::http::handlers::register_user_handler::register_user_handler;
-use crate::state::AppState;
 use axum::Router;
-use axum::routing::post;
+use std::sync::Arc;
+use crate::state::AppState;
+use crate::routes::auth;
 use iam::application::use_cases::register_user::RegisterUser;
+use iam::application::use_cases::login::Login;
 use iam::infrastructure::persistence::in_memory::user_repository::InMemoryUserRepository;
 use iam::infrastructure::security::password_hasher::argon2_password_hasher::Argon2PasswordHasher;
-use std::sync::Arc;
+use iam::infrastructure::security::token_generator::jwt_token_generator::JwtTokenGenerator;
+use crate::config::jwt::JwtConfig;
 
 #[tokio::main]
 async fn main() {
+    dotenvy::dotenv().ok();
+    let jwt_config = JwtConfig::from_env().unwrap_or_else(|e| {
+        eprintln!("Configuration error: {}", e);
+        std::process::exit(1);
+    });
+
     let user_repository = Arc::new(InMemoryUserRepository::new());
     let password_hasher = Arc::new(Argon2PasswordHasher::new());
+    let token_generator = Arc::new(JwtTokenGenerator::new(
+        jwt_config.secret, 3600,
+    ));
 
     let register_user = RegisterUser::new(user_repository.clone(), password_hasher.clone());
+    let login = Login::new(user_repository.clone(), password_hasher.clone(), token_generator.clone());
 
     let state = AppState {
         register_user: Arc::new(register_user),
+        login: Arc::new(login),
     };
 
     let app = Router::new()
-        .route("/users", post(register_user_handler))
+        .nest("/auth", auth::router())
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
