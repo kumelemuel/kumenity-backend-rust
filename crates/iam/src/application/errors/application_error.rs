@@ -4,11 +4,13 @@ pub enum ApplicationError {
     Common(CommonApplicationError),
     UserNotFound,
     LoginFailed,
+    ActivationFailed,
     UsernameAlreadyExists,
     EmailAlreadyExists,
     InvalidEmail,
     InvalidUsername,
     InvalidPassword,
+    InvalidCodeValidation
 }
 
 impl From<CommonApplicationError> for ApplicationError {

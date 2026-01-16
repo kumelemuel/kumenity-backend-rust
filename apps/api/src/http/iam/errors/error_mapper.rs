@@ -42,6 +42,13 @@ pub fn map_application_error(error: ApplicationError) -> Response {
             };
             (StatusCode::BAD_REQUEST, Json(body)).into_response()
         }
+        ApplicationError::InvalidCodeValidation => {
+            let body = ApiErrorResponse {
+                code: "INVALID_CODE_VALIDATION".to_string(),
+                message: "Invalid code validation".to_string(),
+            };
+            (StatusCode::BAD_REQUEST, Json(body)).into_response()
+        }
         ApplicationError::UserNotFound => {
             let body = ApiErrorResponse {
                 code: "USER_NOT_FOUND".to_string(),
@@ -53,6 +60,13 @@ pub fn map_application_error(error: ApplicationError) -> Response {
             let body = ApiErrorResponse {
                 code: "LOGIN_FAILED".to_string(),
                 message: "Login failed".to_string(),
+            };
+            (StatusCode::UNAUTHORIZED, Json(body)).into_response()
+        }
+        ApplicationError::ActivationFailed => {
+            let body = ApiErrorResponse {
+                code: "ACTIVATION_FAILED".to_string(),
+                message: "Activation failed".to_string(),
             };
             (StatusCode::UNAUTHORIZED, Json(body)).into_response()
         }

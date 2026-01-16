@@ -1,6 +1,6 @@
 use crate::domain::errors::InvalidUserStatusTransition;
 use crate::domain::value_objects::user_id::UserId;
-use crate::domain::value_objects::{Email, HashedPassword, UserStatus, Username};
+use crate::domain::value_objects::{CodeValidation, Email, HashedPassword, UserStatus, Username};
 
 #[derive(Debug, Clone)]
 pub struct User {
@@ -23,7 +23,7 @@ impl User {
             username,
             email,
             password,
-            status: UserStatus::Registered,
+            status: UserStatus::Registered{ code_validation: CodeValidation::generate() },
         }
     }
 
@@ -117,7 +117,10 @@ mod tests {
     fn registering_user_starts_in_registered_status() {
         let user = registered_user();
 
-        assert_eq!(user.status(), &UserStatus::Registered);
+        assert!(matches!(
+            user.status(),
+            UserStatus::Registered { .. }
+        ));
     }
 
     #[test]

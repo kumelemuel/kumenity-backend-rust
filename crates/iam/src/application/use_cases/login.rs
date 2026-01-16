@@ -52,6 +52,11 @@ impl LoginPort for Login {
         if !self.password_hasher.verify(input.password.as_str(), &user.password()) {
             return Err(ApplicationError::LoginFailed);
         }
+
+        if !user.can_authenticate() {
+            return Err(ApplicationError::LoginFailed);
+        }
+
         let token = self.token_generator.generate(&user.id().as_uuid().to_string()).map_err(|_| ApplicationError::Common(CommonApplicationError::Infrastructure))?;
 
         Ok(LoggedDto {
