@@ -51,6 +51,8 @@ impl RegisterUserPort for RegisterUser {
 
         let user = User::register(user_id, username, email, hashed_password);
 
+        dbg!(&user);
+
         self.user_repository
             .save(&user)
             .map_err(|_| CommonApplicationError::Infrastructure)?;

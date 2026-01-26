@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use shared::application::common_application_error::CommonApplicationError;
 use crate::application::dto::input::validate_user_dto::ValidateUserDto;
 use crate::application::errors::application_error::ApplicationError;
 use crate::application::ports::inbound::validate_user_port::ValidateUserPort;
@@ -28,6 +29,10 @@ impl ValidateUserPort for ValidateUser {
         }
 
         user.activate().expect("error while activating user");
+        self.user_repository
+            .save(&user)
+            .map_err(|_| CommonApplicationError::Infrastructure)?;
+
         Ok(true)
     }
 }
