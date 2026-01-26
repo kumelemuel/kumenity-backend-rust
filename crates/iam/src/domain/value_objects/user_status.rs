@@ -1,8 +1,9 @@
 use crate::domain::errors::InvalidUserStatusTransition;
+use crate::domain::value_objects::CodeValidation;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UserStatus {
-    Registered,
+    Registered { code_validation: CodeValidation },
     Active,
     Suspended,
     Deactivated,
@@ -21,22 +22,21 @@ impl UserStatus {
     pub fn can_transition_to(&self, next: UserStatus) -> bool {
         use UserStatus::*;
 
-        match (*self, next) {
-            (Registered, Active) => true,
-            (Registered, Deleted) => true,
+        matches!(
+            (self, next),
+            (Registered { .. }, Active)
+                | (Registered { .. }, Deleted)
 
-            (Active, Suspended) => true,
-            (Active, Deactivated) => true,
-            (Active, Deleted) => true,
+                | (Active, Suspended)
+                | (Active, Deactivated)
+                | (Active, Deleted)
 
-            (Suspended, Active) => true,
-            (Suspended, Deactivated) => true,
+                | (Suspended, Active)
+                | (Suspended, Deactivated)
 
-            (Deactivated, Active) => true,
-            (Deactivated, Deleted) => true,
-
-            _ => false,
-        }
+                | (Deactivated, Active)
+                | (Deactivated, Deleted)
+        )
     }
 
     pub fn transition_to(
@@ -62,7 +62,8 @@ mod tests {
 
     #[test]
     fn registered_can_transition_to_active() {
-        let status = UserStatus::Registered;
+        let code_validation = CodeValidation::generate();
+        let status = UserStatus::Registered { code_validation };
         let next = status.transition_to(UserStatus::Active);
 
         assert_eq!(next.unwrap(), UserStatus::Active);
@@ -97,7 +98,8 @@ mod tests {
 
     #[test]
     fn cannot_transition_from_registered_to_suspended() {
-        let status = UserStatus::Registered;
+        let code_validation = CodeValidation::generate();
+        let status = UserStatus::Registered { code_validation };
 
         let result = status.transition_to(UserStatus::Suspended);
 
@@ -106,8 +108,9 @@ mod tests {
 
     #[test]
     fn only_active_user_can_authenticate() {
+        let code_validation = CodeValidation::generate();
         assert!(UserStatus::Active.can_authenticate());
-        assert!(!UserStatus::Registered.can_authenticate());
+        assert!(!UserStatus::Registered{ code_validation }.can_authenticate());
         assert!(!UserStatus::Suspended.can_authenticate());
         assert!(!UserStatus::Deactivated.can_authenticate());
         assert!(!UserStatus::Deleted.can_authenticate());
