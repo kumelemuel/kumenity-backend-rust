@@ -5,7 +5,7 @@ use argon2::{
 
 use rand::rngs::OsRng;
 
-use crate::application::ports::outbound::password_hasher_port::PasswordHasherPort;
+use crate::application::ports::outbound::password_hasher::PasswordHasherPort;
 use crate::domain::value_objects::HashedPassword;
 
 pub struct Argon2PasswordHasher {

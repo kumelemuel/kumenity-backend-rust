@@ -1,80 +1,80 @@
-use crate::application::dto::input::register_user_dto::RegisterUserDto;
-use crate::application::dto::output::registered_user_dto::RegisteredUserDto;
+use crate::application::commands::register_account::RegisterAccount;
+use crate::application::results::account_registered::AccountRegistered;
 use crate::application::errors::application_error::ApplicationError;
 use crate::application::policies::password_policy::PasswordPolicy;
-use crate::application::ports::inbound::register_user_port::RegisterUserPort;
-use crate::application::ports::outbound::password_hasher_port::PasswordHasherPort;
-use crate::application::ports::outbound::user_repository_port::UserRepositoryPort;
-use crate::domain::aggregates::User;
-use crate::domain::value_objects::{Email, UserId, Username};
+use crate::application::ports::inbound::account_registration::AccountRegistrationPort;
+use crate::application::ports::outbound::password_hasher::PasswordHasherPort;
+use crate::application::ports::outbound::account_repository::AccountRepositoryPort;
+use crate::domain::aggregates::Account;
+use crate::domain::value_objects::{Email, AccountId, Username};
 use shared::application::common_application_error::CommonApplicationError;
 use std::sync::Arc;
 
-pub struct RegisterUser {
-    user_repository: Arc<dyn UserRepositoryPort>,
+pub struct RegisterAccountUseCase {
+    account_repository: Arc<dyn AccountRepositoryPort>,
     password_hasher: Arc<dyn PasswordHasherPort>,
 }
 
-impl RegisterUser {
+impl RegisterAccountUseCase {
     pub fn new(
-        user_repository: Arc<dyn UserRepositoryPort>,
+        account_repository: Arc<dyn AccountRepositoryPort>,
         password_hasher: Arc<dyn PasswordHasherPort>,
     ) -> Self {
         Self {
-            user_repository,
+            account_repository,
             password_hasher,
         }
     }
 }
 
-impl RegisterUserPort for RegisterUser {
-    fn execute(&self, input: RegisterUserDto) -> Result<RegisteredUserDto, ApplicationError> {
-        let existing_email = self.user_repository.find_by_email(input.email.as_str());
+impl AccountRegistrationPort for RegisterAccountUseCase {
+    fn execute(&self, cmd: RegisterAccount) -> Result<AccountRegistered, ApplicationError> {
+        let existing_email = self.account_repository.find_by_email(cmd.email.as_str());
         if existing_email.is_some() {
             return Err(ApplicationError::EmailAlreadyExists);
         }
 
         let existing_username = self
-            .user_repository
-            .find_by_username(input.username.as_str());
+            .account_repository
+            .find_by_username(cmd.username.as_str());
         if existing_username.is_some() {
             return Err(ApplicationError::UsernameAlreadyExists);
         }
 
-        PasswordPolicy::validate(&input.password)?;
+        PasswordPolicy::validate(&cmd.password)?;
 
-        let user_id = UserId::generate();
+        let account_id = AccountId::generate();
         let username =
-            Username::new(input.username).map_err(|_| ApplicationError::InvalidUsername)?;
-        let email = Email::new(input.email).map_err(|_| ApplicationError::InvalidEmail)?;
-        let hashed_password = self.password_hasher.hash(&input.password);
+            Username::new(cmd.username).map_err(|_| ApplicationError::InvalidUsername)?;
+        let email = Email::new(cmd.email).map_err(|_| ApplicationError::InvalidEmail)?;
+        let hashed_password = self.password_hasher.hash(&cmd.password);
 
-        let user = User::register(user_id, username, email, hashed_password);
+        let account = Account::register(account_id, username, email, hashed_password);
 
-        dbg!(&user);
+        dbg!(&account);
 
-        self.user_repository
-            .save(&user)
+        self.account_repository
+            .save(&account)
             .map_err(|_| CommonApplicationError::Infrastructure)?;
 
-        Ok(RegisteredUserDto {
-            id: user.id().as_uuid().to_string(),
-            username: user.username().as_str().to_owned(),
-            email: user.email().as_str().to_owned(),
+        Ok(AccountRegistered {
+            id: account.id().as_uuid().to_string(),
+            username: account.username().as_str().to_owned(),
+            email: account.email().as_str().to_owned(),
         })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::application::dto::input::register_user_dto::RegisterUserDto;
+    use crate::application::commands::register_account::RegisterAccount;
     use crate::application::errors::application_error::ApplicationError;
-    use crate::application::ports::inbound::register_user_port::RegisterUserPort;
-    use crate::application::ports::outbound::password_hasher_port::PasswordHasherPort;
-    use crate::application::ports::outbound::user_repository_port::UserRepositoryPort;
-    use crate::application::use_cases::register_user::RegisterUser;
-    use crate::domain::aggregates::User;
-    use crate::domain::value_objects::{Email, HashedPassword, UserId, Username};
+    use crate::application::ports::inbound::account_registration::AccountRegistrationPort;
+    use crate::application::ports::outbound::password_hasher::PasswordHasherPort;
+    use crate::application::ports::outbound::account_repository::AccountRepositoryPort;
+    use crate::application::use_cases::register_account::RegisterAccountUseCase;
+    use crate::domain::aggregates::Account;
+    use crate::domain::value_objects::{Email, HashedPassword, AccountId, Username};
     use shared::application::common_application_error::CommonApplicationError;
     use std::sync::Arc;
 
@@ -90,13 +90,13 @@ mod tests {
         }
     }
 
-    struct FakeUserRepository {
+    struct FakeAccountRepository {
         should_fail: bool,
         existing_username: Option<String>,
         existing_email: Option<String>,
     }
 
-    impl FakeUserRepository {
+    impl FakeAccountRepository {
         fn success() -> Self {
             Self {
                 should_fail: false,
@@ -130,22 +130,22 @@ mod tests {
         }
     }
 
-    impl UserRepositoryPort for FakeUserRepository {
-        fn find_by_username(&self, username: &str) -> Option<User> {
+    impl AccountRepositoryPort for FakeAccountRepository {
+        fn find_by_username(&self, username: &str) -> Option<Account> {
             self.existing_username
                 .as_ref()
                 .filter(|u| u.as_str() == username)
-                .map(|_| dummy_user())
+                .map(|_| dummy_account())
         }
 
-        fn find_by_email(&self, email: &str) -> Option<User> {
+        fn find_by_email(&self, email: &str) -> Option<Account> {
             self.existing_email
                 .as_ref()
                 .filter(|e| e.as_str() == email)
-                .map(|_| dummy_user())
+                .map(|_| dummy_account())
         }
 
-        fn save(&self, _user: &User) -> Result<(), String> {
+        fn save(&self, _user: &Account) -> Result<(), String> {
             if self.should_fail {
                 Err("Unexpected error".to_string())
             } else {
@@ -154,17 +154,17 @@ mod tests {
         }
     }
 
-    fn dummy_user() -> User {
-        User::register(
-            UserId::generate(),
+    fn dummy_account() -> Account {
+        Account::register(
+            AccountId::generate(),
             Username::new("dummy".to_string()).unwrap(),
             Email::new("dummy@example.com").unwrap(),
             HashedPassword::dummy(),
         )
     }
 
-    fn valid_input() -> RegisterUserDto {
-        RegisterUserDto {
+    fn valid_input() -> RegisterAccount {
+        RegisterAccount {
             username: "john_doe".to_string(),
             email: "john@example.com".to_string(),
             password: "password123456789".to_string(),
@@ -172,11 +172,11 @@ mod tests {
     }
 
     #[test]
-    fn registers_user_successfully() {
-        let repo = Arc::new(FakeUserRepository::success());
+    fn register_account_successfully() {
+        let repo = Arc::new(FakeAccountRepository::success());
         let hasher = Arc::new(FakePasswordHasher);
 
-        let use_case = RegisterUser::new(repo, hasher);
+        let use_case = RegisterAccountUseCase::new(repo, hasher);
 
         let result = use_case.execute(valid_input());
 
@@ -185,12 +185,12 @@ mod tests {
 
     #[test]
     fn fails_when_username_is_invalid() {
-        let repo = Arc::new(FakeUserRepository::success());
+        let repo = Arc::new(FakeAccountRepository::success());
         let hasher = Arc::new(FakePasswordHasher);
 
-        let use_case = RegisterUser::new(repo, hasher);
+        let use_case = RegisterAccountUseCase::new(repo, hasher);
 
-        let input = RegisterUserDto {
+        let input = RegisterAccount {
             username: "".to_string(),
             email: "john@example.com".to_string(),
             password: "password123456789".to_string(),
@@ -203,12 +203,12 @@ mod tests {
 
     #[test]
     fn fails_when_email_is_invalid() {
-        let repo = Arc::new(FakeUserRepository::success());
+        let repo = Arc::new(FakeAccountRepository::success());
         let hasher = Arc::new(FakePasswordHasher);
 
-        let use_case = RegisterUser::new(repo, hasher);
+        let use_case = RegisterAccountUseCase::new(repo, hasher);
 
-        let input = RegisterUserDto {
+        let input = RegisterAccount {
             username: "john_doe".to_string(),
             email: "invalid-email".to_string(),
             password: "password123456789".to_string(),
@@ -221,10 +221,10 @@ mod tests {
 
     #[test]
     fn fails_when_repository_fails() {
-        let repo = Arc::new(FakeUserRepository::fail());
+        let repo = Arc::new(FakeAccountRepository::fail());
         let hasher = Arc::new(FakePasswordHasher);
 
-        let use_case = RegisterUser::new(repo, hasher);
+        let use_case = RegisterAccountUseCase::new(repo, hasher);
 
         let result = use_case.execute(valid_input());
 
@@ -238,10 +238,10 @@ mod tests {
 
     #[test]
     fn fails_when_username_already_exists() {
-        let repo = Arc::new(FakeUserRepository::with_existing_username("john_doe"));
+        let repo = Arc::new(FakeAccountRepository::with_existing_username("john_doe"));
         let hasher = Arc::new(FakePasswordHasher);
 
-        let use_case = RegisterUser::new(repo, hasher);
+        let use_case = RegisterAccountUseCase::new(repo, hasher);
 
         let result = use_case.execute(valid_input());
 
@@ -253,10 +253,10 @@ mod tests {
 
     #[test]
     fn fails_when_email_already_exists() {
-        let repo = Arc::new(FakeUserRepository::with_existing_email("john@example.com"));
+        let repo = Arc::new(FakeAccountRepository::with_existing_email("john@example.com"));
         let hasher = Arc::new(FakePasswordHasher);
 
-        let use_case = RegisterUser::new(repo, hasher);
+        let use_case = RegisterAccountUseCase::new(repo, hasher);
 
         let result = use_case.execute(valid_input());
 

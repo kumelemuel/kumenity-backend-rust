@@ -1,4 +1,4 @@
-use iam::application::dto::output::registered_user_dto::RegisteredUserDto;
+use iam::application::results::account_registered::AccountRegistered;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -8,8 +8,8 @@ pub struct RegisterUserResponse {
     pub email: String,
 }
 
-impl From<RegisteredUserDto> for RegisterUserResponse {
-    fn from(dto: RegisteredUserDto) -> Self {
+impl From<AccountRegistered> for RegisterUserResponse {
+    fn from(dto: AccountRegistered) -> Self {
         Self {
             uuid: dto.id,
             username: dto.username,

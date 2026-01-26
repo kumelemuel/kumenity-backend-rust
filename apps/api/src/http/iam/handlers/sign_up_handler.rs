@@ -7,14 +7,14 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use iam::application::dto::input::register_user_dto::RegisterUserDto;
+use iam::application::commands::register_account::RegisterAccount;
 use crate::http::iam::errors::error_mapper::map_application_error;
 
 pub async fn sign_up_handler(
     State(state): State<AppState>,
     Json(request): Json<RegisterUserRequest>,
 ) -> Response {
-    match state.register_user.execute(RegisterUserDto::from(request)) {
+    match state.register_user.execute(RegisterAccount::from(request)) {
         Ok(user) => (StatusCode::CREATED, Json(RegisterUserResponse::from(user))).into_response(),
         Err(err) => map_application_error(err),
     }

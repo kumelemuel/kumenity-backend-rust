@@ -1,19 +1,19 @@
-use crate::domain::errors::InvalidUserStatusTransition;
-use crate::domain::value_objects::user_id::UserId;
-use crate::domain::value_objects::{CodeValidation, Email, HashedPassword, UserStatus, Username};
+use crate::domain::errors::InvalidAccountStatusTransition;
+use crate::domain::value_objects::account_id::AccountId;
+use crate::domain::value_objects::{CodeValidation, Email, HashedPassword, AccountStatus, Username};
 
 #[derive(Debug, Clone)]
-pub struct User {
-    id: UserId,
+pub struct Account {
+    id: AccountId,
     username: Username,
     email: Email,
     password: HashedPassword,
-    status: UserStatus,
+    status: AccountStatus,
 }
 
-impl User {
+impl Account {
     pub fn register(
-        id: UserId,
+        id: AccountId,
         username: Username,
         email: Email,
         password: HashedPassword,
@@ -23,16 +23,16 @@ impl User {
             username,
             email,
             password,
-            status: UserStatus::Registered{ code_validation: CodeValidation::generate() },
+            status: AccountStatus::Registered{ code_validation: CodeValidation::generate() },
         }
     }
 
     pub fn reconstitute(
-        id: UserId,
+        id: AccountId,
         username: Username,
         email: Email,
         password: HashedPassword,
-        status: UserStatus,
+        status: AccountStatus,
     ) -> Self {
         Self {
             id,
@@ -43,7 +43,7 @@ impl User {
         }
     }
 
-    pub fn id(&self) -> &UserId {
+    pub fn id(&self) -> &AccountId {
         &self.id
     }
 
@@ -59,7 +59,7 @@ impl User {
         &self.password
     }
 
-    pub fn status(&self) -> &UserStatus {
+    pub fn status(&self) -> &AccountStatus {
         &self.status
     }
 
@@ -79,21 +79,21 @@ impl User {
         self.username = new_username;
     }
 
-    fn transition_status(&mut self, next: UserStatus) -> Result<(), InvalidUserStatusTransition> {
+    fn transition_status(&mut self, next: AccountStatus) -> Result<(), InvalidAccountStatusTransition> {
         self.status = self.status.transition_to(next)?;
         Ok(())
     }
 
-    pub fn deactivate(&mut self) -> Result<(), InvalidUserStatusTransition> {
-        self.transition_status(UserStatus::Deactivated)
+    pub fn deactivate(&mut self) -> Result<(), InvalidAccountStatusTransition> {
+        self.transition_status(AccountStatus::Deactivated)
     }
 
-    pub fn activate(&mut self) -> Result<(), InvalidUserStatusTransition> {
-        self.transition_status(UserStatus::Active)
+    pub fn activate(&mut self) -> Result<(), InvalidAccountStatusTransition> {
+        self.transition_status(AccountStatus::Active)
     }
 
-    pub fn suspend(&mut self) -> Result<(), InvalidUserStatusTransition> {
-        self.transition_status(UserStatus::Suspended)
+    pub fn suspend(&mut self) -> Result<(), InvalidAccountStatusTransition> {
+        self.transition_status(AccountStatus::Suspended)
     }
 }
 
@@ -101,12 +101,12 @@ impl User {
 mod tests {
     use super::*;
     use crate::domain::value_objects::{
-        email::Email, hashed_password::HashedPassword, user_id::UserId, username::Username,
+        email::Email, hashed_password::HashedPassword, account_id::AccountId, username::Username,
     };
 
-    fn registered_user() -> User {
-        User::register(
-            UserId::generate(),
+    fn registered_user() -> Account {
+        Account::register(
+            AccountId::generate(),
             Username::new("john_doe".to_string()).unwrap(),
             Email::new("john@example.com").unwrap(),
             HashedPassword::dummy(),
@@ -119,7 +119,7 @@ mod tests {
 
         assert!(matches!(
             user.status(),
-            UserStatus::Registered { .. }
+            AccountStatus::Registered { .. }
         ));
     }
 
@@ -144,12 +144,12 @@ mod tests {
 
     #[test]
     fn deleted_user_cannot_be_deactivated() {
-        let mut user = User::reconstitute(
-            UserId::generate(),
+        let mut user = Account::reconstitute(
+            AccountId::generate(),
             Username::new("john".into()).unwrap(),
             Email::new("john@example.com").unwrap(),
             HashedPassword::dummy(),
-            UserStatus::Deleted,
+            AccountStatus::Deleted,
         );
 
         assert!(user.deactivate().is_err());
@@ -160,7 +160,7 @@ mod tests {
         let mut user = registered_user();
 
         assert!(user.activate().is_ok());
-        assert_eq!(user.status(), &UserStatus::Active);
+        assert_eq!(user.status(), &AccountStatus::Active);
     }
 
     #[test]
@@ -172,14 +172,14 @@ mod tests {
 
     #[test]
     fn reconstituted_user_preserves_status() {
-        let user = User::reconstitute(
-            UserId::generate(),
+        let user = Account::reconstitute(
+            AccountId::generate(),
             Username::new("john".into()).unwrap(),
             Email::new("john@example.com").unwrap(),
             HashedPassword::dummy(),
-            UserStatus::Suspended,
+            AccountStatus::Suspended,
         );
 
-        assert_eq!(user.status(), &UserStatus::Suspended);
+        assert_eq!(user.status(), &AccountStatus::Suspended);
     }
 }

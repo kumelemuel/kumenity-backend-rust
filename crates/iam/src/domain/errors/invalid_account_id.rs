@@ -2,16 +2,16 @@ use shared::domain::DomainError;
 use std::fmt;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct InvalidUserId;
+pub struct InvalidAccountId;
 
-impl fmt::Display for InvalidUserId {
+impl fmt::Display for InvalidAccountId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "invalid user id")
+        write!(f, "invalid account id")
     }
 }
 
-impl DomainError for InvalidUserId {
+impl DomainError for InvalidAccountId {
     fn code(&self) -> &'static str {
-        "IAM_INVALID_USER_ID"
+        "IAM_INVALID_ACCOUNT_ID"
     }
 }

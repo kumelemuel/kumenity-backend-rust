@@ -1,6 +1,6 @@
 
 use serde::Deserialize;
-use iam::application::dto::input::validate_user_dto::ValidateUserDto;
+use iam::application::commands::verify_account::VerifyAccount;
 
 #[derive(Debug, Deserialize)]
 pub struct ValidateUserRequest {
@@ -8,9 +8,9 @@ pub struct ValidateUserRequest {
     pub validation_code: u32,
 }
 
-impl From<ValidateUserRequest> for ValidateUserDto {
+impl From<ValidateUserRequest> for VerifyAccount {
     fn from(req: ValidateUserRequest) -> Self {
-        ValidateUserDto {
+        VerifyAccount {
             email: req.email,
             code: req.validation_code,
         }
