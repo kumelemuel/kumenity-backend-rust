@@ -1,6 +1,6 @@
 
 use serde::Deserialize;
-use iam::application::dto::input::login_dto::LoginDto;
+use iam::application::commands::authenticate_account::AuthenticateAccount;
 
 #[derive(Debug, Deserialize)]
 pub struct LoginRequest {
@@ -8,9 +8,9 @@ pub struct LoginRequest {
     pub password: String,
 }
 
-impl From<LoginRequest> for LoginDto {
+impl From<LoginRequest> for AuthenticateAccount {
     fn from(req: LoginRequest) -> Self {
-        LoginDto {
+        AuthenticateAccount {
             identify: req.identify,
             password: req.password,
         }

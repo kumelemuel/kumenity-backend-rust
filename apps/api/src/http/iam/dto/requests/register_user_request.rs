@@ -1,4 +1,4 @@
-use iam::application::dto::input::register_user_dto::RegisterUserDto;
+use iam::application::commands::register_account::RegisterAccount;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -8,9 +8,9 @@ pub struct RegisterUserRequest {
     pub password: String,
 }
 
-impl From<RegisterUserRequest> for RegisterUserDto {
+impl From<RegisterUserRequest> for RegisterAccount {
     fn from(req: RegisterUserRequest) -> Self {
-        RegisterUserDto {
+        RegisterAccount {
             username: req.username,
             email: req.email,
             password: req.password,

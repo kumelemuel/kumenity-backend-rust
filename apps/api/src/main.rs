@@ -7,9 +7,9 @@ use axum::Router;
 use std::sync::Arc;
 use crate::state::AppState;
 use crate::routes::auth;
-use iam::application::use_cases::register_user::RegisterUser;
-use iam::application::use_cases::login::Login;
-use iam::application::use_cases::validate_user::ValidateUser;
+use iam::application::use_cases::register_account::RegisterAccountUseCase;
+use iam::application::use_cases::authenticate_account::AuthenticateAccountUseCase;
+use iam::application::use_cases::verify_account::VerifyAccountUseCase;
 use iam::infrastructure::persistence::in_memory::user_repository::InMemoryUserRepository;
 use iam::infrastructure::security::password_hasher::argon2_password_hasher::Argon2PasswordHasher;
 use iam::infrastructure::security::token_generator::jwt_token_generator::JwtTokenGenerator;
@@ -29,9 +29,9 @@ async fn main() {
         jwt_config.secret, 3600,
     ));
 
-    let register_user = RegisterUser::new(user_repository.clone(), password_hasher.clone());
-    let login = Login::new(user_repository.clone(), password_hasher.clone(), token_generator.clone());
-    let validate_user = ValidateUser::new(user_repository.clone());
+    let register_user = RegisterAccountUseCase::new(user_repository.clone(), password_hasher.clone());
+    let login = AuthenticateAccountUseCase::new(user_repository.clone(), password_hasher.clone(), token_generator.clone());
+    let validate_user = VerifyAccountUseCase::new(user_repository.clone());
 
     let state = AppState {
         register_user: Arc::new(register_user),

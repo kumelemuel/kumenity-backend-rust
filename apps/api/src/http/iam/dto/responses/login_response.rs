@@ -1,13 +1,13 @@
 use serde::Serialize;
-use iam::application::dto::output::logged_dto::LoggedDto;
+use iam::application::results::account_authenticated::AccountAuthenticated;
 
 #[derive(Serialize)]
 pub struct LoginResponse {
     pub token: String,
 }
 
-impl From<LoggedDto> for LoginResponse {
-    fn from(dto: LoggedDto) -> Self {
+impl From<AccountAuthenticated> for LoginResponse {
+    fn from(dto: AccountAuthenticated) -> Self {
         Self {
             token: dto.token,
         }

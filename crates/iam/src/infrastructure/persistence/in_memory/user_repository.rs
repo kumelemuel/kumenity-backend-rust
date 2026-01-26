@@ -1,11 +1,11 @@
-use crate::application::ports::outbound::user_repository_port::UserRepositoryPort;
-use crate::domain::aggregates::User;
-use crate::domain::value_objects::UserId;
+use crate::application::ports::outbound::account_repository::AccountRepositoryPort;
+use crate::domain::aggregates::Account;
+use crate::domain::value_objects::AccountId;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 pub struct InMemoryUserRepository {
-    users: Arc<Mutex<HashMap<UserId, User>>>,
+    users: Arc<Mutex<HashMap<AccountId, Account>>>,
 }
 
 impl InMemoryUserRepository {
@@ -16,8 +16,8 @@ impl InMemoryUserRepository {
     }
 }
 
-impl UserRepositoryPort for InMemoryUserRepository {
-    fn find_by_username(&self, username: &str) -> Option<User> {
+impl AccountRepositoryPort for InMemoryUserRepository {
+    fn find_by_username(&self, username: &str) -> Option<Account> {
         let users = self.users.lock().expect("mutex poisoned");
         users
             .values()
@@ -25,7 +25,7 @@ impl UserRepositoryPort for InMemoryUserRepository {
             .cloned()
     }
 
-    fn find_by_email(&self, email: &str) -> Option<User> {
+    fn find_by_email(&self, email: &str) -> Option<Account> {
         let users = self.users.lock().expect("mutex poisoned");
         users
             .values()
@@ -33,7 +33,7 @@ impl UserRepositoryPort for InMemoryUserRepository {
             .cloned()
     }
 
-    fn save(&self, user: &User) -> Result<(), String> {
+    fn save(&self, user: &Account) -> Result<(), String> {
         let mut users = self.users.lock().expect("mutex poisoned");
 
         users.insert(user.id().clone(), user.clone());

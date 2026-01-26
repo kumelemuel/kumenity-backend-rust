@@ -1,7 +1,7 @@
 use jsonwebtoken::{encode, EncodingKey, Header};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::application::ports::outbound::token_generator_port::{
+use crate::application::ports::outbound::token_generator::{
     TokenGeneratorPort,
 };
 use crate::infrastructure::security::token_generator::claims::Claims;

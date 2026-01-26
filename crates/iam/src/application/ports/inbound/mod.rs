@@ -1,3 +1,3 @@
-pub mod register_user_port;
-pub mod login_port;
-pub mod validate_user_port;
+pub mod account_registration;
+pub mod account_authentication;
+pub mod account_verification;
