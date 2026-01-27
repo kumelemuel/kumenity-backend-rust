@@ -1,4 +1,4 @@
 #[derive(Debug)]
-pub struct LoggedDto {
+pub struct AccountAuthenticated {
     pub token: String,
 }

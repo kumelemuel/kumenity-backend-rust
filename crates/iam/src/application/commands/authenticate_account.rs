@@ -1,5 +1,4 @@
-pub struct RegisterUserDto {
+pub struct AuthenticateAccount {
     pub username: String,
-    pub email: String,
     pub password: String,
 }

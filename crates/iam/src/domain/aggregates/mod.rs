@@ -1,3 +1,3 @@
-pub mod user;
+pub mod account;
 
-pub use user::User;
+pub use account::Account;

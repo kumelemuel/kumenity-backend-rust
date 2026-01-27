@@ -1,25 +1,25 @@
 use uuid::Uuid;
 
-use crate::domain::errors::invalid_user_id::InvalidUserId;
+use crate::domain::errors::invalid_account_id::InvalidAccountId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct UserId(Uuid);
+pub struct AccountId(Uuid);
 
-impl UserId {
+impl AccountId {
     pub fn generate() -> Self {
         Self(Uuid::new_v4())
     }
 
-    pub fn from_uuid(uuid: Uuid) -> Result<Self, InvalidUserId> {
+    pub fn from_uuid(uuid: Uuid) -> Result<Self, InvalidAccountId> {
         if uuid.is_nil() {
-            return Err(InvalidUserId);
+            return Err(InvalidAccountId);
         }
 
         Ok(Self(uuid))
     }
 
-    pub fn from_str(value: &str) -> Result<Self, InvalidUserId> {
-        let uuid = Uuid::parse_str(value).map_err(|_| InvalidUserId)?;
+    pub fn from_str(value: &str) -> Result<Self, InvalidAccountId> {
+        let uuid = Uuid::parse_str(value).map_err(|_| InvalidAccountId)?;
         Self::from_uuid(uuid)
     }
 
@@ -35,8 +35,8 @@ mod tests {
 
     #[test]
     fn generates_unique_ids() {
-        let id1 = UserId::generate();
-        let id2 = UserId::generate();
+        let id1 = AccountId::generate();
+        let id2 = AccountId::generate();
 
         assert_ne!(id1, id2);
     }
@@ -44,36 +44,36 @@ mod tests {
     #[test]
     fn creates_from_valid_uuid() {
         let uuid = Uuid::new_v4();
-        let user_id = UserId::from_uuid(uuid).unwrap();
+        let user_id = AccountId::from_uuid(uuid).unwrap();
 
         assert_eq!(user_id.as_uuid(), &uuid);
     }
 
     #[test]
     fn rejects_nil_uuid() {
-        let result = UserId::from_uuid(Uuid::nil());
+        let result = AccountId::from_uuid(Uuid::nil());
 
         assert_eq!(
             result,
-            Err(crate::domain::errors::invalid_user_id::InvalidUserId)
+            Err(InvalidAccountId)
         );
     }
 
     #[test]
     fn creates_from_valid_string() {
         let uuid = Uuid::new_v4();
-        let user_id = UserId::from_str(&uuid.to_string()).unwrap();
+        let user_id = AccountId::from_str(&uuid.to_string()).unwrap();
 
         assert_eq!(user_id.as_uuid(), &uuid);
     }
 
     #[test]
     fn rejects_invalid_string() {
-        let result = UserId::from_str("not-a-uuid");
+        let result = AccountId::from_str("not-a-uuid");
 
         assert_eq!(
             result,
-            Err(crate::domain::errors::invalid_user_id::InvalidUserId)
+            Err(InvalidAccountId)
         );
     }
 }
