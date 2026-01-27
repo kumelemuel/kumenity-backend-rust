@@ -9,8 +9,9 @@ use crate::state::AppState;
 use crate::routes::auth;
 use iam::application::use_cases::register_account::RegisterAccountUseCase;
 use iam::application::use_cases::authenticate_account::AuthenticateAccountUseCase;
+use iam::application::use_cases::identify_account::IdentifyAccountUseCase;
 use iam::application::use_cases::verify_account::VerifyAccountUseCase;
-use iam::infrastructure::persistence::in_memory::user_repository::InMemoryUserRepository;
+use iam::infrastructure::persistence::in_memory::account_repository::InMemoryAccountRepository;
 use iam::infrastructure::security::password_hasher::argon2_password_hasher::Argon2PasswordHasher;
 use iam::infrastructure::security::token_generator::jwt_token_generator::JwtTokenGenerator;
 use crate::config::jwt::JwtConfig;
@@ -23,20 +24,22 @@ async fn main() {
         std::process::exit(1);
     });
 
-    let user_repository = Arc::new(InMemoryUserRepository::new());
+    let account_repository = Arc::new(InMemoryAccountRepository::new());
     let password_hasher = Arc::new(Argon2PasswordHasher::new());
     let token_generator = Arc::new(JwtTokenGenerator::new(
         jwt_config.secret, 3600,
     ));
 
-    let register_user = RegisterAccountUseCase::new(user_repository.clone(), password_hasher.clone());
-    let login = AuthenticateAccountUseCase::new(user_repository.clone(), password_hasher.clone(), token_generator.clone());
-    let validate_user = VerifyAccountUseCase::new(user_repository.clone());
+    let register_account = RegisterAccountUseCase::new(account_repository.clone(), password_hasher.clone());
+    let authenticate_account = AuthenticateAccountUseCase::new(account_repository.clone(), password_hasher.clone(), token_generator.clone());
+    let verify_account = VerifyAccountUseCase::new(account_repository.clone());
+    let identify_account = IdentifyAccountUseCase::new(account_repository.clone());
 
     let state = AppState {
-        register_user: Arc::new(register_user),
-        login: Arc::new(login),
-        validate_user: Arc::new(validate_user),
+        register_account: Arc::new(register_account),
+        authenticate_account: Arc::new(authenticate_account),
+        verify_account: Arc::new(verify_account),
+        identify_account: Arc::new(identify_account),
     };
 
     let app = Router::new()
