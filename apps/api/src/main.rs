@@ -10,7 +10,7 @@ use crate::routes::auth;
 use iam::application::use_cases::register_account::RegisterAccountUseCase;
 use iam::application::use_cases::authenticate_account::AuthenticateAccountUseCase;
 use iam::application::use_cases::verify_account::VerifyAccountUseCase;
-use iam::infrastructure::persistence::in_memory::user_repository::InMemoryUserRepository;
+use iam::infrastructure::persistence::in_memory::account_repository::InMemoryAccountRepository;
 use iam::infrastructure::security::password_hasher::argon2_password_hasher::Argon2PasswordHasher;
 use iam::infrastructure::security::token_generator::jwt_token_generator::JwtTokenGenerator;
 use crate::config::jwt::JwtConfig;
@@ -23,7 +23,7 @@ async fn main() {
         std::process::exit(1);
     });
 
-    let user_repository = Arc::new(InMemoryUserRepository::new());
+    let user_repository = Arc::new(InMemoryAccountRepository::new());
     let password_hasher = Arc::new(Argon2PasswordHasher::new());
     let token_generator = Arc::new(JwtTokenGenerator::new(
         jwt_config.secret, 3600,
