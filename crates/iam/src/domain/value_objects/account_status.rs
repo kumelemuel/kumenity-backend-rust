@@ -53,6 +53,16 @@ impl AccountStatus {
             Err(InvalidAccountStatusTransition)
         }
     }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AccountStatus::Registered { .. } => "registered",
+            AccountStatus::Active => "active",
+            AccountStatus::Suspended => "suspended",
+            AccountStatus::Deactivated => "deactivated",
+            AccountStatus::Deleted => "deleted",
+        }
+    }
 }
 
 #[cfg(test)]

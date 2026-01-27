@@ -42,6 +42,7 @@ impl AccountIdentificationPort for IdentifyAccountUseCase {
 
         Ok(AccountIdentified {
             username: account.username().as_str().to_owned(),
+            status: account.status().as_str().to_owned(),
         })
     }
 }
