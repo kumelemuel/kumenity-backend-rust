@@ -44,7 +44,7 @@ mod tests {
     use crate::application::errors::application_error::ApplicationError;
     use crate::application::ports::inbound::account_verification::AccountVerificationPort;
     use crate::application::use_cases::verify_account::VerifyAccountUseCase;
-    use crate::application::ports::outbound::account_repository::tests::FakeAccountRepository;
+    use crate::application::ports::outbound::account_repository::test_utils::FakeAccountRepository;
 
     #[test]
     fn verify_account_successfully() {

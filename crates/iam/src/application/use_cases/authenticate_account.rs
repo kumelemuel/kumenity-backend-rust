@@ -63,86 +63,16 @@ impl AccountAuthenticationPort for AuthenticateAccountUseCase {
 #[cfg(test)]
 mod tests {
     use crate::application::errors::application_error::ApplicationError;
-    use crate::application::ports::outbound::password_hasher::PasswordHasherPort;
     use crate::domain::value_objects::{HashedPassword};
     use std::sync::Arc;
     use crate::application::commands::authenticate_account::AuthenticateAccount;
     use crate::application::ports::inbound::account_authentication::AccountAuthenticationPort;
-    use crate::application::ports::outbound::account_repository::tests::FakeAccountRepository;
-    use crate::application::ports::outbound::token_generator::TokenGeneratorPort;
+    use crate::application::ports::outbound::account_repository::test_utils::FakeAccountRepository;
+    use crate::application::ports::outbound::password_hasher::test_utils::FakePasswordHasher;
+    use crate::application::ports::outbound::token_generator::test_utils::FakeTokenGenerator;
     use crate::application::use_cases::authenticate_account::AuthenticateAccountUseCase;
 
-    struct FakePasswordHasher;
-    struct FakeTokenGenerator;
-
-    impl PasswordHasherPort for FakePasswordHasher {
-        fn hash(&self, _raw: &str) -> HashedPassword {
-            HashedPassword::dummy()
-        }
-
-        fn verify(&self, password: &str, hashed_password: &HashedPassword) -> bool {
-            password == hashed_password.as_str()
-        }
-    }
-
-    impl TokenGeneratorPort for FakeTokenGenerator {
-        fn generate(&self, _user_id: &str) -> Result<String, String> {
-            Ok(String::from("valid_token"))
-        }
-    }
-
-    // struct FakeAccountRepository {
-    //     account: Option<Account>
-    // }
-    //
-    // impl FakeAccountRepository {
-    //     fn empty() -> Self {
-    //         Self {
-    //             account: None
-    //         }
-    //     }
-    //
-    //     fn with_user(account: Account) -> Self {
-    //         Self {
-    //             account: Some(account)
-    //         }
-    //     }
-    // }
-    //
-    // impl AccountRepositoryPort for FakeAccountRepository {
-    //     fn find_by_username(&self, _username: &str) -> Option<Account> {
-    //         self.account.clone()
-    //     }
-    //
-    //     fn find_by_email(&self, _email: &str) -> Option<Account> {
-    //         self.account.clone()
-    //     }
-    //
-    //     fn save(&self, _user: &Account) -> Result<(), String> {
-    //         Ok(())
-    //     }
-    // }
-    //
-    // fn dummy_account() -> Account {
-    //     Account::reconstitute(
-    //         AccountId::generate(),
-    //         Username::new("dummy".to_string()).unwrap(),
-    //         Email::new("dummy@example.com").unwrap(),
-    //         HashedPassword::dummy(),
-    //         AccountStatus::Active,
-    //     )
-    // }
-    //
-    // fn dummy_deactivated_account() -> Account {
-    //     Account::reconstitute(
-    //         AccountId::generate(),
-    //         Username::new("dummy".to_string()).unwrap(),
-    //         Email::new("dummy@example.com").unwrap(),
-    //         HashedPassword::dummy(),
-    //         AccountStatus::Deactivated,
-    //     )
-    // }
-
+    
     #[test]
     fn fails_when_account_not_found() {
         let repo = Arc::new(FakeAccountRepository::success());
