@@ -43,77 +43,17 @@ mod tests {
     use crate::application::commands::verify_account::VerifyAccount;
     use crate::application::errors::application_error::ApplicationError;
     use crate::application::ports::inbound::account_verification::AccountVerificationPort;
-    use crate::application::ports::outbound::account_repository::AccountRepositoryPort;
     use crate::application::use_cases::verify_account::VerifyAccountUseCase;
-    use crate::domain::aggregates::Account;
-    use crate::domain::value_objects::{CodeValidation, Email, HashedPassword, AccountId, AccountStatus, Username};
-
-    struct FakeAccountRepository {
-        should_fail: bool,
-        existing_username: Option<String>,
-        existing_email: Option<String>,
-    }
-
-    impl FakeAccountRepository {
-        fn success() -> Self {
-            Self {
-                should_fail: false,
-                existing_username: None,
-                existing_email: None,
-            }
-        }
-
-        fn with_existing_email(email: &str) -> Self {
-            Self {
-                should_fail: false,
-                existing_username: None,
-                existing_email: Some(email.to_string()),
-            }
-        }
-    }
-
-    impl AccountRepositoryPort for FakeAccountRepository {
-        fn find_by_username(&self, username: &str) -> Option<Account> {
-            self.existing_username
-                .as_ref()
-                .filter(|u| u.as_str() == username)
-                .map(|_| dummy_account())
-        }
-
-        fn find_by_email(&self, email: &str) -> Option<Account> {
-            self.existing_email
-                .as_ref()
-                .filter(|e| e.as_str() == email)
-                .map(|_| dummy_account())
-        }
-
-        fn save(&self, _user: &Account) -> Result<(), String> {
-            if self.should_fail {
-                Err("Unexpected error".to_string())
-            } else {
-                Ok(())
-            }
-        }
-    }
-
-    fn dummy_account() -> Account {
-        Account::reconstitute(
-            AccountId::generate(),
-            Username::new("dummy".to_string()).unwrap(),
-            Email::new("dummy@example.com").unwrap(),
-            HashedPassword::dummy(),
-            AccountStatus::Registered { code_validation: CodeValidation::new(123123).unwrap() },
-        )
-    }
+    use crate::application::ports::outbound::account_repository::tests::FakeAccountRepository;
 
     #[test]
     fn verify_account_successfully() {
-        let repo = Arc::new(FakeAccountRepository::with_existing_email("john@example.com"));
+        let repo = Arc::new(FakeAccountRepository::with_existing_email("dummy@example.com"));
 
         let use_case = VerifyAccountUseCase::new(repo);
 
         let result = use_case.execute(VerifyAccount {
-            email: "john@example.com".to_string(),
+            email: "dummy@example.com".to_string(),
             code: 123123
         });
 
@@ -127,7 +67,7 @@ mod tests {
         let use_case = VerifyAccountUseCase::new(repo);
 
         let result = use_case.execute(VerifyAccount {
-            email: "john@example.com".to_string(),
+            email: "not-exists@example.com".to_string(),
             code: 123123
         });
 
@@ -136,12 +76,12 @@ mod tests {
 
     #[test]
     fn fails_when_code_not_match() {
-        let repo = Arc::new(FakeAccountRepository::with_existing_email("john@example.com"));
+        let repo = Arc::new(FakeAccountRepository::with_existing_email("dummy@example.com"));
 
         let use_case = VerifyAccountUseCase::new(repo);
 
         let result = use_case.execute(VerifyAccount {
-            email: "john@example.com".to_string(),
+            email: "dummy@example.com".to_string(),
             code: 123111
         });
 

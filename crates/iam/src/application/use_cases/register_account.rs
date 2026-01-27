@@ -51,11 +51,11 @@ impl AccountRegistrationPort for RegisterAccountUseCase {
 
         let account = Account::register(account_id, username, email, hashed_password);
 
-        dbg!(&account);
-
         self.account_repository
             .save(&account)
             .map_err(|_| CommonApplicationError::Infrastructure)?;
+
+        dbg!(&account);
 
         Ok(AccountRegistered {
             id: account.id().as_uuid().to_string(),
@@ -67,16 +67,15 @@ impl AccountRegistrationPort for RegisterAccountUseCase {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
     use crate::application::commands::register_account::RegisterAccount;
     use crate::application::errors::application_error::ApplicationError;
     use crate::application::ports::inbound::account_registration::AccountRegistrationPort;
     use crate::application::ports::outbound::password_hasher::PasswordHasherPort;
-    use crate::application::ports::outbound::account_repository::AccountRepositoryPort;
     use crate::application::use_cases::register_account::RegisterAccountUseCase;
-    use crate::domain::aggregates::Account;
-    use crate::domain::value_objects::{Email, HashedPassword, AccountId, Username};
+    use crate::domain::value_objects::HashedPassword;
     use shared::application::common_application_error::CommonApplicationError;
-    use std::sync::Arc;
+    use crate::application::ports::outbound::account_repository::tests::FakeAccountRepository;
 
     struct FakePasswordHasher;
 
@@ -88,79 +87,6 @@ mod tests {
         fn verify(&self, _password: &str, _hashed_password: &HashedPassword) -> bool {
             todo!()
         }
-    }
-
-    struct FakeAccountRepository {
-        should_fail: bool,
-        existing_username: Option<String>,
-        existing_email: Option<String>,
-    }
-
-    impl FakeAccountRepository {
-        fn success() -> Self {
-            Self {
-                should_fail: false,
-                existing_username: None,
-                existing_email: None,
-            }
-        }
-
-        fn fail() -> Self {
-            Self {
-                should_fail: true,
-                existing_username: None,
-                existing_email: None,
-            }
-        }
-
-        fn with_existing_username(username: &str) -> Self {
-            Self {
-                should_fail: false,
-                existing_username: Some(username.to_string()),
-                existing_email: None,
-            }
-        }
-
-        fn with_existing_email(email: &str) -> Self {
-            Self {
-                should_fail: false,
-                existing_username: None,
-                existing_email: Some(email.to_string()),
-            }
-        }
-    }
-
-    impl AccountRepositoryPort for FakeAccountRepository {
-        fn find_by_username(&self, username: &str) -> Option<Account> {
-            self.existing_username
-                .as_ref()
-                .filter(|u| u.as_str() == username)
-                .map(|_| dummy_account())
-        }
-
-        fn find_by_email(&self, email: &str) -> Option<Account> {
-            self.existing_email
-                .as_ref()
-                .filter(|e| e.as_str() == email)
-                .map(|_| dummy_account())
-        }
-
-        fn save(&self, _user: &Account) -> Result<(), String> {
-            if self.should_fail {
-                Err("Unexpected error".to_string())
-            } else {
-                Ok(())
-            }
-        }
-    }
-
-    fn dummy_account() -> Account {
-        Account::register(
-            AccountId::generate(),
-            Username::new("dummy".to_string()).unwrap(),
-            Email::new("dummy@example.com").unwrap(),
-            HashedPassword::dummy(),
-        )
     }
 
     fn valid_input() -> RegisterAccount {
@@ -245,10 +171,7 @@ mod tests {
 
         let result = use_case.execute(valid_input());
 
-        assert!(matches!(
-            result,
-            Err(ApplicationError::UsernameAlreadyExists)
-        ));
+        assert!(matches!(result, Err(ApplicationError::UsernameAlreadyExists)));
     }
 
     #[test]

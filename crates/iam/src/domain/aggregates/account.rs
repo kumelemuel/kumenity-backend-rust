@@ -104,6 +104,28 @@ mod tests {
         email::Email, hashed_password::HashedPassword, account_id::AccountId, username::Username,
     };
 
+    impl Account {
+        pub fn dummy_account() -> Account {
+            Account::reconstitute(
+                AccountId::generate(),
+                Username::new("dummy".to_string()).unwrap(),
+                Email::new("dummy@example.com").unwrap(),
+                HashedPassword::dummy(),
+                AccountStatus::Registered { code_validation: CodeValidation::new(123123).unwrap() },
+            )
+        }
+
+        pub fn dummy_active_account() -> Account {
+            Account::reconstitute(
+                AccountId::generate(),
+                Username::new("dummy".to_string()).unwrap(),
+                Email::new("dummy@example.com").unwrap(),
+                HashedPassword::dummy(),
+                AccountStatus::Active,
+            )
+        }
+    }
+
     fn registered_user() -> Account {
         Account::register(
             AccountId::generate(),

@@ -1,4 +1,4 @@
 pub struct AuthenticateAccount {
-    pub identify: String,
+    pub username: String,
     pub password: String,
 }
