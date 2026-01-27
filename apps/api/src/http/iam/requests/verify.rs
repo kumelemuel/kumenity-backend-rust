@@ -3,13 +3,13 @@ use serde::Deserialize;
 use iam::application::commands::verify_account::VerifyAccount;
 
 #[derive(Debug, Deserialize)]
-pub struct ValidateUserRequest {
+pub struct VerifyRequest {
     pub email: String,
     pub validation_code: u32,
 }
 
-impl From<ValidateUserRequest> for VerifyAccount {
-    fn from(req: ValidateUserRequest) -> Self {
+impl From<VerifyRequest> for VerifyAccount {
+    fn from(req: VerifyRequest) -> Self {
         VerifyAccount {
             email: req.email,
             code: req.validation_code,

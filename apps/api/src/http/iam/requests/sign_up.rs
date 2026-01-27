@@ -2,14 +2,14 @@ use iam::application::commands::register_account::RegisterAccount;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-pub struct RegisterUserRequest {
+pub struct SignUpRequest {
     pub username: String,
     pub email: String,
     pub password: String,
 }
 
-impl From<RegisterUserRequest> for RegisterAccount {
-    fn from(req: RegisterUserRequest) -> Self {
+impl From<SignUpRequest> for RegisterAccount {
+    fn from(req: SignUpRequest) -> Self {
         RegisterAccount {
             username: req.username,
             email: req.email,
