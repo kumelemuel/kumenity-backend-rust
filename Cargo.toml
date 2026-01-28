@@ -7,4 +7,5 @@ resolver = "3"
 
 [workspace.dependencies]
 iam = { path = "crates/iam" }
+communities = { path = "crates/communities" }
 shared = { path = "crates/shared" }
