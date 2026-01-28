@@ -8,7 +8,7 @@ pub trait AccountRepositoryPort: Send + Sync {
 }
 
 #[cfg(test)]
-pub mod tests {
+pub mod test_utils {
     use crate::application::ports::outbound::account_repository::AccountRepositoryPort;
     use crate::domain::aggregates::Account;
 

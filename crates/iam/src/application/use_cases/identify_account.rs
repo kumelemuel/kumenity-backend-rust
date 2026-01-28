@@ -53,7 +53,7 @@ mod tests {
     use crate::application::errors::application_error::ApplicationError;
     use crate::application::commands::identify_account::IdentifyAccount;
     use crate::application::ports::inbound::account_identification::AccountIdentificationPort;
-    use crate::application::ports::outbound::account_repository::tests::FakeAccountRepository;
+    use crate::application::ports::outbound::account_repository::test_utils::FakeAccountRepository;
     use crate::application::use_cases::identify_account::IdentifyAccountUseCase;
 
     #[test]

@@ -71,23 +71,10 @@ mod tests {
     use crate::application::commands::register_account::RegisterAccount;
     use crate::application::errors::application_error::ApplicationError;
     use crate::application::ports::inbound::account_registration::AccountRegistrationPort;
-    use crate::application::ports::outbound::password_hasher::PasswordHasherPort;
     use crate::application::use_cases::register_account::RegisterAccountUseCase;
-    use crate::domain::value_objects::HashedPassword;
     use shared::application::common_application_error::CommonApplicationError;
-    use crate::application::ports::outbound::account_repository::tests::FakeAccountRepository;
-
-    struct FakePasswordHasher;
-
-    impl PasswordHasherPort for FakePasswordHasher {
-        fn hash(&self, _raw: &str) -> HashedPassword {
-            HashedPassword::dummy()
-        }
-
-        fn verify(&self, _password: &str, _hashed_password: &HashedPassword) -> bool {
-            todo!()
-        }
-    }
+    use crate::application::ports::outbound::account_repository::test_utils::FakeAccountRepository;
+    use crate::application::ports::outbound::password_hasher::test_utils::FakePasswordHasher;
 
     fn valid_input() -> RegisterAccount {
         RegisterAccount {
