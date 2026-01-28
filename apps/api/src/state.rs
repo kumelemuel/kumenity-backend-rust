@@ -3,6 +3,7 @@ use iam::application::ports::inbound::account_registration::AccountRegistrationP
 use iam::application::ports::inbound::account_authentication::AccountAuthenticationPort;
 use iam::application::ports::inbound::account_identification::AccountIdentificationPort;
 use iam::application::ports::inbound::account_verification::AccountVerificationPort;
+use crate::authentication::token_validator::TokenValidator;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -10,4 +11,5 @@ pub struct AppState {
     pub authenticate_account: Arc<dyn AccountAuthenticationPort + Send + Sync>,
     pub verify_account: Arc<dyn AccountVerificationPort + Send + Sync>,
     pub identify_account: Arc<dyn AccountIdentificationPort + Send + Sync>,
+    pub token_validator: Arc<dyn TokenValidator>,
 }
