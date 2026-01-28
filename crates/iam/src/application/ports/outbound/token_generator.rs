@@ -1,5 +1,5 @@
 pub trait TokenGeneratorPort: Send + Sync {
-    fn generate(&self, user_id: &str) -> Result<String, String>;
+    fn generate(&self, account_id: &str) -> Result<String, String>;
 }
 
 #[cfg(test)]
@@ -9,7 +9,7 @@ pub mod test_utils {
     pub struct FakeTokenGenerator;
 
     impl TokenGeneratorPort for FakeTokenGenerator {
-        fn generate(&self, _user_id: &str) -> Result<String, String> {
+        fn generate(&self, _account_id: &str) -> Result<String, String> {
             Ok(String::from("valid_token"))
         }
     }

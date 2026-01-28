@@ -1,10 +1,11 @@
-use jsonwebtoken::{encode, EncodingKey, Header};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::application::ports::outbound::token_generator::{
     TokenGeneratorPort,
 };
 use crate::infrastructure::security::token_generator::claims::Claims;
+use crate::infrastructure::security::token_generator::error::JwtError;
 
 pub struct JwtTokenGenerator {
     secret: String,
@@ -14,6 +15,29 @@ pub struct JwtTokenGenerator {
 impl JwtTokenGenerator {
     pub fn new(secret: String, ttl_seconds: u64) -> Self {
         Self { secret, ttl_seconds }
+    }
+}
+
+impl JwtTokenGenerator {
+    pub fn decode(&self, token: &str) -> Result<Claims, JwtError> {
+        let mut validation = Validation::new(Algorithm::HS256);
+        validation.validate_exp = true;
+
+        let data = decode::<Claims>(
+            token,
+            &DecodingKey::from_secret(self.secret.as_bytes()),
+            &validation,
+        )
+            .map_err(|err| {
+                use jsonwebtoken::errors::ErrorKind;
+
+                match err.kind() {
+                    ErrorKind::ExpiredSignature => JwtError::Expired,
+                    _ => JwtError::InvalidToken,
+                }
+            })?;
+
+        Ok(data.claims)
     }
 }
 

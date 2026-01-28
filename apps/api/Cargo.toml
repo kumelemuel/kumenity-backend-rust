@@ -11,3 +11,4 @@ dotenvy = "0.15"
 
 iam.workspace = true
 shared.workspace = true
+http = "1.4.0"
