@@ -3,7 +3,7 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct CreateRequest {
-    pub name: String,
+    pub _name: String,
 }
 
 // impl From<CreateRequest> for IdentifyAccount {

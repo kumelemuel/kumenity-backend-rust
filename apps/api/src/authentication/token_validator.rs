@@ -27,7 +27,7 @@ impl TokenValidator for JwtValidator {
 
         Ok(Claims {
             sub: iam_claims.sub,
-            exp: iam_claims.exp,
+            _exp: iam_claims.exp,
         })
     }
 }
