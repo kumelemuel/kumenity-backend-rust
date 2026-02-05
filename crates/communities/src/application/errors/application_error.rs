@@ -5,6 +5,7 @@ pub enum ApplicationError {
     Common(CommonApplicationError),
     InvalidName,
     InvalidSlug,
+    SlugAlreadyExists,
 }
 
 impl From<CommonApplicationError> for ApplicationError {

@@ -2,6 +2,8 @@ use crate::domain::aggregates::community::Community;
 
 pub trait CommunityRepositoryPort: Send + Sync {
     fn find_by_id(&self, id: &str) -> Option<Community>;
+
+    fn find_by_slug(&self, slug: &str) -> Option<Community>;
     fn save(&self, community: &Community) -> Result<(), String>;
 }
 
@@ -13,8 +15,8 @@ pub mod test_utils {
     pub struct FakeCommunityRepository {
         should_fail: bool,
         activated: bool,
-        existing_username: Option<String>,
-        existing_email: Option<String>,
+        existing_id: Option<String>,
+        existing_slug: Option<String>,
     }
 
     impl FakeCommunityRepository {
@@ -22,8 +24,8 @@ pub mod test_utils {
             Self {
                 should_fail: false,
                 activated: false,
-                existing_username: None,
-                existing_email: None,
+                existing_id: None,
+                existing_slug: None,
             }
         }
 
@@ -31,26 +33,26 @@ pub mod test_utils {
             Self {
                 should_fail: true,
                 activated: false,
-                existing_username: None,
-                existing_email: None,
+                existing_id: None,
+                existing_slug: None,
             }
         }
 
-        pub fn with_existing_email(email: &str) -> Self {
+        pub fn with_existing_slug(slug: &str) -> Self {
             Self {
                 should_fail: false,
                 activated: false,
-                existing_username: None,
-                existing_email: Some(email.to_string()),
+                existing_id: None,
+                existing_slug: Some(slug.to_string()),
             }
         }
 
-        pub fn with_existing_username(username: &str) -> Self {
+        pub fn with_existing_id(id: &str) -> Self {
             Self {
                 should_fail: false,
                 activated: false,
-                existing_username: Some(username.to_string()),
-                existing_email: None,
+                existing_id: Some(id.to_string()),
+                existing_slug: None,
             }
         }
 
@@ -58,17 +60,26 @@ pub mod test_utils {
             Self {
                 should_fail: false,
                 activated: true,
-                existing_username: Some(username.to_string()),
-                existing_email: None,
+                existing_id: Some(username.to_string()),
+                existing_slug: None,
             }
         }
     }
 
     impl CommunityRepositoryPort for FakeCommunityRepository {
         fn find_by_id(&self, id: &str) -> Option<Community> {
-            self.existing_username
+            self.existing_id
                 .as_ref()
                 .filter(|c| c.as_str() == id)
+                .map(|_| {
+                    Community::dummy_community()
+                })
+        }
+
+        fn find_by_slug(&self, slug: &str) -> Option<Community> {
+            self.existing_slug
+                .as_ref()
+                .filter(|c| c.as_str() == slug)
                 .map(|_| {
                     Community::dummy_community()
                 })

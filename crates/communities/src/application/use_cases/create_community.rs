@@ -24,13 +24,16 @@ impl CreateCommunityUseCase {
 
 impl CommunityCreationPort for CreateCommunityUseCase {
     fn execute(&self, data: CreateCommunity, auth: AuthContext) -> Result<CommunityCreated, ApplicationError> {
-
+        let slug = CommunitySlug::new(data.slug).map_err(|_| ApplicationError::InvalidSlug)?;
+        let existing_slug = self.community_repository.find_by_slug(slug.clone().as_str());
+        if existing_slug.is_some() {
+            return Err(ApplicationError::SlugAlreadyExists);
+        }
         let account_id = AccountId::from_str(auth.subject.as_str());
         let id = CommunityId::generate();
-        let name = CommunityName::new(data.name.clone()).map_err(|_| ApplicationError::InvalidName);
-        let slug = CommunitySlug::new(data.slug).map_err(|_| ApplicationError::InvalidSlug);
+        let name = CommunityName::new(data.name.clone()).map_err(|_| ApplicationError::InvalidName)?;
 
-        let community = Community::create(id, account_id.unwrap(), slug?, name?, data.is_public, None);
+        let community = Community::create(id, account_id.unwrap(), slug, name, data.is_public, None);
 
         self.community_repository.save(&community).map_err(|_| CommonApplicationError::Infrastructure)?;
 
@@ -128,5 +131,16 @@ mod tests {
                 CommonApplicationError::Infrastructure
             ))
         ));
+    }
+
+    #[test]
+    fn fails_when_slug_already_exists() {
+        let repo = Arc::new(FakeCommunityRepository::with_existing_slug("community-test"));
+
+        let use_case = CreateCommunityUseCase::new(repo);
+
+        let result = use_case.execute(valid_input(),valid_auth_context());
+
+        assert!(matches!(result, Err(ApplicationError::SlugAlreadyExists)));
     }
 }
