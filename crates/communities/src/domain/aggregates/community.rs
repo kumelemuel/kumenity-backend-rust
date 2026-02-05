@@ -4,12 +4,14 @@ use crate::domain::entities::membership::Membership;
 use crate::domain::errors::community_error::CommunityError;
 use crate::domain::value_objects::community_id::CommunityId;
 use crate::domain::value_objects::community_name::CommunityName;
+use crate::domain::value_objects::community_slug::CommunitySlug;
 use crate::domain::value_objects::nickname::Nickname;
 use crate::domain::value_objects::role::Role;
 
 pub struct Community {
     id: CommunityId,
     owner_id: AccountId,
+    slug: CommunitySlug,
     name: CommunityName,
     public: bool,
     memberships: HashMap<AccountId,Membership>
@@ -19,6 +21,7 @@ impl Community {
     pub fn create(
         id: CommunityId,
         owner_id: AccountId,
+        slug: CommunitySlug,
         name: CommunityName,
         public: bool,
         owner_nickname: Option<Nickname>,
@@ -33,6 +36,7 @@ impl Community {
         Self {
             id,
             owner_id,
+            slug,
             name,
             public,
             memberships,
@@ -41,6 +45,10 @@ impl Community {
 
     pub fn id(&self) -> &CommunityId {
         &self.id
+    }
+
+    pub fn slug(&self) -> &CommunitySlug {
+        &self.slug
     }
 
     pub fn name(&self) -> &CommunityName {
@@ -234,7 +242,8 @@ mod tests {
             Community::create(
                 CommunityId::generate(),
                 AccountId::generate(),
-                CommunityName::new("rust-community".to_string()).unwrap(),
+                CommunitySlug::new("rust-community".to_string()).unwrap(),
+                CommunityName::new("Rust Community".to_string()).unwrap(),
                 true,
                 None,
             )
@@ -244,7 +253,8 @@ mod tests {
             Community::create(
                 CommunityId::generate(),
                 AccountId::generate(),
-                CommunityName::new("rust-community".to_string()).unwrap(),
+                CommunitySlug::new("rust-community".to_string()).unwrap(),
+                CommunityName::new("Rust Community".to_string()).unwrap(),
                 false,
                 None,
             )
