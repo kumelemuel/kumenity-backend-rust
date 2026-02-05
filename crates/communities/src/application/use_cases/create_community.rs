@@ -10,6 +10,7 @@ use crate::application::results::community_created::CommunityCreated;
 use crate::domain::aggregates::community::Community;
 use crate::domain::value_objects::community_id::CommunityId;
 use crate::domain::value_objects::community_name::CommunityName;
+use crate::domain::value_objects::community_slug::CommunitySlug;
 
 pub struct CreateCommunityUseCase {
     community_repository: Arc<dyn CommunityRepositoryPort>,
@@ -26,15 +27,17 @@ impl CommunityCreationPort for CreateCommunityUseCase {
 
         let account_id = AccountId::from_str(auth.subject.as_str());
         let id = CommunityId::generate();
-        let name = CommunityName::new(data.name).map_err(|_| ApplicationError::InvalidName);
+        let name = CommunityName::new(data.name.clone()).map_err(|_| ApplicationError::InvalidName);
+        let slug = CommunitySlug::new(data.slug).map_err(|_| ApplicationError::InvalidSlug);
 
-        let community = Community::create(id, account_id.unwrap(), name?, data.is_public, None);
+        let community = Community::create(id, account_id.unwrap(), slug?, name?, data.is_public, None);
 
         self.community_repository.save(&community).map_err(|_| CommonApplicationError::Infrastructure)?;
 
         Ok( CommunityCreated {
             id: community.id().as_uuid().to_string(),
             name: community.name().as_str().to_string(),
+            slug: community.slug().as_str().to_string(),
         })
 
     }
@@ -60,6 +63,7 @@ mod tests {
 
     fn valid_input() -> CreateCommunity {
         CreateCommunity {
+            slug: "Community-Test".to_string(),
             name: "Community Test".to_string(),
             is_public: true,
         }
@@ -83,6 +87,7 @@ mod tests {
         let use_case = CreateCommunityUseCase::new(repo);
 
         let input = CreateCommunity {
+            slug: "Community-Test".to_string(),
             name: "".to_string(),
             is_public: false,
         };
@@ -90,6 +95,23 @@ mod tests {
         let result = use_case.execute(input, valid_auth_context());
 
         assert!(matches!(result, Err(ApplicationError::InvalidName)));
+    }
+
+    #[test]
+    fn fails_when_slug_is_invalid() {
+        let repo = Arc::new(FakeCommunityRepository::success());
+
+        let use_case = CreateCommunityUseCase::new(repo);
+
+        let input = CreateCommunity {
+            slug: "".to_string(),
+            name: "Community Test".to_string(),
+            is_public: false,
+        };
+
+        let result = use_case.execute(input, valid_auth_context());
+
+        assert!(matches!(result, Err(ApplicationError::InvalidSlug)));
     }
 
     #[test]
