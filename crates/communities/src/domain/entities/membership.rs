@@ -4,7 +4,7 @@ use crate::domain::value_objects::membership_status::MembershipStatus;
 use crate::domain::value_objects::nickname::Nickname;
 use crate::domain::value_objects::role::Role;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Membership {
     pub role: Role,
     pub nickname: Option<Nickname>,

@@ -8,6 +8,7 @@ use crate::domain::value_objects::community_slug::CommunitySlug;
 use crate::domain::value_objects::nickname::Nickname;
 use crate::domain::value_objects::role::Role;
 
+#[derive(Debug, Clone)]
 pub struct Community {
     id: CommunityId,
     owner_id: AccountId,
