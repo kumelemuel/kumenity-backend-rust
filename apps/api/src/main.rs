@@ -7,8 +7,10 @@ mod authentication;
 
 use axum::Router;
 use std::sync::Arc;
+use communities::application::use_cases::create_community::CreateCommunityUseCase;
+use communities::infrastructure::persistence::in_memory::community_repository::InMemoryCommunityRepository;
 use crate::state::AppState;
-use crate::routes::{auth, communities};
+use crate::routes::{iam_router, communities_router};
 use iam::application::use_cases::register_account::RegisterAccountUseCase;
 use iam::application::use_cases::authenticate_account::AuthenticateAccountUseCase;
 use iam::application::use_cases::identify_account::IdentifyAccountUseCase;
@@ -27,6 +29,9 @@ async fn main() {
         std::process::exit(1);
     });
 
+
+
+    // IAM
     let account_repository = Arc::new(InMemoryAccountRepository::new());
     let password_hasher = Arc::new(Argon2PasswordHasher::new());
     let token_generator = Arc::new(JwtTokenGenerator::new(
@@ -38,17 +43,23 @@ async fn main() {
     let verify_account = VerifyAccountUseCase::new(account_repository.clone());
     let identify_account = IdentifyAccountUseCase::new(account_repository.clone());
 
+    // COMMUNITIES
+    let community_repository = Arc::new(InMemoryCommunityRepository::new());
+
+    let create_community = CreateCommunityUseCase::new(community_repository.clone());
+
     let state = AppState {
         register_account: Arc::new(register_account),
         authenticate_account: Arc::new(authenticate_account),
         verify_account: Arc::new(verify_account),
         identify_account: Arc::new(identify_account),
         token_validator:  Arc::new(JwtValidator::new(token_generator.clone())),
+        create_community: Arc::new(create_community),
     };
 
     let app = Router::new()
-        .nest("/auth", auth::router())
-        .nest("/communities", communities::router())
+        .nest("/auth", iam_router::router())
+        .nest("/communities", communities_router::router())
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();

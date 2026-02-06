@@ -1,3 +1,1 @@
-// module
-
-mod create_community;
+pub mod create_community;
