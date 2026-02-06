@@ -4,12 +4,15 @@ use crate::domain::entities::membership::Membership;
 use crate::domain::errors::community_error::CommunityError;
 use crate::domain::value_objects::community_id::CommunityId;
 use crate::domain::value_objects::community_name::CommunityName;
+use crate::domain::value_objects::community_slug::CommunitySlug;
 use crate::domain::value_objects::nickname::Nickname;
 use crate::domain::value_objects::role::Role;
 
+#[derive(Debug, Clone)]
 pub struct Community {
     id: CommunityId,
     owner_id: AccountId,
+    slug: CommunitySlug,
     name: CommunityName,
     public: bool,
     memberships: HashMap<AccountId,Membership>
@@ -19,6 +22,7 @@ impl Community {
     pub fn create(
         id: CommunityId,
         owner_id: AccountId,
+        slug: CommunitySlug,
         name: CommunityName,
         public: bool,
         owner_nickname: Option<Nickname>,
@@ -33,6 +37,7 @@ impl Community {
         Self {
             id,
             owner_id,
+            slug,
             name,
             public,
             memberships,
@@ -41,6 +46,10 @@ impl Community {
 
     pub fn id(&self) -> &CommunityId {
         &self.id
+    }
+
+    pub fn slug(&self) -> &CommunitySlug {
+        &self.slug
     }
 
     pub fn name(&self) -> &CommunityName {
@@ -229,19 +238,33 @@ mod tests {
     use crate::domain::value_objects::membership_status::MembershipStatus;
     use super::*;
 
-    fn community() -> Community {
-        Community::create(
-            CommunityId::generate(),
-            AccountId::generate(),
-            CommunityName::new("rust-community".to_string()).unwrap(),
-            true,
-            None,
-        )
+    impl Community {
+        pub fn dummy_community() -> Community {
+            Community::create(
+                CommunityId::generate(),
+                AccountId::generate(),
+                CommunitySlug::new("rust-community".to_string()).unwrap(),
+                CommunityName::new("Rust Community".to_string()).unwrap(),
+                true,
+                None,
+            )
+        }
+
+        pub fn dummy_private_community() -> Community {
+            Community::create(
+                CommunityId::generate(),
+                AccountId::generate(),
+                CommunitySlug::new("rust-community".to_string()).unwrap(),
+                CommunityName::new("Rust Community".to_string()).unwrap(),
+                false,
+                None,
+            )
+        }
     }
 
     #[test]
     fn community_is_created_with_active_owner() {
-        let community = community();
+        let community = Community::dummy_community();
 
         let owner = community.member(&community.owner_id).unwrap();
 
@@ -251,7 +274,7 @@ mod tests {
 
     #[test]
     fn owner_can_add_member() {
-        let mut community = community();
+        let mut community = Community::dummy_community();
         let owner_id = community.owner_id.clone();
         let member_id = AccountId::generate();
 
@@ -268,7 +291,7 @@ mod tests {
 
     #[test]
     fn non_admin_cannot_add_member() {
-        let mut community = community();
+        let mut community = Community::dummy_community();
         let owner_id = community.owner_id.clone();
         let member_id = AccountId::generate();
         let another_member_id = AccountId::generate();
@@ -289,7 +312,7 @@ mod tests {
 
     #[test]
     fn cannot_add_same_member_twice() {
-        let mut community = community();
+        let mut community = Community::dummy_community();
         let owner_id = community.owner_id.clone();
         let member_id = AccountId::generate();
 
@@ -309,7 +332,7 @@ mod tests {
 
     #[test]
     fn owner_can_activate_member() {
-        let mut community = community();
+        let mut community = Community::dummy_community();
         let owner_id = community.owner_id.clone();
         let member_id = AccountId::generate();
 
@@ -328,7 +351,7 @@ mod tests {
 
     #[test]
     fn owner_can_change_member_role() {
-        let mut community = community();
+        let mut community = Community::dummy_community();
         let owner_id = community.owner_id.clone();
         let member_id = AccountId::generate();
 
@@ -353,7 +376,7 @@ mod tests {
 
     #[test]
     fn cannot_change_owner_role() {
-        let mut community = community();
+        let mut community = Community::dummy_community();
         let owner_id = community.owner_id.clone();
 
         let result = community.change_member_role(
@@ -367,7 +390,7 @@ mod tests {
 
     #[test]
     fn admin_can_suspend_member() {
-        let mut community = community();
+        let mut community = Community::dummy_community();
         let owner_id = community.owner_id.clone();
         let member_id = AccountId::generate();
         let admin_id = AccountId::generate();
@@ -397,7 +420,7 @@ mod tests {
 
     #[test]
     fn cannot_suspend_owner() {
-        let mut community = community();
+        let mut community = Community::dummy_community();
         let owner_id = community.owner_id.clone();
 
         let result =
@@ -408,7 +431,7 @@ mod tests {
 
     #[test]
     fn owner_can_ban_member() {
-        let mut community = community();
+        let mut community = Community::dummy_community();
         let owner_id = community.owner_id.clone();
         let member_id = AccountId::generate();
 
@@ -430,7 +453,7 @@ mod tests {
 
     #[test]
     fn owner_can_remove_member() {
-        let mut community = community();
+        let mut community = Community::dummy_community();
         let owner_id = community.owner_id.clone();
         let member_id = AccountId::generate();
 
@@ -447,7 +470,7 @@ mod tests {
 
     #[test]
     fn cannot_remove_owner() {
-        let mut community = community();
+        let mut community = Community::dummy_community();
         let owner_id = community.owner_id.clone();
 
         let result =
