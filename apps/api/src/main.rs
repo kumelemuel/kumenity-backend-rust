@@ -29,13 +29,11 @@ async fn main() {
         std::process::exit(1);
     });
 
-
-
     // IAM
     let account_repository = Arc::new(InMemoryAccountRepository::new());
     let password_hasher = Arc::new(Argon2PasswordHasher::new());
     let token_generator = Arc::new(JwtTokenGenerator::new(
-        jwt_config.secret, 3600,
+        jwt_config.secret, jwt_config.expiration_time,
     ));
 
     let register_account = RegisterAccountUseCase::new(account_repository.clone(), password_hasher.clone());

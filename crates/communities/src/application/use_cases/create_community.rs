@@ -29,7 +29,7 @@ impl CommunityCreationPort for CreateCommunityUseCase {
         if existing_slug.is_some() {
             return Err(ApplicationError::SlugAlreadyExists);
         }
-        let account_id = AccountId::from_str(auth.subject.as_str());
+        let account_id = AccountId::from_str(auth.account_id.as_str());
         let id = CommunityId::generate();
         let name = CommunityName::new(data.name.clone()).map_err(|_| ApplicationError::InvalidName)?;
 
@@ -60,7 +60,7 @@ mod tests {
 
     fn valid_auth_context() -> AuthContext {
         AuthContext {
-            subject: AccountId::generate().as_uuid().to_string(),
+            account_id: AccountId::generate().as_uuid().to_string(),
         }
     }
 
