@@ -7,17 +7,13 @@ mod authentication;
 
 use axum::Router;
 use std::sync::Arc;
-use crate::state::AppState;
-use crate::routes::{auth, communities};
-use iam::application::use_cases::register_account::RegisterAccountUseCase;
-use iam::application::use_cases::authenticate_account::AuthenticateAccountUseCase;
-use iam::application::use_cases::identify_account::IdentifyAccountUseCase;
-use iam::application::use_cases::verify_account::VerifyAccountUseCase;
-use iam::infrastructure::persistence::in_memory::account_repository::InMemoryAccountRepository;
-use iam::infrastructure::security::password_hasher::argon2_password_hasher::Argon2PasswordHasher;
+use crate::routes::{iam_router, communities_router};
 use iam::infrastructure::security::token_generator::jwt_token_generator::JwtTokenGenerator;
 use crate::authentication::token_validator::JwtValidator;
 use crate::config::jwt::JwtConfig;
+use crate::state::app::AppState;
+use crate::state::communities::CommunitiesState;
+use crate::state::iam::IamState;
 
 #[tokio::main]
 async fn main() {
@@ -26,29 +22,22 @@ async fn main() {
         eprintln!("Configuration error: {}", e);
         std::process::exit(1);
     });
-
-    let account_repository = Arc::new(InMemoryAccountRepository::new());
-    let password_hasher = Arc::new(Argon2PasswordHasher::new());
     let token_generator = Arc::new(JwtTokenGenerator::new(
-        jwt_config.secret, 3600,
+        jwt_config.secret, jwt_config.expiration_time,
     ));
 
-    let register_account = RegisterAccountUseCase::new(account_repository.clone(), password_hasher.clone());
-    let authenticate_account = AuthenticateAccountUseCase::new(account_repository.clone(), password_hasher.clone(), token_generator.clone());
-    let verify_account = VerifyAccountUseCase::new(account_repository.clone());
-    let identify_account = IdentifyAccountUseCase::new(account_repository.clone());
+    let iam_state = IamState::initialize(token_generator.clone());
+    let communities_state = CommunitiesState::initialize();
 
     let state = AppState {
-        register_account: Arc::new(register_account),
-        authenticate_account: Arc::new(authenticate_account),
-        verify_account: Arc::new(verify_account),
-        identify_account: Arc::new(identify_account),
+        iam: iam_state,
+        communities: communities_state,
         token_validator:  Arc::new(JwtValidator::new(token_generator.clone())),
     };
 
     let app = Router::new()
-        .nest("/auth", auth::router())
-        .nest("/communities", communities::router())
+        .nest("/auth", iam_router::router())
+        .nest("/communities", communities_router::router())
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();

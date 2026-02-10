@@ -1,15 +1,20 @@
 
 use serde::Deserialize;
+use communities::application::commands::create_community::CreateCommunity;
 
 #[derive(Debug, Deserialize)]
 pub struct CreateRequest {
-    pub _name: String,
+    pub slug: String,
+    pub name: String,
+    pub is_public: bool,
 }
 
-// impl From<CreateRequest> for IdentifyAccount {
-//     fn from(req: CreateRequest) -> Self {
-//         IdentifyAccount {
-//             identify: req.identify,
-//         }
-//     }
-// }
+impl From<CreateRequest> for CreateCommunity {
+    fn from(req: CreateRequest) -> Self {
+        CreateCommunity {
+            slug: req.slug,
+            name: req.name,
+            is_public: req.is_public,
+        }
+    }
+}

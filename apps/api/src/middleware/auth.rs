@@ -9,6 +9,6 @@ pub fn authenticate(headers: &http::HeaderMap, validator: Arc<dyn TokenValidator
     let claims = validator.validate(&token)?;
 
     Ok(AuthContext {
-        subject: claims.sub,
+        account_id: claims.sub,
     })
 }

@@ -1,2 +1,2 @@
-pub mod auth;
-pub mod communities;
+pub mod iam_router;
+pub mod communities_router;

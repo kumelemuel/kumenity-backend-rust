@@ -10,5 +10,6 @@ serde = { version = "1.0.228", features = ["derive"] }
 dotenvy = "0.15"
 
 iam.workspace = true
+communities.workspace = true
 shared.workspace = true
 http = "1.4.0"
