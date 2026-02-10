@@ -3,7 +3,7 @@ use crate::http::iam::handlers::identify::identify_handler;
 use crate::http::iam::handlers::sign_in::sign_in_handler;
 use crate::http::iam::handlers::sign_up::sign_up_handler;
 use crate::http::iam::handlers::verify::verify_handler;
-use crate::state::AppState;
+use crate::state::app::AppState;
 
 pub fn router() -> Router<AppState> {
     Router::new()
