@@ -33,7 +33,7 @@ impl CommunityCreationPort for CreateCommunityUseCase {
         let id = CommunityId::generate();
         let name = CommunityName::new(data.name.clone()).map_err(|_| ApplicationError::InvalidName)?;
 
-        let community = Community::create(id, account_id.unwrap(), slug, name, data.is_public, None);
+        let community = Community::create(id, account_id.unwrap(), slug, name, data.is_public);
 
         self.community_repository.save(&community).map_err(|_| CommonApplicationError::Infrastructure)?;
 
