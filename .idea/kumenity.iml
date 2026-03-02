@@ -8,6 +8,7 @@
       <sourceFolder url="file://$MODULE_DIR$/crates/iam/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/shared/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/crates/communities/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/membership/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/src/users/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/crates/iam/target" />

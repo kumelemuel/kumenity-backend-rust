@@ -1,6 +1,7 @@
 use crate::domain::aggregates::community::Community;
 
 pub trait CommunityRepositoryPort: Send + Sync {
+    fn get_public_list(&self, query: Option<String>) -> Vec<Community>;
     fn find_by_id(&self, id: &str) -> Option<Community>;
 
     fn find_by_slug(&self, slug: &str) -> Option<Community>;
@@ -67,6 +68,10 @@ pub mod test_utils {
     }
 
     impl CommunityRepositoryPort for FakeCommunityRepository {
+        fn get_public_list(&self, query: Option<String>) -> Vec<Community> {
+            todo!()
+        }
+
         fn find_by_id(&self, id: &str) -> Option<Community> {
             self.existing_id
                 .as_ref()
