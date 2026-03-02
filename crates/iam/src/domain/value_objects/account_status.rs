@@ -24,7 +24,7 @@ impl AccountStatus {
 
         matches!(
             (self, next),
-            (Registered { .. }, Active)
+                (Registered { .. }, Active)
                 | (Registered { .. }, Deleted)
 
                 | (Active, Suspended)
@@ -32,9 +32,9 @@ impl AccountStatus {
                 | (Active, Deleted)
 
                 | (Suspended, Active)
-                | (Suspended, Deactivated)
 
                 | (Deactivated, Active)
+                | (Deactivated, Suspended)
                 | (Deactivated, Deleted)
         )
     }

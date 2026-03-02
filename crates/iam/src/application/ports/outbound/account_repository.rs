@@ -11,6 +11,7 @@ pub trait AccountRepositoryPort: Send + Sync {
 pub mod test_utils {
     use crate::application::ports::outbound::account_repository::AccountRepositoryPort;
     use crate::domain::aggregates::Account;
+    use crate::domain::value_objects::AccountStatus;
 
     pub struct FakeAccountRepository {
         should_fail: bool,
@@ -75,7 +76,7 @@ pub mod test_utils {
                     if !self.activated {
                         Account::dummy_account()
                     } else {
-                        Account::dummy_active_account()
+                        Account::dummy_account_with_status(AccountStatus::Active)
                     }
                 })
         }

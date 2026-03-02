@@ -89,11 +89,27 @@ impl Account {
     }
 
     pub fn activate(&mut self) -> Result<(), InvalidAccountStatusTransition> {
+        if self.status.as_str() == "registered" {
+            return Err(InvalidAccountStatusTransition);
+        }
         self.transition_status(AccountStatus::Active)
     }
 
     pub fn suspend(&mut self) -> Result<(), InvalidAccountStatusTransition> {
         self.transition_status(AccountStatus::Suspended)
+    }
+
+    pub fn confirm_registration(&mut self, code: CodeValidation) -> Result<(), InvalidAccountStatusTransition> {
+        match self.status {
+            AccountStatus::Registered { code_validation } => {
+                if code_validation != code {
+                    return Err(InvalidAccountStatusTransition);
+                }
+                self.transition_status(AccountStatus::Active)?;
+                Ok(())
+            }
+            _ => return Err(InvalidAccountStatusTransition),
+        }
     }
 }
 
@@ -115,13 +131,13 @@ mod tests {
             )
         }
 
-        pub fn dummy_active_account() -> Account {
+        pub fn dummy_account_with_status(status: AccountStatus) -> Account {
             Account::reconstitute(
                 AccountId::generate(),
                 Username::new("dummy".to_string()).unwrap(),
                 Email::new("dummy@example.com").unwrap(),
                 HashedPassword::dummy(),
-                AccountStatus::Active,
+                status
             )
         }
     }
@@ -178,11 +194,46 @@ mod tests {
     }
 
     #[test]
-    fn registered_user_can_be_activated() {
+    fn registered_user_cannot_be_activated_directly() {
         let mut user = registered_user();
 
-        assert!(user.activate().is_ok());
-        assert_eq!(user.status(), &AccountStatus::Active);
+        assert!(user.activate().is_err());
+    }
+
+    #[test]
+    fn should_not_allow_confirmation_from_non_registered_states() {
+        let states = vec![
+            AccountStatus::Active,
+            AccountStatus::Suspended,
+            AccountStatus::Deactivated,
+            AccountStatus::Deleted,
+        ];
+
+        let code = CodeValidation::new(123123).unwrap();
+
+        for state in states {
+            let mut user = Account::dummy_account_with_status(state);
+            let result = user.confirm_registration(code);
+            assert!(result.is_err());
+        }
+    }
+
+    #[test]
+    fn registered_user_can_be_confirmed_with_correct_code_validation() {
+        let mut user = Account::dummy_account();
+
+        let code = CodeValidation::new(123123).unwrap();
+
+        assert!(user.confirm_registration(code).is_ok());
+    }
+
+    #[test]
+    fn registered_user_cannot_be_confirmed_with_invalid_code_validation() {
+        let mut user = Account::dummy_account();
+
+        let code = CodeValidation::new(321321).unwrap();
+
+        assert!(user.confirm_registration(code).is_err());
     }
 
     #[test]

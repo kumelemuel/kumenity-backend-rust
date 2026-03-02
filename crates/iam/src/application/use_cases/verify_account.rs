@@ -4,7 +4,7 @@ use crate::application::commands::verify_account::VerifyAccount;
 use crate::application::errors::application_error::ApplicationError;
 use crate::application::ports::inbound::account_verification::AccountVerificationPort;
 use crate::application::ports::outbound::account_repository::AccountRepositoryPort;
-use crate::domain::value_objects::{CodeValidation, AccountStatus};
+use crate::domain::value_objects::CodeValidation;
 
 pub struct VerifyAccountUseCase {
     account_repository: Arc<dyn AccountRepositoryPort>,
@@ -24,11 +24,8 @@ impl AccountVerificationPort for VerifyAccountUseCase {
         }
         let mut account = account.unwrap();
         let code_validation = CodeValidation::new(cmd.code).map_err(|_| ApplicationError::InvalidCodeValidation)?;
-        if account.status().ne(&AccountStatus::Registered { code_validation }) {
-            return Err(ApplicationError::ActivationFailed);
-        }
-
-        account.activate().expect("error while activating user");
+        account.confirm_registration(code_validation).map_err(|_| ApplicationError::ActivationFailed)?;
+        
         self.account_repository
             .save(&account)
             .map_err(|_| CommonApplicationError::Infrastructure)?;
