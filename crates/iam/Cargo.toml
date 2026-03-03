@@ -10,5 +10,4 @@ rand = "0.8.5"
 jsonwebtoken = "9"
 serde = { version = "1", features = ["derive"] }
 
-
 shared.workspace = true

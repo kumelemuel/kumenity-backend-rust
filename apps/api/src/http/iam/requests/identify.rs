@@ -1,6 +1,5 @@
-
-use serde::Deserialize;
 use iam::application::commands::identify_account::IdentifyAccount;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct IdentifyRequest {

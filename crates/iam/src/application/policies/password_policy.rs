@@ -1,11 +1,12 @@
-use crate::application::errors::application_error::ApplicationError;
+use crate::application::errors::password_policy::PasswordPolicyError;
+use shared::error::SystemError;
 
 pub struct PasswordPolicy;
 
 impl PasswordPolicy {
-    pub fn validate(raw: &str) -> Result<(), ApplicationError> {
+    pub fn validate(raw: &str) -> Result<(), SystemError> {
         if raw.len() < 8 {
-            return Err(ApplicationError::InvalidPassword);
+            return Err(PasswordPolicyError::TooShort.into());
         }
 
         Ok(())
@@ -15,7 +16,7 @@ impl PasswordPolicy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::application::errors::application_error::ApplicationError;
+    use crate::application::errors::error_codes::IAM_PASSWORD_TOO_SHORT;
 
     #[test]
     fn accepts_password_with_minimum_length() {
@@ -41,7 +42,9 @@ mod tests {
 
         let result = PasswordPolicy::validate(password);
 
-        assert!(matches!(result, Err(ApplicationError::InvalidPassword)));
+        let err = result.expect_err("Expected error");
+
+        assert_eq!(err.code(), IAM_PASSWORD_TOO_SHORT);
     }
 
     #[test]
@@ -50,6 +53,8 @@ mod tests {
 
         let result = PasswordPolicy::validate(password);
 
-        assert!(matches!(result, Err(ApplicationError::InvalidPassword)));
+        let err = result.expect_err("Expected error");
+
+        assert_eq!(err.code(), IAM_PASSWORD_TOO_SHORT);
     }
 }

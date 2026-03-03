@@ -1,17 +1,23 @@
-use crate::domain::aggregates::Account;
+use crate::{
+    application::errors::account_repository::AccountRepositoryError, domain::aggregates::Account,
+};
 
 pub trait AccountRepositoryPort: Send + Sync {
     fn find_by_username(&self, username: &str) -> Option<Account>;
 
     fn find_by_email(&self, email: &str) -> Option<Account>;
-    fn save(&self, user: &Account) -> Result<(), String>;
+    fn save(&self, user: &Account) -> Result<(), AccountRepositoryError>;
 }
 
 #[cfg(test)]
 pub mod test_utils {
-    use crate::application::ports::outbound::account_repository::AccountRepositoryPort;
-    use crate::domain::aggregates::Account;
-    use crate::domain::value_objects::AccountStatus;
+    use crate::{
+        application::{
+            errors::account_repository::AccountRepositoryError,
+            ports::outbound::account_repository::AccountRepositoryPort,
+        },
+        domain::{aggregates::Account, value_objects::AccountStatus},
+    };
 
     pub struct FakeAccountRepository {
         should_fail: bool,
@@ -88,9 +94,11 @@ pub mod test_utils {
                 .map(|_| Account::dummy_account())
         }
 
-        fn save(&self, _user: &Account) -> Result<(), String> {
+        fn save(&self, _user: &Account) -> Result<(), AccountRepositoryError> {
             if self.should_fail {
-                Err("Unexpected error".to_string())
+                Err(AccountRepositoryError(
+                    "FakeAccountRepository error".to_string(),
+                ))
             } else {
                 Ok(())
             }

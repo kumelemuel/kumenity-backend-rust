@@ -11,9 +11,7 @@ pub fn extract_bearer(headers: &HeaderMap) -> Result<String, AuthHeaderError> {
         .get("authorization")
         .ok_or(AuthHeaderError::Missing)?;
 
-    let value = value
-        .to_str()
-        .map_err(|_| AuthHeaderError::InvalidFormat)?;
+    let value = value.to_str().map_err(|_| AuthHeaderError::InvalidFormat)?;
 
     let mut parts = value.splitn(2, ' ');
     let scheme = parts.next().unwrap();

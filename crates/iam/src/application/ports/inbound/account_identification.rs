@@ -1,7 +1,8 @@
-use crate::application::commands::identify_account::IdentifyAccount;
-use crate::application::errors::application_error::ApplicationError;
-use crate::application::results::account_identified::AccountIdentified;
+use crate::application::{
+    commands::identify_account::IdentifyAccount, results::account_identified::AccountIdentified,
+};
+use shared::error::SystemError;
 
 pub trait AccountIdentificationPort {
-    fn execute(&self, data: IdentifyAccount) -> Result<AccountIdentified, ApplicationError>;
+    fn execute(&self, data: IdentifyAccount) -> Result<AccountIdentified, SystemError>;
 }

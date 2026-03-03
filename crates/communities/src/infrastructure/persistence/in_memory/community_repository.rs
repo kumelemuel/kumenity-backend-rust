@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+
 use crate::application::ports::outbound::community_repository::CommunityRepositoryPort;
 use crate::domain::aggregates::community::Community;
 use crate::domain::value_objects::community_id::CommunityId;
@@ -17,7 +18,7 @@ impl InMemoryCommunityRepository {
 }
 
 impl CommunityRepositoryPort for InMemoryCommunityRepository {
-    fn get_public_list(&self, query: Option<String>) -> Vec<Community> {
+    fn get_public_list(&self, _query: Option<String>) -> Vec<Community> {
         todo!()
     }
 

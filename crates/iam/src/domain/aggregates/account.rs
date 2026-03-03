@@ -1,6 +1,7 @@
-use crate::domain::errors::InvalidAccountStatusTransition;
-use crate::domain::value_objects::account_id::AccountId;
-use crate::domain::value_objects::{CodeValidation, Email, HashedPassword, AccountStatus, Username};
+use crate::domain::{
+    errors::AccountStatusTransitionError,
+    value_objects::{AccountId, AccountStatus, CodeValidation, Email, HashedPassword, Username},
+};
 
 #[derive(Debug, Clone)]
 pub struct Account {
@@ -23,7 +24,9 @@ impl Account {
             username,
             email,
             password,
-            status: AccountStatus::Registered{ code_validation: CodeValidation::generate() },
+            status: AccountStatus::Registered {
+                code_validation: CodeValidation::generate(),
+            },
         }
     }
 
@@ -79,36 +82,42 @@ impl Account {
         self.username = new_username;
     }
 
-    fn transition_status(&mut self, next: AccountStatus) -> Result<(), InvalidAccountStatusTransition> {
+    fn transition_status(
+        &mut self,
+        next: AccountStatus,
+    ) -> Result<(), AccountStatusTransitionError> {
         self.status = self.status.transition_to(next)?;
         Ok(())
     }
 
-    pub fn deactivate(&mut self) -> Result<(), InvalidAccountStatusTransition> {
+    pub fn deactivate(&mut self) -> Result<(), AccountStatusTransitionError> {
         self.transition_status(AccountStatus::Deactivated)
     }
 
-    pub fn activate(&mut self) -> Result<(), InvalidAccountStatusTransition> {
+    pub fn activate(&mut self) -> Result<(), AccountStatusTransitionError> {
         if self.status.as_str() == "registered" {
-            return Err(InvalidAccountStatusTransition);
+            return Err(AccountStatusTransitionError::Invalid);
         }
         self.transition_status(AccountStatus::Active)
     }
 
-    pub fn suspend(&mut self) -> Result<(), InvalidAccountStatusTransition> {
+    pub fn suspend(&mut self) -> Result<(), AccountStatusTransitionError> {
         self.transition_status(AccountStatus::Suspended)
     }
 
-    pub fn confirm_registration(&mut self, code: CodeValidation) -> Result<(), InvalidAccountStatusTransition> {
+    pub fn confirm_registration(
+        &mut self,
+        code: CodeValidation,
+    ) -> Result<(), AccountStatusTransitionError> {
         match self.status {
             AccountStatus::Registered { code_validation } => {
                 if code_validation != code {
-                    return Err(InvalidAccountStatusTransition);
+                    return Err(AccountStatusTransitionError::Invalid);
                 }
                 self.transition_status(AccountStatus::Active)?;
                 Ok(())
             }
-            _ => return Err(InvalidAccountStatusTransition),
+            _ => return Err(AccountStatusTransitionError::Invalid),
         }
     }
 }
@@ -116,9 +125,6 @@ impl Account {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::value_objects::{
-        email::Email, hashed_password::HashedPassword, account_id::AccountId, username::Username,
-    };
 
     impl Account {
         pub fn dummy_account() -> Account {
@@ -127,7 +133,9 @@ mod tests {
                 Username::new("dummy".to_string()).unwrap(),
                 Email::new("dummy@example.com").unwrap(),
                 HashedPassword::dummy(),
-                AccountStatus::Registered { code_validation: CodeValidation::new(123123).unwrap() },
+                AccountStatus::Registered {
+                    code_validation: CodeValidation::new(123123).unwrap(),
+                },
             )
         }
 
@@ -137,7 +145,7 @@ mod tests {
                 Username::new("dummy".to_string()).unwrap(),
                 Email::new("dummy@example.com").unwrap(),
                 HashedPassword::dummy(),
-                status
+                status,
             )
         }
     }
@@ -155,10 +163,7 @@ mod tests {
     fn registering_user_starts_in_registered_status() {
         let user = registered_user();
 
-        assert!(matches!(
-            user.status(),
-            AccountStatus::Registered { .. }
-        ));
+        assert!(matches!(user.status(), AccountStatus::Registered { .. }));
     }
 
     #[test]

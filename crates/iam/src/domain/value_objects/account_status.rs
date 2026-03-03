@@ -1,5 +1,4 @@
-use crate::domain::errors::InvalidAccountStatusTransition;
-use crate::domain::value_objects::CodeValidation;
+use crate::domain::{errors::AccountStatusTransitionError, value_objects::CodeValidation};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccountStatus {
@@ -24,15 +23,12 @@ impl AccountStatus {
 
         matches!(
             (self, next),
-                (Registered { .. }, Active)
+            (Registered { .. }, Active)
                 | (Registered { .. }, Deleted)
-
                 | (Active, Suspended)
                 | (Active, Deactivated)
                 | (Active, Deleted)
-
                 | (Suspended, Active)
-
                 | (Deactivated, Active)
                 | (Deactivated, Suspended)
                 | (Deactivated, Deleted)
@@ -42,15 +38,15 @@ impl AccountStatus {
     pub fn transition_to(
         &self,
         next: AccountStatus,
-    ) -> Result<AccountStatus, InvalidAccountStatusTransition> {
+    ) -> Result<AccountStatus, AccountStatusTransitionError> {
         if self.is_terminal() {
-            return Err(InvalidAccountStatusTransition);
+            return Err(AccountStatusTransitionError::Invalid);
         }
 
         if self.can_transition_to(next) {
             Ok(next)
         } else {
-            Err(InvalidAccountStatusTransition)
+            Err(AccountStatusTransitionError::Invalid)
         }
     }
 
@@ -68,7 +64,7 @@ impl AccountStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::errors::InvalidAccountStatusTransition;
+    use crate::domain::errors::AccountStatusTransitionError;
 
     #[test]
     fn registered_can_transition_to_active() {
@@ -102,7 +98,7 @@ mod tests {
         assert!(status.is_terminal());
         assert_eq!(
             status.transition_to(AccountStatus::Active),
-            Err(InvalidAccountStatusTransition)
+            Err(AccountStatusTransitionError::Invalid)
         );
     }
 
@@ -113,14 +109,14 @@ mod tests {
 
         let result = status.transition_to(AccountStatus::Suspended);
 
-        assert_eq!(result, Err(InvalidAccountStatusTransition));
+        assert_eq!(result, Err(AccountStatusTransitionError::Invalid));
     }
 
     #[test]
     fn only_active_user_can_authenticate() {
         let code_validation = CodeValidation::generate();
         assert!(AccountStatus::Active.can_authenticate());
-        assert!(!AccountStatus::Registered{ code_validation }.can_authenticate());
+        assert!(!AccountStatus::Registered { code_validation }.can_authenticate());
         assert!(!AccountStatus::Suspended.can_authenticate());
         assert!(!AccountStatus::Deactivated.can_authenticate());
         assert!(!AccountStatus::Deleted.can_authenticate());
@@ -132,7 +128,7 @@ mod tests {
 
         assert_eq!(
             status.transition_to(AccountStatus::Active),
-            Err(InvalidAccountStatusTransition)
+            Err(AccountStatusTransitionError::Invalid)
         );
     }
 }

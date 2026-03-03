@@ -1,4 +1,4 @@
 pub mod bearer;
 pub mod claims;
-pub mod token_validator;
 pub mod error;
+pub mod token_validator;

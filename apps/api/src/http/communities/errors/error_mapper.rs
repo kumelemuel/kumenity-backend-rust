@@ -1,8 +1,9 @@
-use axum::http::StatusCode;
 use axum::Json;
+use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use communities::application::errors::application_error::ApplicationError;
 use shared::application::common_application_error::CommonApplicationError;
+
 use crate::http::common::errors::api_error_response::ApiErrorResponse;
 
 pub fn map_application_error(error: ApplicationError) -> Response {

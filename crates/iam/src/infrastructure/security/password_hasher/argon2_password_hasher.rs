@@ -1,12 +1,12 @@
+use crate::{
+    application::ports::outbound::password_hasher::PasswordHasherPort,
+    domain::value_objects::HashedPassword,
+};
 use argon2::{
     Argon2,
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
 };
-
 use rand::rngs::OsRng;
-
-use crate::application::ports::outbound::password_hasher::PasswordHasherPort;
-use crate::domain::value_objects::HashedPassword;
 
 pub struct Argon2PasswordHasher {
     argon2: Argon2<'static>,

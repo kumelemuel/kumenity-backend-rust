@@ -1,16 +1,18 @@
-mod http;
-mod state;
-mod routes;
-mod config;
-mod middleware;
 mod authentication;
+mod config;
+mod http;
+mod middleware;
+mod routes;
+mod state;
+
+use std::sync::Arc;
 
 use axum::Router;
-use std::sync::Arc;
-use crate::routes::{iam_router, communities_router};
 use iam::infrastructure::security::token_generator::jwt_token_generator::JwtTokenGenerator;
+
 use crate::authentication::token_validator::JwtValidator;
 use crate::config::jwt::JwtConfig;
+use crate::routes::{communities_router, iam_router};
 use crate::state::app::AppState;
 use crate::state::communities::CommunitiesState;
 use crate::state::iam::IamState;
@@ -23,7 +25,8 @@ async fn main() {
         std::process::exit(1);
     });
     let token_generator = Arc::new(JwtTokenGenerator::new(
-        jwt_config.secret, jwt_config.expiration_time,
+        jwt_config.secret,
+        jwt_config.expiration_time,
     ));
 
     let iam_state = IamState::initialize(token_generator.clone());
@@ -32,7 +35,7 @@ async fn main() {
     let state = AppState {
         iam: iam_state,
         communities: communities_state,
-        token_validator:  Arc::new(JwtValidator::new(token_generator.clone())),
+        token_validator: Arc::new(JwtValidator::new(token_generator.clone())),
     };
 
     let app = Router::new()

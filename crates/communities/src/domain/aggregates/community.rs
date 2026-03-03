@@ -1,4 +1,5 @@
 use iam::domain::value_objects::AccountId;
+
 use crate::domain::policies::membership_policy::MembershipPolicy;
 use crate::domain::value_objects::community_id::CommunityId;
 use crate::domain::value_objects::community_name::CommunityName;
@@ -7,7 +8,7 @@ use crate::domain::value_objects::community_slug::CommunitySlug;
 #[derive(Debug, Clone)]
 pub struct Community {
     id: CommunityId,
-    owner_id: AccountId,
+    _owner_id: AccountId,
     slug: CommunitySlug,
     name: CommunityName,
     public: bool,
@@ -17,14 +18,14 @@ pub struct Community {
 impl Community {
     pub fn create(
         id: CommunityId,
-        owner_id: AccountId,
+        _owner_id: AccountId,
         slug: CommunitySlug,
         name: CommunityName,
         public: bool,
     ) -> Self {
         Self {
             id,
-            owner_id,
+            _owner_id,
             slug,
             name,
             public,
@@ -79,4 +80,3 @@ mod tests {
         }
     }
 }
-

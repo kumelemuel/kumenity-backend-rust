@@ -54,21 +54,21 @@ impl Membership {
     }
 
     pub fn activate(&mut self) -> Result<(), MembershipError> {
-        self.transition_status(MembershipStatus::Active).map_err(|_| MembershipError::InvalidStatusTransition)
+        self.transition_status(MembershipStatus::Active)
+            .map_err(|_| MembershipError::InvalidStatusTransition)
     }
 
     pub fn suspend(&mut self) -> Result<(), MembershipError> {
-        self.transition_status(MembershipStatus::Suspended).map_err(|_| MembershipError::InvalidStatusTransition)
+        self.transition_status(MembershipStatus::Suspended)
+            .map_err(|_| MembershipError::InvalidStatusTransition)
     }
 
     pub fn ban(&mut self) -> Result<(), MembershipError> {
-        self.transition_status(MembershipStatus::Banned).map_err(|_| MembershipError::InvalidStatusTransition)
+        self.transition_status(MembershipStatus::Banned)
+            .map_err(|_| MembershipError::InvalidStatusTransition)
     }
 
-    pub fn change_nickname(
-        &mut self,
-        nickname: Option<Nickname>,
-    ) -> Result<(), MembershipError> {
+    pub fn change_nickname(&mut self, nickname: Option<Nickname>) -> Result<(), MembershipError> {
         if self.status != MembershipStatus::Active {
             return Err(MembershipError::InactiveMembership);
         }
@@ -77,7 +77,10 @@ impl Membership {
         Ok(())
     }
 
-    fn transition_status(&mut self, next: MembershipStatus) -> Result<(), InvalidMembershipStatusTransition> {
+    fn transition_status(
+        &mut self,
+        next: MembershipStatus,
+    ) -> Result<(), InvalidMembershipStatusTransition> {
         self.status = self.status.transition_to(next)?;
         Ok(())
     }
