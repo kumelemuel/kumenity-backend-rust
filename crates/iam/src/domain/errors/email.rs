@@ -10,7 +10,7 @@ pub enum EmailError {
 impl fmt::Display for EmailError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            EmailError::Invalid => write!(f, "Invalid email"),
+            EmailError::Invalid => write!(f, "Please enter a valid email address"),
         }
     }
 }
@@ -25,6 +25,12 @@ impl LayerError for EmailError {
     fn code(&self) -> &'static str {
         match self {
             EmailError::Invalid => IAM_INVALID_EMAIL,
+        }
+    }
+
+    fn message(&self) -> &'static str {
+        match self {
+            EmailError::Invalid => "Please enter a valid email address.",
         }
     }
 }

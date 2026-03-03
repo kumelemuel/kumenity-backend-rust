@@ -10,7 +10,7 @@ pub enum CodeValidationError {
 impl fmt::Display for CodeValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CodeValidationError::Invalid => write!(f, "Invalid code validation"),
+            CodeValidationError::Invalid => write!(f, "The verification code is invalid"),
         }
     }
 }
@@ -25,6 +25,12 @@ impl LayerError for CodeValidationError {
     fn code(&self) -> &'static str {
         match self {
             CodeValidationError::Invalid => IAM_INVALID_CODE_VALIDATION,
+        }
+    }
+
+    fn message(&self) -> &'static str {
+        match self {
+            CodeValidationError::Invalid => "The verification code is invalid.",
         }
     }
 }

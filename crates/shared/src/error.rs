@@ -9,6 +9,7 @@ pub enum ErrorCategory {
 pub trait LayerError: std::error::Error + Send + Sync {
     fn category(&self) -> ErrorCategory;
     fn code(&self) -> &'static str;
+    fn message(&self) -> &'static str;
 }
 
 #[derive(Debug)]

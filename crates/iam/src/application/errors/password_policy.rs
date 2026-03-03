@@ -10,7 +10,9 @@ pub enum PasswordPolicyError {
 impl fmt::Display for PasswordPolicyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PasswordPolicyError::TooShort => write!(f, "Invalid account ID"),
+            PasswordPolicyError::TooShort => {
+                write!(f, "Password must be at least 8 characters long")
+            }
         }
     }
 }
@@ -25,6 +27,12 @@ impl LayerError for PasswordPolicyError {
     fn code(&self) -> &'static str {
         match self {
             PasswordPolicyError::TooShort => IAM_PASSWORD_TOO_SHORT,
+        }
+    }
+
+    fn message(&self) -> &'static str {
+        match self {
+            PasswordPolicyError::TooShort => "Password must be at least 8 characters long.",
         }
     }
 }

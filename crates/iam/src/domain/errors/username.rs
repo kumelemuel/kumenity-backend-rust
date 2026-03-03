@@ -10,7 +10,7 @@ pub enum UsernameError {
 impl fmt::Display for UsernameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            UsernameError::Invalid => write!(f, "Invalid username"),
+            UsernameError::Invalid => write!(f, "Please enter a valid username"),
         }
     }
 }
@@ -25,6 +25,12 @@ impl LayerError for UsernameError {
     fn code(&self) -> &'static str {
         match self {
             UsernameError::Invalid => IAM_INVALID_USERNAME,
+        }
+    }
+
+    fn message(&self) -> &'static str {
+        match self {
+            UsernameError::Invalid => "Please enter a valid username.",
         }
     }
 }

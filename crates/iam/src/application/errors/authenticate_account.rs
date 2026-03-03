@@ -11,8 +11,12 @@ pub enum AuthenticateAccountError {
 impl fmt::Display for AuthenticateAccountError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AuthenticateAccountError::LoginFailed => write!(f, "Login failed"),
-            AuthenticateAccountError::CannotAuthenticate => write!(f, "Cannot authenticate"),
+            AuthenticateAccountError::LoginFailed => {
+                write!(f, "The username or password is incorrect")
+            }
+            AuthenticateAccountError::CannotAuthenticate => {
+                write!(f, "This account is not allowed to sign in")
+            }
         }
     }
 }
@@ -28,6 +32,15 @@ impl LayerError for AuthenticateAccountError {
         match self {
             AuthenticateAccountError::LoginFailed => IAM_LOGIN_FAILED,
             AuthenticateAccountError::CannotAuthenticate => IAM_CANNOT_AUTHENTICATE,
+        }
+    }
+
+    fn message(&self) -> &'static str {
+        match self {
+            AuthenticateAccountError::LoginFailed => "The username or password is incorrect.",
+            AuthenticateAccountError::CannotAuthenticate => {
+                "This account is not allowed to sign in at the moment."
+            }
         }
     }
 }

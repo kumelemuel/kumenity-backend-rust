@@ -10,7 +10,9 @@ pub enum AccountStatusTransitionError {
 impl fmt::Display for AccountStatusTransitionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AccountStatusTransitionError::Invalid => write!(f, "Invalid account status transition"),
+            AccountStatusTransitionError::Invalid => {
+                write!(f, "This account status change is not allowed")
+            }
         }
     }
 }
@@ -25,6 +27,12 @@ impl LayerError for AccountStatusTransitionError {
     fn code(&self) -> &'static str {
         match self {
             AccountStatusTransitionError::Invalid => IAM_INVALID_ACCOUNT_STATUS_TRANSITION,
+        }
+    }
+
+    fn message(&self) -> &'static str {
+        match self {
+            AccountStatusTransitionError::Invalid => "This account status change is not allowed.",
         }
     }
 }

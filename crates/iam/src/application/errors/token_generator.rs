@@ -7,7 +7,7 @@ pub struct TokenGeneratorError(pub String);
 
 impl fmt::Display for TokenGeneratorError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "We couldn't create your session right now")
     }
 }
 
@@ -20,5 +20,9 @@ impl LayerError for TokenGeneratorError {
 
     fn code(&self) -> &'static str {
         IAM_TOKEN_GENERATOR_ERROR
+    }
+
+    fn message(&self) -> &'static str {
+        "We couldn't create your session right now. Please try again."
     }
 }

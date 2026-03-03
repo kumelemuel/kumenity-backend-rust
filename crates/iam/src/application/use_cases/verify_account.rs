@@ -48,9 +48,7 @@ mod tests {
             },
             use_cases::verify_account::VerifyAccountUseCase,
         },
-        domain::errors::error_codes::{
-            IAM_ACCOUNT_NOT_FOUND, IAM_INVALID_ACCOUNT_STATUS_TRANSITION,
-        },
+        domain::errors::error_codes::{IAM_ACCOUNT_INVALID_VERIFICATION, IAM_ACCOUNT_NOT_FOUND},
     };
     use std::sync::Arc;
 
@@ -101,6 +99,6 @@ mod tests {
 
         let err = result.expect_err("Expected error");
 
-        assert_eq!(err.code(), IAM_INVALID_ACCOUNT_STATUS_TRANSITION);
+        assert_eq!(err.code(), IAM_ACCOUNT_INVALID_VERIFICATION);
     }
 }

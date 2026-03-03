@@ -1,5 +1,5 @@
 use crate::domain::{
-    errors::AccountStatusTransitionError,
+    errors::{AccountError, AccountStatusTransitionError},
     value_objects::{AccountId, AccountStatus, CodeValidation, Email, HashedPassword, Username},
 };
 
@@ -105,19 +105,18 @@ impl Account {
         self.transition_status(AccountStatus::Suspended)
     }
 
-    pub fn confirm_registration(
-        &mut self,
-        code: CodeValidation,
-    ) -> Result<(), AccountStatusTransitionError> {
+    pub fn confirm_registration(&mut self, code: CodeValidation) -> Result<(), AccountError> {
         match self.status {
             AccountStatus::Registered { code_validation } => {
                 if code_validation != code {
-                    return Err(AccountStatusTransitionError::Invalid);
+                    return Err(AccountError::InvalidVerification);
                 }
-                self.transition_status(AccountStatus::Active)?;
+                let _ = self
+                    .transition_status(AccountStatus::Active)
+                    .map_err(|_| AccountError::InvalidVerification);
                 Ok(())
             }
-            _ => return Err(AccountStatusTransitionError::Invalid),
+            _ => Err(AccountError::InvalidVerification),
         }
     }
 }

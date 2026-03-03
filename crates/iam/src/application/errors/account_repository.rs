@@ -21,4 +21,8 @@ impl LayerError for AccountRepositoryError {
     fn code(&self) -> &'static str {
         IAM_ACCOUNT_REPOSITORY_ERROR
     }
+
+    fn message(&self) -> &'static str {
+        "We couldn't complete your request right now. Please try again."
+    }
 }
