@@ -1,8 +1,14 @@
-use crate::application::ports::outbound::account_repository::AccountRepositoryPort;
-use crate::domain::aggregates::Account;
-use crate::domain::value_objects::AccountId;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use crate::{
+    application::{
+        errors::account_repository::AccountRepositoryError,
+        ports::outbound::account_repository::AccountRepositoryPort,
+    },
+    domain::{aggregates::Account, value_objects::AccountId},
+};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 pub struct InMemoryAccountRepository {
     accounts: Arc<Mutex<HashMap<AccountId, Account>>>,
@@ -33,7 +39,7 @@ impl AccountRepositoryPort for InMemoryAccountRepository {
             .cloned()
     }
 
-    fn save(&self, account: &Account) -> Result<(), String> {
+    fn save(&self, account: &Account) -> Result<(), AccountRepositoryError> {
         let mut accounts = self.accounts.lock().expect("mutex poisoned");
 
         accounts.insert(account.id().clone(), account.clone());

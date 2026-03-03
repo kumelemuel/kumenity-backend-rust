@@ -1,80 +1,62 @@
-use axum::http::StatusCode;
-use axum::Json;
-use axum::response::{IntoResponse, Response};
-use iam::application::errors::application_error::ApplicationError;
-use shared::application::common_application_error::CommonApplicationError;
 use crate::http::common::errors::api_error_response::ApiErrorResponse;
+use axum::{
+    http::StatusCode,
+    response::{IntoResponse, Response},
+    Json,
+};
+use iam::{
+    application::errors::error_codes::{
+        IAM_ACCOUNT_REPOSITORY_ERROR, IAM_CANNOT_AUTHENTICATE, IAM_LOGIN_FAILED,
+        IAM_PASSWORD_TOO_SHORT, IAM_TOKEN_GENERATOR_ERROR,
+    },
+    domain::errors::error_codes::{
+        IAM_ACCOUNT_EMAIL_ALREADY_EXISTS, IAM_ACCOUNT_INVALID_VERIFICATION, IAM_ACCOUNT_NOT_FOUND,
+        IAM_ACCOUNT_USERNAME_ALREADY_EXISTS, IAM_INVALID_ACCOUNT_ID, IAM_INVALID_ACCOUNT_ID_FORMAT,
+        IAM_INVALID_ACCOUNT_STATUS_TRANSITION, IAM_INVALID_CODE_VALIDATION, IAM_INVALID_EMAIL,
+        IAM_INVALID_HASHED_PASSWORD, IAM_INVALID_USERNAME,
+    },
+};
+use shared::error::SystemError;
 
-pub fn map_application_error(error: ApplicationError) -> Response {
-    match error {
-        ApplicationError::UsernameAlreadyExists => {
-            let body = ApiErrorResponse {
-                code: "USERNAME_ALREADY_EXISTS".to_string(),
-                message: "Username is already in use".to_string(),
-            };
-            (StatusCode::CONFLICT, Json(body)).into_response()
+pub fn map_application_error(error: SystemError) -> Response {
+    let (status, code, message) = match error {
+        SystemError::Domain(err)
+        | SystemError::Application(err)
+        | SystemError::Infrastructure(err) => {
+            let code = err.code();
+            let message = err.message();
+            let status = status_from_error_code(code);
+            (status, code, message)
         }
-        ApplicationError::EmailAlreadyExists => {
-            let body = ApiErrorResponse {
-                code: "EMAIL_ALREADY_EXISTS".to_string(),
-                message: "E-mail is already in use".to_string(),
-            };
-            (StatusCode::CONFLICT, Json(body)).into_response()
+    };
+
+    let body = ApiErrorResponse {
+        code: code.to_string(),
+        message: message.to_string(),
+    };
+
+    (status, Json(body)).into_response()
+}
+
+fn status_from_error_code(code: &str) -> StatusCode {
+    match code {
+        IAM_ACCOUNT_EMAIL_ALREADY_EXISTS | IAM_ACCOUNT_USERNAME_ALREADY_EXISTS => {
+            StatusCode::CONFLICT
         }
-        ApplicationError::InvalidUsername => {
-            let body = ApiErrorResponse {
-                code: "INVALID_USERNAME".to_string(),
-                message: "Invalid username".to_string(),
-            };
-            (StatusCode::BAD_REQUEST, Json(body)).into_response()
+        IAM_ACCOUNT_NOT_FOUND => StatusCode::NOT_FOUND,
+        IAM_LOGIN_FAILED | IAM_CANNOT_AUTHENTICATE => StatusCode::UNAUTHORIZED,
+        IAM_INVALID_ACCOUNT_ID
+        | IAM_INVALID_ACCOUNT_ID_FORMAT
+        | IAM_INVALID_ACCOUNT_STATUS_TRANSITION
+        | IAM_INVALID_CODE_VALIDATION
+        | IAM_INVALID_EMAIL
+        | IAM_INVALID_HASHED_PASSWORD
+        | IAM_INVALID_USERNAME
+        | IAM_PASSWORD_TOO_SHORT
+        | IAM_ACCOUNT_INVALID_VERIFICATION => StatusCode::BAD_REQUEST,
+        IAM_ACCOUNT_REPOSITORY_ERROR | IAM_TOKEN_GENERATOR_ERROR => {
+            StatusCode::INTERNAL_SERVER_ERROR
         }
-        ApplicationError::InvalidEmail => {
-            let body = ApiErrorResponse {
-                code: "INVALID_EMAIL".to_string(),
-                message: "Invalid e-mail".to_string(),
-            };
-            (StatusCode::BAD_REQUEST, Json(body)).into_response()
-        }
-        ApplicationError::InvalidPassword => {
-            let body = ApiErrorResponse {
-                code: "INVALID_PASSWORD".to_string(),
-                message: "Invalid password".to_string(),
-            };
-            (StatusCode::BAD_REQUEST, Json(body)).into_response()
-        }
-        ApplicationError::InvalidCodeValidation => {
-            let body = ApiErrorResponse {
-                code: "INVALID_CODE_VALIDATION".to_string(),
-                message: "Invalid code validation".to_string(),
-            };
-            (StatusCode::BAD_REQUEST, Json(body)).into_response()
-        }
-        ApplicationError::UserNotFound => {
-            let body = ApiErrorResponse {
-                code: "USER_NOT_FOUND".to_string(),
-                message: "User not found".to_string(),
-            };
-            (StatusCode::NOT_FOUND, Json(body)).into_response()
-        }
-        ApplicationError::LoginFailed => {
-            let body = ApiErrorResponse {
-                code: "LOGIN_FAILED".to_string(),
-                message: "Login failed".to_string(),
-            };
-            (StatusCode::UNAUTHORIZED, Json(body)).into_response()
-        }
-        ApplicationError::ActivationFailed => {
-            let body = ApiErrorResponse {
-                code: "ACTIVATION_FAILED".to_string(),
-                message: "Activation failed".to_string(),
-            };
-            (StatusCode::UNAUTHORIZED, Json(body)).into_response()
-        }
-        ApplicationError::Common(CommonApplicationError::Infrastructure) => {
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-        ApplicationError::Common(CommonApplicationError::Unauthorized) => {
-            StatusCode::UNAUTHORIZED.into_response()
-        }
+        _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }

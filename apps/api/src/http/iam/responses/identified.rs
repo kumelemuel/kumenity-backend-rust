@@ -1,5 +1,5 @@
-use serde::Serialize;
 use iam::application::results::account_identified::AccountIdentified;
+use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct IdentifiedResponse {

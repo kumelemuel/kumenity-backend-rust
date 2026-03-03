@@ -1,6 +1,5 @@
-
-use serde::Deserialize;
 use iam::application::commands::verify_account::VerifyAccount;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct VerifyRequest {

@@ -1,6 +1,8 @@
 use std::sync::Arc;
+
 use iam::infrastructure::security::token_generator::error::JwtError;
 use iam::infrastructure::security::token_generator::jwt_token_generator::JwtTokenGenerator;
+
 use crate::authentication::claims::Claims;
 use crate::authentication::error::TokenValidationError;
 

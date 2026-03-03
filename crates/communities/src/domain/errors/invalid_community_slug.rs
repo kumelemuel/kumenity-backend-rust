@@ -1,5 +1,6 @@
-use shared::domain::DomainError;
 use std::fmt;
+
+use shared::domain::DomainError;
 
 #[derive(Debug, PartialEq)]
 pub struct InvalidCommunitySlug;

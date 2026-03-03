@@ -1,11 +1,12 @@
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
-use std::time::{SystemTime, UNIX_EPOCH};
-
-use crate::application::ports::outbound::token_generator::{
-    TokenGeneratorPort,
+use crate::{
+    application::{
+        errors::token_generator::TokenGeneratorError,
+        ports::outbound::token_generator::TokenGeneratorPort,
+    },
+    infrastructure::security::token_generator::{claims::Claims, error::JwtError},
 };
-use crate::infrastructure::security::token_generator::claims::Claims;
-use crate::infrastructure::security::token_generator::error::JwtError;
+use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct JwtTokenGenerator {
     secret: String,
@@ -14,7 +15,10 @@ pub struct JwtTokenGenerator {
 
 impl JwtTokenGenerator {
     pub fn new(secret: String, ttl_seconds: u64) -> Self {
-        Self { secret, ttl_seconds }
+        Self {
+            secret,
+            ttl_seconds,
+        }
     }
 }
 
@@ -28,26 +32,27 @@ impl JwtTokenGenerator {
             &DecodingKey::from_secret(self.secret.as_bytes()),
             &validation,
         )
-            .map_err(|err| {
-                use jsonwebtoken::errors::ErrorKind;
+        .map_err(|err| {
+            use jsonwebtoken::errors::ErrorKind;
 
-                match err.kind() {
-                    ErrorKind::ExpiredSignature => JwtError::Expired,
-                    _ => JwtError::InvalidToken,
-                }
-            })?;
+            match err.kind() {
+                ErrorKind::ExpiredSignature => JwtError::Expired,
+                _ => JwtError::InvalidToken,
+            }
+        })?;
 
         Ok(data.claims)
     }
 }
 
 impl TokenGeneratorPort for JwtTokenGenerator {
-    fn generate(&self, user_id: &str) -> Result<String, String> {
+    fn generate(&self, user_id: &str) -> Result<String, TokenGeneratorError> {
         let expiration = SystemTime::now()
             .checked_add(std::time::Duration::from_secs(self.ttl_seconds))
             .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
             .map(|d| d.as_secs() as usize)
-            .ok_or("Unable to calculate expiration time")?;
+            .ok_or("Unable to calculate expiration time")
+            .map_err(|e| TokenGeneratorError(e.to_string()))?;
 
         let claims = Claims {
             sub: user_id.to_string(),
@@ -59,6 +64,6 @@ impl TokenGeneratorPort for JwtTokenGenerator {
             &claims,
             &EncodingKey::from_secret(self.secret.as_bytes()),
         )
-            .map_err(|e| e.to_string())
+        .map_err(|e| TokenGeneratorError(e.to_string()))
     }
 }

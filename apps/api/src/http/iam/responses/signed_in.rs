@@ -1,5 +1,5 @@
-use serde::Serialize;
 use iam::application::results::account_authenticated::AccountAuthenticated;
+use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct SignedInResponse {
@@ -8,8 +8,6 @@ pub struct SignedInResponse {
 
 impl From<AccountAuthenticated> for SignedInResponse {
     fn from(dto: AccountAuthenticated) -> Self {
-        Self {
-            token: dto.token,
-        }
+        Self { token: dto.token }
     }
 }

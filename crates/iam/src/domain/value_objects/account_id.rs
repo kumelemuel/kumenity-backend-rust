@@ -1,6 +1,5 @@
+use crate::domain::errors::account_id::AccountIdError;
 use uuid::Uuid;
-
-use crate::domain::errors::invalid_account_id::InvalidAccountId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AccountId(Uuid);
@@ -10,16 +9,16 @@ impl AccountId {
         Self(Uuid::new_v4())
     }
 
-    pub fn from_uuid(uuid: Uuid) -> Result<Self, InvalidAccountId> {
+    pub fn from_uuid(uuid: Uuid) -> Result<Self, AccountIdError> {
         if uuid.is_nil() {
-            return Err(InvalidAccountId);
+            return Err(AccountIdError::Invalid);
         }
 
         Ok(Self(uuid))
     }
 
-    pub fn from_str(value: &str) -> Result<Self, InvalidAccountId> {
-        let uuid = Uuid::parse_str(value).map_err(|_| InvalidAccountId)?;
+    pub fn from_str(value: &str) -> Result<Self, AccountIdError> {
+        let uuid = Uuid::parse_str(value).map_err(|_| AccountIdError::WrongFormat)?;
         Self::from_uuid(uuid)
     }
 
@@ -53,10 +52,7 @@ mod tests {
     fn rejects_nil_uuid() {
         let result = AccountId::from_uuid(Uuid::nil());
 
-        assert_eq!(
-            result,
-            Err(InvalidAccountId)
-        );
+        assert!(matches!(result, Err(AccountIdError::Invalid)));
     }
 
     #[test]
@@ -71,9 +67,6 @@ mod tests {
     fn rejects_invalid_string() {
         let result = AccountId::from_str("not-a-uuid");
 
-        assert_eq!(
-            result,
-            Err(InvalidAccountId)
-        );
+        assert!(matches!(result, Err(AccountIdError::WrongFormat)));
     }
 }

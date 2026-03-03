@@ -1,4 +1,5 @@
 use uuid::Uuid;
+
 use crate::domain::errors::invalid_community_id::InvalidCommunityId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -29,8 +30,9 @@ impl CommunityId {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use uuid::Uuid;
+
+    use super::*;
 
     #[test]
     fn generates_unique_ids() {
@@ -52,10 +54,7 @@ mod tests {
     fn rejects_nil_uuid() {
         let result = CommunityId::from_uuid(Uuid::nil());
 
-        assert_eq!(
-            result,
-            Err(InvalidCommunityId)
-        );
+        assert_eq!(result, Err(InvalidCommunityId));
     }
 
     #[test]
@@ -70,9 +69,6 @@ mod tests {
     fn rejects_invalid_string() {
         let result = CommunityId::from_str("not-a-uuid");
 
-        assert_eq!(
-            result,
-            Err(InvalidCommunityId)
-        );
+        assert_eq!(result, Err(InvalidCommunityId));
     }
 }

@@ -1,5 +1,5 @@
-use serde::Serialize;
 use communities::application::results::community_created::CommunityCreated;
+use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct CreatedResponse {

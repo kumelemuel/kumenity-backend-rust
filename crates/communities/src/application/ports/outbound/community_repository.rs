@@ -15,7 +15,7 @@ pub mod test_utils {
 
     pub struct FakeCommunityRepository {
         should_fail: bool,
-        activated: bool,
+        _activated: bool,
         existing_id: Option<String>,
         existing_slug: Option<String>,
     }
@@ -24,7 +24,7 @@ pub mod test_utils {
         pub fn success() -> Self {
             Self {
                 should_fail: false,
-                activated: false,
+                _activated: false,
                 existing_id: None,
                 existing_slug: None,
             }
@@ -33,7 +33,7 @@ pub mod test_utils {
         pub fn fail() -> Self {
             Self {
                 should_fail: true,
-                activated: false,
+                _activated: false,
                 existing_id: None,
                 existing_slug: None,
             }
@@ -42,7 +42,7 @@ pub mod test_utils {
         pub fn with_existing_slug(slug: &str) -> Self {
             Self {
                 should_fail: false,
-                activated: false,
+                _activated: false,
                 existing_id: None,
                 existing_slug: Some(slug.to_string()),
             }
@@ -51,7 +51,7 @@ pub mod test_utils {
         pub fn with_existing_id(id: &str) -> Self {
             Self {
                 should_fail: false,
-                activated: false,
+                _activated: false,
                 existing_id: Some(id.to_string()),
                 existing_slug: None,
             }
@@ -60,7 +60,7 @@ pub mod test_utils {
         pub fn active_with_existing_username(username: &str) -> Self {
             Self {
                 should_fail: false,
-                activated: true,
+                _activated: true,
                 existing_id: Some(username.to_string()),
                 existing_slug: None,
             }
@@ -68,7 +68,7 @@ pub mod test_utils {
     }
 
     impl CommunityRepositoryPort for FakeCommunityRepository {
-        fn get_public_list(&self, query: Option<String>) -> Vec<Community> {
+        fn get_public_list(&self, _query: Option<String>) -> Vec<Community> {
             todo!()
         }
 
@@ -76,18 +76,14 @@ pub mod test_utils {
             self.existing_id
                 .as_ref()
                 .filter(|c| c.as_str() == id)
-                .map(|_| {
-                    Community::dummy_community()
-                })
+                .map(|_| Community::dummy_community())
         }
 
         fn find_by_slug(&self, slug: &str) -> Option<Community> {
             self.existing_slug
                 .as_ref()
                 .filter(|c| c.as_str() == slug)
-                .map(|_| {
-                    Community::dummy_community()
-                })
+                .map(|_| Community::dummy_community())
         }
 
         fn save(&self, _community: &Community) -> Result<(), String> {

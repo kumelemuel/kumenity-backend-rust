@@ -1,27 +1,29 @@
+use crate::{
+    application::{
+        commands::identify_account::IdentifyAccount,
+        ports::{
+            inbound::account_identification::AccountIdentificationPort,
+            outbound::account_repository::AccountRepositoryPort,
+        },
+        results::account_identified::AccountIdentified,
+    },
+    domain::{aggregates::Account, errors::AccountError},
+};
+use shared::error::SystemError;
 use std::sync::Arc;
-use crate::application::errors::application_error::ApplicationError;
-use crate::application::ports::outbound::account_repository::AccountRepositoryPort;
-use crate::application::commands::identify_account::IdentifyAccount;
-use crate::application::ports::inbound::account_identification::AccountIdentificationPort;
-use crate::application::results::account_identified::AccountIdentified;
-use crate::domain::aggregates::Account;
 
 pub struct IdentifyAccountUseCase {
     account_repository: Arc<dyn AccountRepositoryPort>,
 }
 
 impl IdentifyAccountUseCase {
-    pub fn new(
-        account_repository: Arc<dyn AccountRepositoryPort>,
-    ) -> Self {
-        Self {
-            account_repository,
-        }
+    pub fn new(account_repository: Arc<dyn AccountRepositoryPort>) -> Self {
+        Self { account_repository }
     }
 }
 
 impl AccountIdentificationPort for IdentifyAccountUseCase {
-    fn execute(&self, cmd: IdentifyAccount) -> Result<AccountIdentified, ApplicationError> {
+    fn execute(&self, cmd: IdentifyAccount) -> Result<AccountIdentified, SystemError> {
         let mut account: Option<Account> = None;
         let existing_email = self.account_repository.find_by_email(cmd.identify.as_str());
         if existing_email.is_none() {
@@ -36,7 +38,7 @@ impl AccountIdentificationPort for IdentifyAccountUseCase {
         }
 
         if account.is_none() {
-            return Err(ApplicationError::UserNotFound);
+            return Err(AccountError::AccountNotFound.into());
         }
         let account = account.unwrap();
 
@@ -49,12 +51,18 @@ impl AccountIdentificationPort for IdentifyAccountUseCase {
 
 #[cfg(test)]
 mod tests {
+    use crate::{
+        application::{
+            commands::identify_account::IdentifyAccount,
+            ports::{
+                inbound::account_identification::AccountIdentificationPort,
+                outbound::account_repository::test_utils::FakeAccountRepository,
+            },
+            use_cases::identify_account::IdentifyAccountUseCase,
+        },
+        domain::errors::error_codes::IAM_ACCOUNT_NOT_FOUND,
+    };
     use std::sync::Arc;
-    use crate::application::errors::application_error::ApplicationError;
-    use crate::application::commands::identify_account::IdentifyAccount;
-    use crate::application::ports::inbound::account_identification::AccountIdentificationPort;
-    use crate::application::ports::outbound::account_repository::test_utils::FakeAccountRepository;
-    use crate::application::use_cases::identify_account::IdentifyAccountUseCase;
 
     #[test]
     fn fails_when_account_not_found() {
@@ -66,12 +74,16 @@ mod tests {
             identify: "not-exists@example.com".to_string(),
         });
 
-        assert!(matches!(result, Err(ApplicationError::UserNotFound)));
+        let err = result.expect_err("Expected error");
+
+        assert_eq!(err.code(), IAM_ACCOUNT_NOT_FOUND);
     }
 
     #[test]
     fn identify_account_successfully() {
-        let repo = Arc::new(FakeAccountRepository::with_existing_email("dummy@example.com"));
+        let repo = Arc::new(FakeAccountRepository::with_existing_email(
+            "dummy@example.com",
+        ));
 
         let use_case = IdentifyAccountUseCase::new(repo);
 
@@ -81,6 +93,4 @@ mod tests {
 
         assert!(result.is_ok());
     }
-
-
 }
