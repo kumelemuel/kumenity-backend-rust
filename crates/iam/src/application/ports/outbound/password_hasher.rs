@@ -7,8 +7,10 @@ pub trait PasswordHasherPort: Send + Sync {
 
 #[cfg(test)]
 pub mod test_utils {
-    use crate::application::ports::outbound::password_hasher::PasswordHasherPort;
-    use crate::domain::value_objects::HashedPassword;
+    use crate::{
+        application::ports::outbound::password_hasher::PasswordHasherPort,
+        domain::value_objects::HashedPassword,
+    };
 
     pub struct FakePasswordHasher;
 

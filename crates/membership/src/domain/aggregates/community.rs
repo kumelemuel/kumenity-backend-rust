@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+
 use iam::domain::value_objects::AccountId;
+
 use crate::domain::entities::membership::Membership;
 use crate::domain::errors::community_error::CommunityError;
 use crate::domain::value_objects::community_id::CommunityId;
@@ -15,7 +17,7 @@ pub struct Community {
     slug: CommunitySlug,
     name: CommunityName,
     public: bool,
-    memberships: HashMap<AccountId,Membership>
+    memberships: HashMap<AccountId, Membership>,
 }
 
 impl Community {
@@ -29,10 +31,7 @@ impl Community {
     ) -> Self {
         let mut memberships = HashMap::new();
 
-        memberships.insert(
-            owner_id.clone(),
-            Membership::owner(owner_nickname),
-        );
+        memberships.insert(owner_id.clone(), Membership::owner(owner_nickname));
 
         Self {
             id,
@@ -88,8 +87,8 @@ impl Community {
             return Err(CommunityError::AlreadyMember);
         }
 
-        let membership =
-            Membership::member(role, nickname).map_err(|_| CommunityError::InsufficientPermissions)?;
+        let membership = Membership::member(role, nickname)
+            .map_err(|_| CommunityError::InsufficientPermissions)?;
 
         self.memberships.insert(new_member, membership);
         Ok(())
@@ -114,7 +113,9 @@ impl Community {
             .get_mut(target)
             .ok_or(CommunityError::NotMember)?;
 
-        membership.activate().map_err(|_| CommunityError::InsufficientPermissions)?;
+        membership
+            .activate()
+            .map_err(|_| CommunityError::InsufficientPermissions)?;
         Ok(())
     }
     pub fn change_member_role(
@@ -225,9 +226,7 @@ impl Community {
             .get_mut(target)
             .ok_or(CommunityError::NotMember)?;
 
-        membership
-            .ban()
-            .map_err(|_| CommunityError::InvalidState)?;
+        membership.ban().map_err(|_| CommunityError::InvalidState)?;
 
         Ok(())
     }
@@ -235,8 +234,8 @@ impl Community {
 
 #[cfg(test)]
 mod tests {
-    use crate::domain::value_objects::membership_status::MembershipStatus;
     use super::*;
+    use crate::domain::value_objects::membership_status::MembershipStatus;
 
     impl Community {
         pub fn dummy_community() -> Community {
@@ -278,12 +277,7 @@ mod tests {
         let owner_id = community.owner_id.clone();
         let member_id = AccountId::generate();
 
-        let result = community.add_member(
-            &owner_id,
-            member_id.clone(),
-            Role::Member,
-            None,
-        );
+        let result = community.add_member(&owner_id, member_id.clone(), Role::Member, None);
 
         assert!(result.is_ok());
         assert!(community.is_member(&member_id));
@@ -300,12 +294,7 @@ mod tests {
             .add_member(&owner_id, member_id.clone(), Role::Member, None)
             .unwrap();
 
-        let result = community.add_member(
-            &member_id,
-            another_member_id,
-            Role::Member,
-            None,
-        );
+        let result = community.add_member(&member_id, another_member_id, Role::Member, None);
 
         assert_eq!(result, Err(CommunityError::InsufficientPermissions));
     }
@@ -320,12 +309,7 @@ mod tests {
             .add_member(&owner_id, member_id.clone(), Role::Member, None)
             .unwrap();
 
-        let result = community.add_member(
-            &owner_id,
-            member_id,
-            Role::Member,
-            None,
-        );
+        let result = community.add_member(&owner_id, member_id, Role::Member, None);
 
         assert_eq!(result, Err(CommunityError::AlreadyMember));
     }
@@ -340,8 +324,7 @@ mod tests {
             .add_member(&owner_id, member_id.clone(), Role::Member, None)
             .unwrap();
 
-        let result =
-            community.activate_member(&owner_id, &member_id);
+        let result = community.activate_member(&owner_id, &member_id);
 
         assert!(result.is_ok());
 
@@ -358,15 +341,9 @@ mod tests {
         community
             .add_member(&owner_id, member_id.clone(), Role::Member, None)
             .unwrap();
-        community
-            .activate_member(&owner_id, &member_id)
-            .unwrap();
+        community.activate_member(&owner_id, &member_id).unwrap();
 
-        let result = community.change_member_role(
-            &owner_id,
-            &member_id,
-            Role::Admin,
-        );
+        let result = community.change_member_role(&owner_id, &member_id, Role::Admin);
 
         assert!(result.is_ok());
 
@@ -379,11 +356,7 @@ mod tests {
         let mut community = Community::dummy_community();
         let owner_id = community.owner_id.clone();
 
-        let result = community.change_member_role(
-            &owner_id,
-            &owner_id,
-            Role::Admin,
-        );
+        let result = community.change_member_role(&owner_id, &owner_id, Role::Admin);
 
         assert_eq!(result, Err(CommunityError::CannotRemoveOwner));
     }
@@ -398,19 +371,14 @@ mod tests {
         community
             .add_member(&owner_id, admin_id.clone(), Role::Admin, None)
             .unwrap();
-        community
-            .activate_member(&owner_id, &admin_id)
-            .unwrap();
+        community.activate_member(&owner_id, &admin_id).unwrap();
 
         community
             .add_member(&owner_id, member_id.clone(), Role::Member, None)
             .unwrap();
-        community
-            .activate_member(&owner_id, &member_id)
-            .unwrap();
+        community.activate_member(&owner_id, &member_id).unwrap();
 
-        let result =
-            community.suspend_member(&admin_id, &member_id);
+        let result = community.suspend_member(&admin_id, &member_id);
 
         assert!(result.is_ok());
 
@@ -423,8 +391,7 @@ mod tests {
         let mut community = Community::dummy_community();
         let owner_id = community.owner_id.clone();
 
-        let result =
-            community.suspend_member(&owner_id, &owner_id);
+        let result = community.suspend_member(&owner_id, &owner_id);
 
         assert_eq!(result, Err(CommunityError::CannotRemoveOwner));
     }
@@ -438,12 +405,9 @@ mod tests {
         community
             .add_member(&owner_id, member_id.clone(), Role::Member, None)
             .unwrap();
-        community
-            .activate_member(&owner_id, &member_id)
-            .unwrap();
+        community.activate_member(&owner_id, &member_id).unwrap();
 
-        let result =
-            community.ban_member(&owner_id, &member_id);
+        let result = community.ban_member(&owner_id, &member_id);
 
         assert!(result.is_ok());
 
@@ -461,8 +425,7 @@ mod tests {
             .add_member(&owner_id, member_id.clone(), Role::Member, None)
             .unwrap();
 
-        let result =
-            community.remove_member(&owner_id, &member_id);
+        let result = community.remove_member(&owner_id, &member_id);
 
         assert!(result.is_ok());
         assert!(!community.is_member(&member_id));
@@ -473,10 +436,8 @@ mod tests {
         let mut community = Community::dummy_community();
         let owner_id = community.owner_id.clone();
 
-        let result =
-            community.remove_member(&owner_id, &owner_id);
+        let result = community.remove_member(&owner_id, &owner_id);
 
         assert_eq!(result, Err(CommunityError::CannotRemoveOwner));
     }
 }
-

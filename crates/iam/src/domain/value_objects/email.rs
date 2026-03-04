@@ -1,18 +1,18 @@
-use crate::domain::errors::invalid_email::InvalidEmail;
+use crate::domain::errors::EmailError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Email(String);
 
 impl Email {
-    pub fn new(value: impl Into<String>) -> Result<Self, InvalidEmail> {
+    pub fn new(value: impl Into<String>) -> Result<Self, EmailError> {
         let normalized = value.into().trim().to_lowercase();
 
         if normalized.is_empty() {
-            return Err(InvalidEmail);
+            return Err(EmailError::Invalid);
         }
 
         if !Self::is_valid_format(&normalized) {
-            return Err(InvalidEmail);
+            return Err(EmailError::Invalid);
         }
 
         Ok(Self(normalized))
@@ -41,7 +41,7 @@ impl Email {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::errors::InvalidEmail;
+    use crate::domain::errors::EmailError;
 
     #[test]
     fn creates_valid_email() {
@@ -58,25 +58,25 @@ mod tests {
     #[test]
     fn rejects_empty_email() {
         let result = Email::new("   ");
-        assert_eq!(result, Err(InvalidEmail));
+        assert_eq!(result, Err(EmailError::Invalid));
     }
 
     #[test]
     fn rejects_missing_at_symbol() {
         let result = Email::new("invalid-email");
-        assert_eq!(result, Err(InvalidEmail));
+        assert_eq!(result, Err(EmailError::Invalid));
     }
 
     #[test]
     fn rejects_missing_domain() {
         let result = Email::new("user@");
-        assert_eq!(result, Err(InvalidEmail));
+        assert_eq!(result, Err(EmailError::Invalid));
     }
 
     #[test]
     fn rejects_missing_dot_in_domain() {
         let result = Email::new("user@example");
-        assert_eq!(result, Err(InvalidEmail));
+        assert_eq!(result, Err(EmailError::Invalid));
     }
 
     #[test]

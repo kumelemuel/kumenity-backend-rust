@@ -7,11 +7,15 @@ pub struct JwtConfig {
 
 impl JwtConfig {
     pub fn from_env() -> Result<Self, ConfigError> {
-        let secret = std::env::var("JWT_SECRET")
-            .map_err(|_| ConfigError::Missing("JWT_SECRET"))?;
+        let secret = std::env::var("JWT_SECRET").map_err(|_| ConfigError::Missing("JWT_SECRET"))?;
         let expiration_time: u64 = std::env::var("JWT_EXPIRATION_TIME")
-            .map_err(|_| ConfigError::Missing("JWT_EXPIRATION_TIME"))?.parse().unwrap();
+            .map_err(|_| ConfigError::Missing("JWT_EXPIRATION_TIME"))?
+            .parse()
+            .unwrap();
 
-        Ok(Self { secret, expiration_time })
+        Ok(Self {
+            secret,
+            expiration_time,
+        })
     }
 }

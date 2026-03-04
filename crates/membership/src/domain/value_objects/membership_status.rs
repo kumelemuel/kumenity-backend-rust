@@ -19,10 +19,10 @@ impl MembershipStatus {
         matches!(
             (self, next),
             (Pending, Active)
-            | (Active, Suspended)
-            | (Active, Banned)
-            | (Suspended, Active)
-            | (Suspended, Banned)
+                | (Active, Suspended)
+                | (Active, Banned)
+                | (Suspended, Active)
+                | (Suspended, Banned)
         )
     }
 

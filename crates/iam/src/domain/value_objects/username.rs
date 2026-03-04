@@ -1,23 +1,23 @@
-use crate::domain::errors::InvalidUsername;
+use crate::domain::errors::UsernameError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Username(String);
 
 impl Username {
-    pub fn new(value: String) -> Result<Self, InvalidUsername> {
+    pub fn new(value: String) -> Result<Self, UsernameError> {
         let trimmed = value.trim();
 
         if trimmed.is_empty() {
-            return Err(InvalidUsername);
+            return Err(UsernameError::Invalid);
         }
 
         let length = trimmed.len();
         if length < 3 || length > 32 {
-            return Err(InvalidUsername);
+            return Err(UsernameError::Invalid);
         }
 
         if trimmed.contains(' ') {
-            return Err(InvalidUsername);
+            return Err(UsernameError::Invalid);
         }
 
         Ok(Self(trimmed.to_string()))
@@ -31,7 +31,7 @@ impl Username {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::errors::InvalidUsername;
+    use crate::domain::errors::UsernameError;
 
     #[test]
     fn creates_valid_username() {
@@ -52,14 +52,14 @@ mod tests {
     fn rejects_empty_username() {
         let result = Username::new("   ".to_string());
 
-        assert_eq!(result, Err(InvalidUsername));
+        assert_eq!(result, Err(UsernameError::Invalid));
     }
 
     #[test]
     fn rejects_too_short_username() {
         let result = Username::new("ab".to_string());
 
-        assert_eq!(result, Err(InvalidUsername));
+        assert_eq!(result, Err(UsernameError::Invalid));
     }
 
     #[test]
@@ -67,14 +67,14 @@ mod tests {
         let value = "a".repeat(33);
         let result = Username::new(value);
 
-        assert_eq!(result, Err(InvalidUsername));
+        assert_eq!(result, Err(UsernameError::Invalid));
     }
 
     #[test]
     fn rejects_username_with_spaces() {
         let result = Username::new("john doe".to_string());
 
-        assert_eq!(result, Err(InvalidUsername));
+        assert_eq!(result, Err(UsernameError::Invalid));
     }
 
     #[test]

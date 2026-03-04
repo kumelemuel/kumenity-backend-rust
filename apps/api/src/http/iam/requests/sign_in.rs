@@ -1,6 +1,5 @@
-
-use serde::Deserialize;
 use iam::application::commands::authenticate_account::AuthenticateAccount;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct SignInRequest {

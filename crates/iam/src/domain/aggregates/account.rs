@@ -1,6 +1,7 @@
-use crate::domain::errors::InvalidAccountStatusTransition;
-use crate::domain::value_objects::account_id::AccountId;
-use crate::domain::value_objects::{CodeValidation, Email, HashedPassword, AccountStatus, Username};
+use crate::domain::{
+    errors::{AccountError, AccountStatusTransitionError},
+    value_objects::{AccountId, AccountStatus, CodeValidation, Email, HashedPassword, Username},
+};
 
 #[derive(Debug, Clone)]
 pub struct Account {
@@ -23,7 +24,9 @@ impl Account {
             username,
             email,
             password,
-            status: AccountStatus::Registered{ code_validation: CodeValidation::generate() },
+            status: AccountStatus::Registered {
+                code_validation: CodeValidation::generate(),
+            },
         }
     }
 
@@ -79,30 +82,48 @@ impl Account {
         self.username = new_username;
     }
 
-    fn transition_status(&mut self, next: AccountStatus) -> Result<(), InvalidAccountStatusTransition> {
+    fn transition_status(
+        &mut self,
+        next: AccountStatus,
+    ) -> Result<(), AccountStatusTransitionError> {
         self.status = self.status.transition_to(next)?;
         Ok(())
     }
 
-    pub fn deactivate(&mut self) -> Result<(), InvalidAccountStatusTransition> {
+    pub fn deactivate(&mut self) -> Result<(), AccountStatusTransitionError> {
         self.transition_status(AccountStatus::Deactivated)
     }
 
-    pub fn activate(&mut self) -> Result<(), InvalidAccountStatusTransition> {
+    pub fn activate(&mut self) -> Result<(), AccountStatusTransitionError> {
+        if self.status.as_str() == "registered" {
+            return Err(AccountStatusTransitionError::Invalid);
+        }
         self.transition_status(AccountStatus::Active)
     }
 
-    pub fn suspend(&mut self) -> Result<(), InvalidAccountStatusTransition> {
+    pub fn suspend(&mut self) -> Result<(), AccountStatusTransitionError> {
         self.transition_status(AccountStatus::Suspended)
+    }
+
+    pub fn confirm_registration(&mut self, code: CodeValidation) -> Result<(), AccountError> {
+        match self.status {
+            AccountStatus::Registered { code_validation } => {
+                if code_validation != code {
+                    return Err(AccountError::InvalidVerification);
+                }
+                let _ = self
+                    .transition_status(AccountStatus::Active)
+                    .map_err(|_| AccountError::InvalidVerification);
+                Ok(())
+            }
+            _ => Err(AccountError::InvalidVerification),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::value_objects::{
-        email::Email, hashed_password::HashedPassword, account_id::AccountId, username::Username,
-    };
 
     impl Account {
         pub fn dummy_account() -> Account {
@@ -111,17 +132,19 @@ mod tests {
                 Username::new("dummy".to_string()).unwrap(),
                 Email::new("dummy@example.com").unwrap(),
                 HashedPassword::dummy(),
-                AccountStatus::Registered { code_validation: CodeValidation::new(123123).unwrap() },
+                AccountStatus::Registered {
+                    code_validation: CodeValidation::new(123123).unwrap(),
+                },
             )
         }
 
-        pub fn dummy_active_account() -> Account {
+        pub fn dummy_account_with_status(status: AccountStatus) -> Account {
             Account::reconstitute(
                 AccountId::generate(),
                 Username::new("dummy".to_string()).unwrap(),
                 Email::new("dummy@example.com").unwrap(),
                 HashedPassword::dummy(),
-                AccountStatus::Active,
+                status,
             )
         }
     }
@@ -139,10 +162,7 @@ mod tests {
     fn registering_user_starts_in_registered_status() {
         let user = registered_user();
 
-        assert!(matches!(
-            user.status(),
-            AccountStatus::Registered { .. }
-        ));
+        assert!(matches!(user.status(), AccountStatus::Registered { .. }));
     }
 
     #[test]
@@ -178,11 +198,46 @@ mod tests {
     }
 
     #[test]
-    fn registered_user_can_be_activated() {
+    fn registered_user_cannot_be_activated_directly() {
         let mut user = registered_user();
 
-        assert!(user.activate().is_ok());
-        assert_eq!(user.status(), &AccountStatus::Active);
+        assert!(user.activate().is_err());
+    }
+
+    #[test]
+    fn should_not_allow_confirmation_from_non_registered_states() {
+        let states = vec![
+            AccountStatus::Active,
+            AccountStatus::Suspended,
+            AccountStatus::Deactivated,
+            AccountStatus::Deleted,
+        ];
+
+        let code = CodeValidation::new(123123).unwrap();
+
+        for state in states {
+            let mut user = Account::dummy_account_with_status(state);
+            let result = user.confirm_registration(code);
+            assert!(result.is_err());
+        }
+    }
+
+    #[test]
+    fn registered_user_can_be_confirmed_with_correct_code_validation() {
+        let mut user = Account::dummy_account();
+
+        let code = CodeValidation::new(123123).unwrap();
+
+        assert!(user.confirm_registration(code).is_ok());
+    }
+
+    #[test]
+    fn registered_user_cannot_be_confirmed_with_invalid_code_validation() {
+        let mut user = Account::dummy_account();
+
+        let code = CodeValidation::new(321321).unwrap();
+
+        assert!(user.confirm_registration(code).is_err());
     }
 
     #[test]

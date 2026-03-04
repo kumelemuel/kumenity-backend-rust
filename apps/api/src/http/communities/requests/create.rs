@@ -1,6 +1,5 @@
-
-use serde::Deserialize;
 use communities::application::commands::create_community::CreateCommunity;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct CreateRequest {

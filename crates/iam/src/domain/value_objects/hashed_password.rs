@@ -1,18 +1,18 @@
-use crate::domain::errors::InvalidHashedPassword;
+use crate::domain::errors::HashedPasswordError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HashedPassword(String);
 
 impl HashedPassword {
-    pub fn from_hash(value: impl Into<String>) -> Result<Self, InvalidHashedPassword> {
+    pub fn from_hash(value: impl Into<String>) -> Result<Self, HashedPasswordError> {
         let value = value.into();
 
         if value.trim().is_empty() {
-            return Err(InvalidHashedPassword);
+            return Err(HashedPasswordError::Invalid);
         }
 
         if !Self::looks_like_a_hash(&value) {
-            return Err(InvalidHashedPassword);
+            return Err(HashedPasswordError::Invalid);
         }
 
         Ok(Self(value))
@@ -30,7 +30,7 @@ impl HashedPassword {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::errors::InvalidHashedPassword;
+    use crate::domain::errors::HashedPasswordError;
 
     impl HashedPassword {
         pub fn dummy() -> Self {
@@ -53,19 +53,19 @@ mod tests {
     #[test]
     fn rejects_empty_hash() {
         let result = HashedPassword::from_hash("");
-        assert_eq!(result, Err(InvalidHashedPassword));
+        assert_eq!(result, Err(HashedPasswordError::Invalid));
     }
 
     #[test]
     fn rejects_whitespace_hash() {
         let result = HashedPassword::from_hash("   ");
-        assert_eq!(result, Err(InvalidHashedPassword));
+        assert_eq!(result, Err(HashedPasswordError::Invalid));
     }
 
     #[test]
     fn rejects_too_short_hash() {
         let result = HashedPassword::from_hash("short");
-        assert_eq!(result, Err(InvalidHashedPassword));
+        assert_eq!(result, Err(HashedPasswordError::Invalid));
     }
 
     #[test]

@@ -1,5 +1,5 @@
+use crate::domain::errors::CodeValidationError;
 use rand::Rng;
-use crate::domain::errors::InvalidCodeValidation;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CodeValidation(u32);
@@ -8,11 +8,11 @@ impl CodeValidation {
     const MIN: u32 = 100_000;
     const MAX: u32 = 999_999;
 
-    pub fn new(value: u32) -> Result<Self, InvalidCodeValidation> {
+    pub fn new(value: u32) -> Result<Self, CodeValidationError> {
         if (Self::MIN..=Self::MAX).contains(&value) {
             Ok(Self(value))
         } else {
-            Err(InvalidCodeValidation)
+            Err(CodeValidationError::Invalid)
         }
     }
 
@@ -38,7 +38,13 @@ mod tests {
 
     #[test]
     fn rejects_out_of_bounds() {
-        assert_eq!(CodeValidation::new(99_999), Err(InvalidCodeValidation));
-        assert_eq!(CodeValidation::new(1_000_000), Err(InvalidCodeValidation));
+        assert_eq!(
+            CodeValidation::new(99_999),
+            Err(CodeValidationError::Invalid)
+        );
+        assert_eq!(
+            CodeValidation::new(1_000_000),
+            Err(CodeValidationError::Invalid)
+        );
     }
 }

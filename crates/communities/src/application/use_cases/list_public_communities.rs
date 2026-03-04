@@ -1,10 +1,14 @@
 use std::sync::Arc;
+
 use shared::application::auth_context::AuthContext;
+
 use crate::application::commands::list_public_communities::ListPublicCommunities;
 use crate::application::errors::application_error::ApplicationError;
 use crate::application::ports::inbound::public_communities_listing::PublicCommunitiesListingPort;
 use crate::application::ports::outbound::community_repository::CommunityRepositoryPort;
-use crate::application::results::public_communities_listed::{CommunityResult, PublicCommunitiesListed};
+use crate::application::results::public_communities_listed::{
+    CommunityResult, PublicCommunitiesListed,
+};
 
 pub struct ListPublicCommunitiesUseCase {
     community_repository: Arc<dyn CommunityRepositoryPort>,
@@ -12,20 +16,29 @@ pub struct ListPublicCommunitiesUseCase {
 
 impl ListPublicCommunitiesUseCase {
     pub fn new(community_repository: Arc<dyn CommunityRepositoryPort>) -> Self {
-        Self { community_repository }
+        Self {
+            community_repository,
+        }
     }
 }
 
 impl PublicCommunitiesListingPort for ListPublicCommunitiesUseCase {
-    fn execute(&self, data: ListPublicCommunities, _: AuthContext) -> Result<PublicCommunitiesListed, ApplicationError> {
+    fn execute(
+        &self,
+        data: ListPublicCommunities,
+        _: AuthContext,
+    ) -> Result<PublicCommunitiesListed, ApplicationError> {
+        let communities: Vec<CommunityResult> = self
+            .community_repository
+            .get_public_list(data.query)
+            .iter()
+            .map(|community| CommunityResult {
+                name: community.name().as_str().to_string(),
+                slug: community.slug().as_str().to_string(),
+            })
+            .collect();
 
-        let communities: Vec<CommunityResult> = self.community_repository.get_public_list(data.query).iter().map(|community| CommunityResult {
-            name: community.name().as_str().to_string(),
-            slug: community.slug().as_str().to_string(),
-        }).collect();
-
-        Ok( PublicCommunitiesListed { communities })
-
+        Ok(PublicCommunitiesListed { communities })
     }
 }
 

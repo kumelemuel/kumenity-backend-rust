@@ -1,4 +1,5 @@
 use std::sync::Arc;
+
 use iam::application::ports::inbound::account_authentication::AccountAuthenticationPort;
 use iam::application::ports::inbound::account_identification::AccountIdentificationPort;
 use iam::application::ports::inbound::account_registration::AccountRegistrationPort;
@@ -24,8 +25,13 @@ impl IamState {
         let account_repository = Arc::new(InMemoryAccountRepository::new());
         let password_hasher = Arc::new(Argon2PasswordHasher::new());
 
-        let register_account = RegisterAccountUseCase::new(account_repository.clone(), password_hasher.clone());
-        let authenticate_account = AuthenticateAccountUseCase::new(account_repository.clone(), password_hasher.clone(), token_generator);
+        let register_account =
+            RegisterAccountUseCase::new(account_repository.clone(), password_hasher.clone());
+        let authenticate_account = AuthenticateAccountUseCase::new(
+            account_repository.clone(),
+            password_hasher.clone(),
+            token_generator,
+        );
         let verify_account = VerifyAccountUseCase::new(account_repository.clone());
         let identify_account = IdentifyAccountUseCase::new(account_repository.clone());
 

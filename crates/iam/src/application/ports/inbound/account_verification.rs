@@ -1,6 +1,6 @@
 use crate::application::commands::verify_account::VerifyAccount;
-use crate::application::errors::application_error::ApplicationError;
+use shared::error::SystemError;
 
 pub trait AccountVerificationPort {
-    fn execute(&self, data: VerifyAccount) -> Result<bool, ApplicationError>;
+    fn execute(&self, data: VerifyAccount) -> Result<bool, SystemError>;
 }
