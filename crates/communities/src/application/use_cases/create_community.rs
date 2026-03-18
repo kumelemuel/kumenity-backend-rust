@@ -1,18 +1,23 @@
-use std::sync::Arc;
-
+use crate::{
+    application::{
+        commands::create_community::CreateCommunity,
+        errors::community_creation::CommunityCreationError,
+        ports::{
+            inbound::community_creation::CommunityCreationPort,
+            outbound::community_repository::CommunityRepositoryPort,
+        },
+        results::community_created::CommunityCreated,
+    },
+    domain::{
+        aggregates::community::Community,
+        value_objects::{
+            community_id::CommunityId, community_name::CommunityName, community_slug::CommunitySlug,
+        },
+    },
+};
 use iam::domain::value_objects::AccountId;
-use shared::application::auth_context::AuthContext;
-use shared::application::common_application_error::CommonApplicationError;
-
-use crate::application::commands::create_community::CreateCommunity;
-use crate::application::errors::application_error::ApplicationError;
-use crate::application::ports::inbound::community_creation::CommunityCreationPort;
-use crate::application::ports::outbound::community_repository::CommunityRepositoryPort;
-use crate::application::results::community_created::CommunityCreated;
-use crate::domain::aggregates::community::Community;
-use crate::domain::value_objects::community_id::CommunityId;
-use crate::domain::value_objects::community_name::CommunityName;
-use crate::domain::value_objects::community_slug::CommunitySlug;
+use shared::{application::auth_context::AuthContext, error::SystemError};
+use std::sync::Arc;
 
 pub struct CreateCommunityUseCase {
     community_repository: Arc<dyn CommunityRepositoryPort>,
@@ -31,24 +36,21 @@ impl CommunityCreationPort for CreateCommunityUseCase {
         &self,
         data: CreateCommunity,
         auth: AuthContext,
-    ) -> Result<CommunityCreated, ApplicationError> {
-        let slug = CommunitySlug::new(data.slug).map_err(|_| ApplicationError::InvalidSlug)?;
+    ) -> Result<CommunityCreated, SystemError> {
+        let slug = CommunitySlug::new(data.slug)?;
         let existing_slug = self
             .community_repository
             .find_by_slug(slug.clone().as_str());
         if existing_slug.is_some() {
-            return Err(ApplicationError::SlugAlreadyExists);
+            return Err(CommunityCreationError::SlugAlreadyExists.into());
         }
-        let account_id = AccountId::from_str(auth.account_id.as_str());
+        let account_id = AccountId::from_str(auth.account_id.as_str())?;
         let id = CommunityId::generate();
-        let name =
-            CommunityName::new(data.name.clone()).map_err(|_| ApplicationError::InvalidName)?;
+        let name = CommunityName::new(data.name.clone())?;
 
-        let community = Community::create(id, account_id.unwrap(), slug, name, data.is_public);
+        let community = Community::create(id, account_id, slug, name, data.is_public);
 
-        self.community_repository
-            .save(&community)
-            .map_err(|_| CommonApplicationError::Infrastructure)?;
+        self.community_repository.save(&community)?;
 
         Ok(CommunityCreated {
             id: community.id().as_uuid().to_string(),
@@ -60,17 +62,23 @@ impl CommunityCreationPort for CreateCommunityUseCase {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use crate::{
+        application::{
+            commands::create_community::CreateCommunity,
+            errors::error_codes::{COMMUNITIES_REPOSITORY_ERROR, COMMUNITIES_SLUG_ALREADY_EXISTS},
+            ports::{
+                inbound::community_creation::CommunityCreationPort,
+                outbound::community_repository::test_utils::FakeCommunityRepository,
+            },
+            use_cases::create_community::CreateCommunityUseCase,
+        },
+        domain::errors::error_codes::{
+            COMMUNITIES_INVALID_COMMUNITY_NAME, COMMUNITIES_INVALID_COMMUNITY_SLUG,
+        },
+    };
     use iam::domain::value_objects::AccountId;
     use shared::application::auth_context::AuthContext;
-    use shared::application::common_application_error::CommonApplicationError;
-
-    use crate::application::commands::create_community::CreateCommunity;
-    use crate::application::errors::application_error::ApplicationError;
-    use crate::application::ports::inbound::community_creation::CommunityCreationPort;
-    use crate::application::ports::outbound::community_repository::test_utils::FakeCommunityRepository;
-    use crate::application::use_cases::create_community::CreateCommunityUseCase;
+    use std::sync::Arc;
 
     fn valid_auth_context() -> AuthContext {
         AuthContext {
@@ -111,7 +119,9 @@ mod tests {
 
         let result = use_case.execute(input, valid_auth_context());
 
-        assert!(matches!(result, Err(ApplicationError::InvalidName)));
+        let err = result.expect_err("Expected error");
+
+        assert_eq!(err.code(), COMMUNITIES_INVALID_COMMUNITY_NAME);
     }
 
     #[test]
@@ -128,7 +138,9 @@ mod tests {
 
         let result = use_case.execute(input, valid_auth_context());
 
-        assert!(matches!(result, Err(ApplicationError::InvalidSlug)));
+        let err = result.expect_err("Expected error");
+
+        assert_eq!(err.code(), COMMUNITIES_INVALID_COMMUNITY_SLUG);
     }
 
     #[test]
@@ -139,12 +151,9 @@ mod tests {
 
         let result = use_case.execute(valid_input(), valid_auth_context());
 
-        assert!(matches!(
-            result,
-            Err(ApplicationError::Common(
-                CommonApplicationError::Infrastructure
-            ))
-        ));
+        let err = result.expect_err("Expected error");
+
+        assert_eq!(err.code(), COMMUNITIES_REPOSITORY_ERROR);
     }
 
     #[test]
@@ -157,6 +166,8 @@ mod tests {
 
         let result = use_case.execute(valid_input(), valid_auth_context());
 
-        assert!(matches!(result, Err(ApplicationError::SlugAlreadyExists)));
+        let err = result.expect_err("Expected error");
+
+        assert_eq!(err.code(), COMMUNITIES_SLUG_ALREADY_EXISTS);
     }
 }
