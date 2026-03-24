@@ -1,9 +1,10 @@
+use crate::domain::{
+    policies::membership_policy::MembershipPolicy,
+    value_objects::{
+        community_id::CommunityId, community_name::CommunityName, community_slug::CommunitySlug,
+    },
+};
 use iam::domain::value_objects::AccountId;
-
-use crate::domain::policies::membership_policy::MembershipPolicy;
-use crate::domain::value_objects::community_id::CommunityId;
-use crate::domain::value_objects::community_name::CommunityName;
-use crate::domain::value_objects::community_slug::CommunitySlug;
 
 #[derive(Debug, Clone)]
 pub struct Community {

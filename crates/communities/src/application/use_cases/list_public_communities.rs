@@ -1,14 +1,13 @@
-use std::sync::Arc;
-
-use shared::application::auth_context::AuthContext;
-
-use crate::application::commands::list_public_communities::ListPublicCommunities;
-use crate::application::errors::application_error::ApplicationError;
-use crate::application::ports::inbound::public_communities_listing::PublicCommunitiesListingPort;
-use crate::application::ports::outbound::community_repository::CommunityRepositoryPort;
-use crate::application::results::public_communities_listed::{
-    CommunityResult, PublicCommunitiesListed,
+use crate::application::{
+    commands::list_public_communities::ListPublicCommunities,
+    ports::{
+        inbound::public_communities_listing::PublicCommunitiesListingPort,
+        outbound::community_repository::CommunityRepositoryPort,
+    },
+    results::public_communities_listed::{CommunityResult, PublicCommunitiesListed},
 };
+use shared::{application::auth_context::AuthContext, error::SystemError};
+use std::sync::Arc;
 
 pub struct ListPublicCommunitiesUseCase {
     community_repository: Arc<dyn CommunityRepositoryPort>,
@@ -27,7 +26,7 @@ impl PublicCommunitiesListingPort for ListPublicCommunitiesUseCase {
         &self,
         data: ListPublicCommunities,
         _: AuthContext,
-    ) -> Result<PublicCommunitiesListed, ApplicationError> {
+    ) -> Result<PublicCommunitiesListed, SystemError> {
         let communities: Vec<CommunityResult> = self
             .community_repository
             .get_public_list(data.query)

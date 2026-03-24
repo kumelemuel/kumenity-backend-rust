@@ -1,17 +1,25 @@
-use crate::domain::aggregates::community::Community;
+use crate::{
+    application::errors::community_repository::CommunityRepositoryError,
+    domain::aggregates::community::Community,
+};
 
 pub trait CommunityRepositoryPort: Send + Sync {
     fn get_public_list(&self, query: Option<String>) -> Vec<Community>;
     fn find_by_id(&self, id: &str) -> Option<Community>;
 
     fn find_by_slug(&self, slug: &str) -> Option<Community>;
-    fn save(&self, community: &Community) -> Result<(), String>;
+    fn save(&self, community: &Community) -> Result<(), CommunityRepositoryError>;
 }
 
 #[cfg(test)]
 pub mod test_utils {
-    use crate::application::ports::outbound::community_repository::CommunityRepositoryPort;
-    use crate::domain::aggregates::community::Community;
+    use crate::{
+        application::{
+            errors::community_repository::CommunityRepositoryError,
+            ports::outbound::community_repository::CommunityRepositoryPort,
+        },
+        domain::aggregates::community::Community,
+    };
 
     pub struct FakeCommunityRepository {
         should_fail: bool,
@@ -86,9 +94,9 @@ pub mod test_utils {
                 .map(|_| Community::dummy_community())
         }
 
-        fn save(&self, _community: &Community) -> Result<(), String> {
+        fn save(&self, _community: &Community) -> Result<(), CommunityRepositoryError> {
             if self.should_fail {
-                Err("Unexpected error".to_string())
+                Err(CommunityRepositoryError("Unexpected error".to_string()))
             } else {
                 Ok(())
             }

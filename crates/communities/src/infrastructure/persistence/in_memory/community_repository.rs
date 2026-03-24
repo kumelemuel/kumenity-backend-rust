@@ -1,9 +1,14 @@
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-
-use crate::application::ports::outbound::community_repository::CommunityRepositoryPort;
-use crate::domain::aggregates::community::Community;
-use crate::domain::value_objects::community_id::CommunityId;
+use crate::{
+    application::{
+        errors::community_repository::CommunityRepositoryError,
+        ports::outbound::community_repository::CommunityRepositoryPort,
+    },
+    domain::{aggregates::community::Community, value_objects::community_id::CommunityId},
+};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 pub struct InMemoryCommunityRepository {
     communities: Arc<Mutex<HashMap<CommunityId, Community>>>,
@@ -38,7 +43,7 @@ impl CommunityRepositoryPort for InMemoryCommunityRepository {
             .cloned()
     }
 
-    fn save(&self, community: &Community) -> Result<(), String> {
+    fn save(&self, community: &Community) -> Result<(), CommunityRepositoryError> {
         let mut communities = self.communities.lock().expect("mutex poisoned");
 
         communities.insert(community.id().clone(), community.clone());
