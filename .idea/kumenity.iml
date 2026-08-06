@@ -4,14 +4,14 @@
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src/users/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/apps/api/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/crates/iam/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/crates/shared/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/crates/communities/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/crates/membership/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/app/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/contexts/communities/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/contexts/iam/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/contexts/membership/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/shared/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/src/users/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
-      <excludeFolder url="file://$MODULE_DIR$/crates/iam/target" />
+      <excludeFolder url="file://$MODULE_DIR$/contexts/iam/target" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

@@ -1,0 +1,13 @@
+[package]
+name = "communities"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+uuid = { version = "1.19.0", features = ["v4"] }
+axum = "0.8.7"
+serde = { version = "1", features = ["derive"] }
+
+shared.workspace = true
+iam.workspace = true
+http = "1.4.0"
