@@ -56,6 +56,16 @@ mod tests {
     }
 
     #[test]
+    fn fails_when_expiration_time_is_missing() {
+        let result = JwtConfig::from_lookup(lookup(&[("JWT_SECRET", "s3cr3t")]));
+
+        assert!(matches!(
+            result,
+            Err(ConfigError::Missing("JWT_EXPIRATION_TIME"))
+        ));
+    }
+
+    #[test]
     fn fails_when_expiration_time_is_not_a_number() {
         let result = JwtConfig::from_lookup(lookup(&[
             ("JWT_SECRET", "s3cr3t"),
