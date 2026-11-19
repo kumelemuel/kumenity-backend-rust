@@ -344,7 +344,7 @@ Lo que costó o confundió al adoptar craft-backend en este repo. Sirve de mater
 | 0 | Con `unwrap_used` en `deny`, `membership` deja de compilar limpio aunque no esté cableado al servidor. | Se corrigió su `unwrap` (y sus `lock`) en la 0, sin adelantar la 2. |
 | 0 | `cargo clippy --workspace -- -D warnings` (lo que pide la skill rust-stack) ya fallaba en `main` por 15 avisos de lints por defecto en `crates/*` (`new_without_default`, `should_implement_trait`, `needless_borrow`…). El gate de Stop no lo nota porque solo mira `apps/*` y `tools/*`. | Fuera de alcance; quedan para cuando cada contexto se migre (rebanada 4). Mientras, los lints `deny` se comprueban con `cargo clippy --workspace --all-targets`, sin `-D warnings`. |
 | 0 | El trinquete detectó una dependencia nueva entre contextos en un test de infraestructura (`communities` → `iam::AccountId`), solo para construir un `Community`. | Helper `Community::dummy_with` en el `#[cfg(test)]` del dominio, que ya dependía de `iam`. Funcionó como se esperaba: la línea base no creció. |
-| 0 | La sesión principal corrió con Opus, no con Sonnet como prevé el flujo de modelos. Además, la sesión no puede leer su propio consumo (`/cost`): solo conoce los tokens del subagente. | Se registran los tokens de la revisión; los de la sesión principal los anota el usuario. |
+| 0 | La sesión principal corrió con Opus, no con Sonnet como prevé el flujo de modelos. Además, la sesión no puede leer su propio consumo (`/cost`): solo conoce los tokens del subagente. | Los de la revisión salen de la notificación del subagente; los de la sesión principal, de `/cost`, que agrupa por modelo y no separa la revisión cuando ambas usan Opus. `/cost` sugiere un modelo más barato para `architecture-reviewer`, que va en contra del flujo previsto. |
 
 ## Tokens por rebanada
 
@@ -352,7 +352,7 @@ Sirve para confirmar el flujo de modelos (Sonnet implementa, Opus revisa), que h
 
 | Rebanada | PR | Sesión principal (Sonnet) | Revisión (Opus) | Total | Rondas de revisión | Notas |
 |---|---|---:|---:|---:|---:|---|
-| 0 | #16 | *pendiente (`/cost`); corrió en Opus* | 58 569 | | 1 | 0 bloqueantes; 4 no bloqueantes (actualizar este documento, más 3 que quedan inventariados: HEX-7, VER-1 y Argon2); 2 menores aplicados (test de `Missing`, `unimplemented`) |
+| 0 | #16 | Opus: 17,7k entrada, 47,3k salida, 5,1M lectura de caché, 170,3k escritura de caché | 58 569 | 3,23 USD según `/cost` (probablemente incluye la revisión) | 1 | 0 bloqueantes; 4 no bloqueantes (actualizar este documento, más 3 que quedan inventariados: HEX-7, VER-1 y Argon2); 2 menores aplicados (test de `Missing`, `unimplemented`) |
 | 0b | | | | | | |
 | 1 | | | | | | |
 | 2 | | | | | | |
