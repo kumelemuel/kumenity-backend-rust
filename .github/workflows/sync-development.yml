@@ -1,0 +1,62 @@
+name: Sync main into development
+
+# Keeps `development` up to date with `main` after every push to `main`.
+# - If `development` has no commits of its own, it is fast-forwarded.
+# - If it has, `main` is merged into it with a merge commit.
+# - On a merge conflict the job fails and nothing is pushed; resolve it by
+#   hand (merge `main` into `development` locally) and push.
+# Never force-pushes.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-development
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync development with main
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if ! git ls-remote --exit-code --heads origin development >/dev/null; then
+            echo "development does not exist; creating it from main"
+            git push origin origin/main:refs/heads/development
+            exit 0
+          fi
+
+          git fetch origin main development
+
+          if git merge-base --is-ancestor origin/main origin/development; then
+            echo "development already contains main; nothing to do"
+            exit 0
+          fi
+
+          if git merge-base --is-ancestor origin/development origin/main; then
+            echo "Fast-forwarding development to main"
+            git push origin origin/main:refs/heads/development
+            exit 0
+          fi
+
+          echo "development has its own commits; merging main into it"
+          git switch -c development origin/development
+          if ! git merge --no-edit origin/main -m "chore: sync main into development"; then
+            git merge --abort
+            echo "::error::Merge conflict between main and development. Merge main into development manually."
+            exit 1
+          fi
+          git push origin development
