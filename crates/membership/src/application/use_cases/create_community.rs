@@ -46,13 +46,13 @@ impl CommunityCreationPort for CreateCommunityUseCase {
         if existing_slug.is_some() {
             return Err(ApplicationError::SlugAlreadyExists);
         }
-        let account_id = AccountId::from_str(auth.account_id.as_str());
+        let account_id = AccountId::from_str(auth.account_id.as_str())
+            .map_err(|_| ApplicationError::InvalidAccountId)?;
         let id = CommunityId::generate();
         let name =
             CommunityName::new(data.name.clone()).map_err(|_| ApplicationError::InvalidName)?;
 
-        let community =
-            Community::create(id, account_id.unwrap(), slug, name, data.is_public, None);
+        let community = Community::create(id, account_id, slug, name, data.is_public, None);
 
         self.community_repository
             .save(&community)
@@ -140,6 +140,21 @@ mod tests {
         let result = use_case.execute(input, valid_auth_context());
 
         assert!(matches!(result, Err(ApplicationError::InvalidSlug)));
+    }
+
+    #[test]
+    fn fails_when_account_id_is_invalid() {
+        let repo = Arc::new(FakeCommunityRepository::success());
+
+        let use_case = CreateCommunityUseCase::new(repo);
+
+        let auth = AuthContext {
+            account_id: "not-a-uuid".to_string(),
+        };
+
+        let result = use_case.execute(valid_input(), auth);
+
+        assert!(matches!(result, Err(ApplicationError::InvalidAccountId)));
     }
 
     #[test]

@@ -4,7 +4,7 @@ use crate::{
 };
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard, PoisonError},
 };
 
 pub struct InMemoryCommunityRepository {
@@ -17,11 +17,19 @@ impl InMemoryCommunityRepository {
             communities: Arc::new(Mutex::new(HashMap::new())),
         }
     }
+    /// Each operation leaves the map consistent (a single read or `insert`),
+    /// so a panic in another thread cannot leave it half-written: recovering
+    /// the guard is safe and keeps one panic from poisoning every request.
+    fn communities(&self) -> MutexGuard<'_, HashMap<CommunityId, Community>> {
+        self.communities
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
 }
 
 impl CommunityRepositoryPort for InMemoryCommunityRepository {
     fn find_by_id(&self, id: &str) -> Option<Community> {
-        let communities = self.communities.lock().expect("mutex poisoned");
+        let communities = self.communities();
         communities
             .values()
             .find(|community| community.id().as_uuid().to_string() == id)
@@ -29,7 +37,7 @@ impl CommunityRepositoryPort for InMemoryCommunityRepository {
     }
 
     fn find_by_slug(&self, slug: &str) -> Option<Community> {
-        let communities = self.communities.lock().expect("mutex poisoned");
+        let communities = self.communities();
         communities
             .values()
             .find(|community| community.slug().as_str() == slug)
@@ -37,7 +45,7 @@ impl CommunityRepositoryPort for InMemoryCommunityRepository {
     }
 
     fn save(&self, community: &Community) -> Result<(), String> {
-        let mut communities = self.communities.lock().expect("mutex poisoned");
+        let mut communities = self.communities();
 
         communities.insert(community.id().clone(), community.clone());
 

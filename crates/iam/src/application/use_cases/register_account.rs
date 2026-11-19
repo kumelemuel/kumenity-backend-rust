@@ -61,8 +61,6 @@ impl AccountRegistrationPort for RegisterAccountUseCase {
 
         self.account_repository.save(&account)?;
 
-        dbg!(&account);
-
         Ok(AccountRegistered {
             id: account.id().as_uuid().to_string(),
             username: account.username().as_str().to_owned(),

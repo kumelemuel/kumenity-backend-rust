@@ -120,4 +120,3 @@ ERR-1 crates/iam/src/application/errors/password_policy.rs
 ERR-1 crates/iam/src/application/errors/token_generator.rs
 
 [err_4_core_does_not_write_to_output]
-ERR-4 crates/iam/src/application/use_cases/register_account.rs

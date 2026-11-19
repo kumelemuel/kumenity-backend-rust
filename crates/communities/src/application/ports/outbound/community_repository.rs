@@ -77,7 +77,7 @@ pub mod test_utils {
 
     impl CommunityRepositoryPort for FakeCommunityRepository {
         fn get_public_list(&self, _query: Option<String>) -> Vec<Community> {
-            todo!()
+            Vec::new()
         }
 
         fn find_by_id(&self, id: &str) -> Option<Community> {

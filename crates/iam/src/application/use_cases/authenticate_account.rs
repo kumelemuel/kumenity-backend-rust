@@ -11,7 +11,7 @@ use crate::{
         },
         results::account_authenticated::AccountAuthenticated,
     },
-    domain::{aggregates::Account, errors::AccountError},
+    domain::errors::AccountError,
 };
 use shared::error::SystemError;
 use std::sync::Arc;
@@ -38,17 +38,12 @@ impl AuthenticateAccountUseCase {
 
 impl AccountAuthenticationPort for AuthenticateAccountUseCase {
     fn execute(&self, cmd: AuthenticateAccount) -> Result<AccountAuthenticated, SystemError> {
-        let account: Option<Account>;
-
-        let existing_username = self
+        let Some(account) = self
             .account_repository
-            .find_by_username(cmd.username.as_str());
-        if existing_username.is_some() {
-            account = existing_username;
-        } else {
+            .find_by_username(cmd.username.as_str())
+        else {
             return Err(AccountError::AccountNotFound.into());
-        }
-        let account = account.unwrap();
+        };
 
         if !self
             .password_hasher

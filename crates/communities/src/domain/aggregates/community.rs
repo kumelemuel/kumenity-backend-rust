@@ -70,6 +70,16 @@ mod tests {
             )
         }
 
+        pub fn dummy_with(slug: &str, name: &str, public: bool) -> Community {
+            Community::create(
+                CommunityId::generate(),
+                AccountId::generate(),
+                CommunitySlug::new(slug.to_string()).unwrap(),
+                CommunityName::new(name.to_string()).unwrap(),
+                public,
+            )
+        }
+
         pub fn dummy_private_community() -> Community {
             Community::create(
                 CommunityId::generate(),

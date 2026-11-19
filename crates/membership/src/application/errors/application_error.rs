@@ -3,6 +3,7 @@ use shared::application::common_application_error::CommonApplicationError;
 #[derive(Debug)]
 pub enum ApplicationError {
     Common(CommonApplicationError),
+    InvalidAccountId,
     InvalidName,
     InvalidSlug,
     SlugAlreadyExists,

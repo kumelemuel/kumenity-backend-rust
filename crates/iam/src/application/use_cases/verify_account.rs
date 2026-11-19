@@ -23,11 +23,9 @@ impl VerifyAccountUseCase {
 
 impl AccountVerificationPort for VerifyAccountUseCase {
     fn execute(&self, cmd: VerifyAccount) -> Result<bool, SystemError> {
-        let account = self.account_repository.find_by_email(cmd.email.as_str());
-        if account.is_none() {
+        let Some(mut account) = self.account_repository.find_by_email(cmd.email.as_str()) else {
             return Err(AccountError::AccountNotFound.into());
-        }
-        let mut account = account.unwrap();
+        };
         let code_validation = CodeValidation::new(cmd.code)?;
         account.confirm_registration(code_validation)?;
 
