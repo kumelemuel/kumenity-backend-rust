@@ -2,6 +2,7 @@
 members = [
     "app",
     "contexts/*",
+    "tools/*",
 ]
 resolver = "3"
 

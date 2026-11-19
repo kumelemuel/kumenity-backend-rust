@@ -1,0 +1,10 @@
+[package]
+name = "architecture"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dev-dependencies]
+syn = { version = "2", features = ["full", "visit"] }
+proc-macro2 = { version = "1", features = ["span-locations"] }
+toml = "0.8"

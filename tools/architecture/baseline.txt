@@ -1,0 +1,76 @@
+# Línea base del trinquete de tools/architecture.
+#
+# Formato: `<test> <ruta>`. Cada línea es una ruta que hoy viola la regla de ese test.
+# El test falla si aparece una violación en una ruta que no está aquí, o si una
+# línea de aquí ya no viola (hay que borrarla). Esta lista solo se achica:
+# no agregar líneas; corregir la violación.
+#
+# Los IDs de hallazgo (HEX-1.1…) están en docs/harness-adoption.md.
+
+err_1_application_errors_do_not_implement_std_error contexts/communities/src/application/errors/community_creation.rs
+err_1_application_errors_do_not_implement_std_error contexts/communities/src/application/errors/community_repository.rs
+err_1_application_errors_do_not_implement_std_error contexts/iam/src/application/errors/account_repository.rs
+err_1_application_errors_do_not_implement_std_error contexts/iam/src/application/errors/authenticate_account.rs
+err_1_application_errors_do_not_implement_std_error contexts/iam/src/application/errors/token_generator.rs
+
+err_1_domain_errors_do_not_implement_std_error contexts/communities/src/domain/errors/community_error.rs
+err_1_domain_errors_do_not_implement_std_error contexts/communities/src/domain/errors/invalid_community_id.rs
+err_1_domain_errors_do_not_implement_std_error contexts/communities/src/domain/errors/invalid_community_name.rs
+err_1_domain_errors_do_not_implement_std_error contexts/communities/src/domain/errors/invalid_community_slug.rs
+err_1_domain_errors_do_not_implement_std_error contexts/iam/src/domain/errors/account.rs
+err_1_domain_errors_do_not_implement_std_error contexts/iam/src/domain/errors/account_id.rs
+err_1_domain_errors_do_not_implement_std_error contexts/iam/src/domain/errors/account_status.rs
+err_1_domain_errors_do_not_implement_std_error contexts/iam/src/domain/errors/code_validation.rs
+err_1_domain_errors_do_not_implement_std_error contexts/iam/src/domain/errors/email.rs
+err_1_domain_errors_do_not_implement_std_error contexts/iam/src/domain/errors/hashed_password.rs
+err_1_domain_errors_do_not_implement_std_error contexts/iam/src/domain/errors/password_policy.rs
+err_1_domain_errors_do_not_implement_std_error contexts/iam/src/domain/errors/username.rs
+
+err_4_core_does_not_write_to_output contexts/iam/src/application/commands/register_account/register_account.rs
+
+hex_1_dependencies_point_inward contexts/communities/Cargo.toml
+
+hex_2_core_depends_only_on_std_and_the_kernel contexts/communities/Cargo.toml
+hex_2_core_depends_only_on_std_and_the_kernel contexts/iam/Cargo.toml
+hex_2_core_depends_only_on_std_and_the_kernel shared/Cargo.toml
+
+hex_2_server_frameworks_only_at_the_edge contexts/communities/Cargo.toml
+hex_2_server_frameworks_only_at_the_edge contexts/iam/Cargo.toml
+
+hex_4_use_case_implementations_are_handlers contexts/communities/src/application/commands/create_community/create_community.rs
+hex_4_use_case_implementations_are_handlers contexts/communities/src/application/queries/list_public_communities/list_public_communities.rs
+hex_4_use_case_implementations_are_handlers contexts/iam/src/application/commands/authenticate_account/authenticate_account.rs
+hex_4_use_case_implementations_are_handlers contexts/iam/src/application/commands/register_account/register_account.rs
+hex_4_use_case_implementations_are_handlers contexts/iam/src/application/commands/verify_account/verify_account.rs
+hex_4_use_case_implementations_are_handlers contexts/iam/src/application/queries/identify_account/identify_account.rs
+
+hex_5_adapters_are_named_by_technology_and_concept contexts/communities/src/application/ports/outbound/community_repository.rs
+hex_5_adapters_are_named_by_technology_and_concept contexts/communities/src/infrastructure/persistence/in_memory/community_repository.rs
+hex_5_adapters_are_named_by_technology_and_concept contexts/iam/src/application/ports/outbound/account_repository.rs
+hex_5_adapters_are_named_by_technology_and_concept contexts/iam/src/application/ports/outbound/password_hasher.rs
+hex_5_adapters_are_named_by_technology_and_concept contexts/iam/src/application/ports/outbound/token_generator.rs
+hex_5_adapters_are_named_by_technology_and_concept contexts/iam/src/infrastructure/persistence/in_memory/account_repository.rs
+hex_5_adapters_are_named_by_technology_and_concept contexts/iam/src/infrastructure/security/password_hasher/argon2_password_hasher.rs
+hex_5_adapters_are_named_by_technology_and_concept contexts/iam/src/infrastructure/services/jwt_service/jwt_service.rs
+
+hex_5_outbound_ports_are_named_by_role contexts/communities/src/application/ports/outbound/community_repository.rs
+hex_5_outbound_ports_are_named_by_role contexts/iam/src/application/ports/outbound/account_repository.rs
+hex_5_outbound_ports_are_named_by_role contexts/iam/src/application/ports/outbound/password_hasher.rs
+hex_5_outbound_ports_are_named_by_role contexts/iam/src/application/ports/outbound/token_generator.rs
+
+hex_6_transport_types_carry_the_transport_name contexts/communities/src/infrastructure/http/requests/create.rs
+hex_6_transport_types_carry_the_transport_name contexts/communities/src/infrastructure/http/responses/created.rs
+hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/http/requests/identify.rs
+hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/http/requests/sign_in.rs
+hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/http/requests/sign_up.rs
+hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/http/requests/verify.rs
+hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/http/responses/identified.rs
+hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/http/responses/signed_in.rs
+hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/http/responses/signed_up.rs
+
+hex_8_kernel_depends_only_on_std shared/Cargo.toml
+
+hex_8_kernel_traits_are_model_markers_or_listed_capabilities shared/src/application/ports/outbound/token_verifier.rs
+hex_8_kernel_traits_are_model_markers_or_listed_capabilities shared/src/domain/domain_error.rs
+hex_8_kernel_traits_are_model_markers_or_listed_capabilities shared/src/error.rs
+hex_8_kernel_traits_are_model_markers_or_listed_capabilities shared/src/infrastructure/infrastructure_error.rs
