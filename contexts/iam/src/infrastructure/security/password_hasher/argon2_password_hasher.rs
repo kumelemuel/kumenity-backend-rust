@@ -9,6 +9,12 @@ pub struct Argon2PasswordHasher {
     argon2: Argon2<'static>,
 }
 
+impl Default for Argon2PasswordHasher {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Argon2PasswordHasher {
     pub fn new() -> Self {
         Self {

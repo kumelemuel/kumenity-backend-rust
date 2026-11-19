@@ -71,6 +71,8 @@ impl AccountStatus {
         }
     }
 
+    // HEX-7.7: el parseo del formato persistido pasa al adaptador (docs/harness-adoption.md)
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(value: &str) -> Result<Self, AccountStatusError> {
         let registered = value.starts_with("registered:");
         if registered {

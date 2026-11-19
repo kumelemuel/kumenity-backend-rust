@@ -12,7 +12,7 @@ use crate::{
             },
         },
     },
-    domain::{errors::AccountError, model::account::account::Account},
+    domain::errors::AccountError,
 };
 use shared::{domain::value_object::ValueObject, error::SystemError};
 use std::sync::Arc;
@@ -42,21 +42,16 @@ impl AuthenticateAccountUseCase for AuthenticateAccount {
         &self,
         cmd: AuthenticateAccountCommand,
     ) -> Result<AuthenticateAccountResponse, SystemError> {
-        let account: Option<Account>;
-
-        let existing_username = self
+        let Some(account) = self
             .account_repository
-            .find_by_username(cmd.username.as_str());
-        if existing_username.is_some() {
-            account = existing_username;
-        } else {
+            .find_by_username(cmd.username.as_str())
+        else {
             return Err(AccountError::AccountNotFound.into());
-        }
-        let account = account.unwrap();
+        };
 
         if !self
             .password_hasher
-            .verify(cmd.password.as_str(), &account.password().value())
+            .verify(cmd.password.as_str(), account.password().value())
         {
             return Err(AuthenticateAccountError::LoginFailed.into());
         }

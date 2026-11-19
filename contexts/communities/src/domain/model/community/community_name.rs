@@ -12,7 +12,7 @@ impl CommunityName {
         }
 
         let length = trimmed.len();
-        if length < 5 || length > 64 {
+        if !(5..=64).contains(&length) {
             return Err(InvalidCommunityName);
         }
 

@@ -15,6 +15,12 @@ pub struct InMemoryAccountRepository {
     accounts: Arc<Mutex<HashMap<AccountId, Account>>>,
 }
 
+impl Default for InMemoryAccountRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InMemoryAccountRepository {
     pub fn new() -> Self {
         Self {

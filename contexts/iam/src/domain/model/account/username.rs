@@ -16,7 +16,7 @@ impl ValueObject for Username {
         }
 
         let length = trimmed.len();
-        if length < 3 || length > 32 {
+        if !(3..=32).contains(&length) {
             return Err(UsernameError::Invalid);
         }
 
