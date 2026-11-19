@@ -1,11 +1,11 @@
 [workspace]
 members = [
-    "crates/*",
-    "apps/*"
+    "app",
+    "contexts/*",
 ]
 resolver = "3"
 
 [workspace.dependencies]
-iam = { path = "crates/iam" }
-communities = { path = "crates/communities" }
-shared = { path = "crates/shared" }
+iam = { path = "contexts/iam" }
+communities = { path = "contexts/communities" }
+shared = { path = "shared" }
