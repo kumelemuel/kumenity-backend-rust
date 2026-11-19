@@ -24,6 +24,30 @@
   - `apps/api/tests/auth_api.rs`: sign-in de un usuario inexistente da 404, lo que revela qué cuentas existen.
   - Los asserts sobre `{code, message}` cambiarán con Problem Details.
 
+## Trinquete de arquitectura (`tools/architecture`)
+
+Los tests de arquitectura vienen de `ai-harness/stacks/rust/template/tools/architecture` (stack v0.2). Se ejecutan con `cargo test -p architecture`, y también desde `cargo test --workspace` y los hooks de craft-backend. Las violaciones que ya existían están en `tools/architecture/baseline.txt` (74 líneas `ID ruta`, una sección por test).
+
+- **Cuándo falla.** Si aparece una violación que no está en la línea base, hay que corregirla, no agregarla. Si una línea de la línea base ya no viola, hay que borrarla, y el test indica cuál. Así la lista solo puede achicarse.
+- **Cómo se compara.** La clave es `ID ruta`, sin número de línea, así que mover código dentro de un archivo no rompe nada. Una ruta aparece repetida si tiene varias violaciones de la misma regla.
+- **Adaptación al layout legacy** (`tests/common/mod.rs`):
+  - `crates/shared` cuenta como kernel.
+  - Cada `crates/{ctx}/src/{domain,application,infrastructure}` cuenta como una capa del contexto.
+  - Las violaciones de Cargo que afectan a un contexto legacy se atribuyen a su `Cargo.toml` una sola vez.
+- **Test añadido.** `hex_1_legacy_modules_point_inward` comprueba HEX-1 a partir de las rutas del código (`use`, y también rutas sueltas), porque Cargo no distingue los módulos de un mismo crate. Reporta una violación por archivo y destino.
+- **Migración a crates por capa (RS-1).** Al migrar un contexto a `contexts/{ctx}/{capa}`, la plantilla lo clasifica sola y las entradas de `crates/{ctx}` desaparecen. Las violaciones que persistan en otra ruta aparecerán como nuevas: corregirlas o moverlas explícitamente en el mismo commit.
+
+**Qué no automatiza todavía.** Estos hallazgos del inventario solo se pueden revisar a mano:
+- HEX-4: implementaciones `*UseCase` en `use_cases/`. La plantilla solo mira `commands/` y `queries/`.
+- HEX-4: que el contrato exponga el dominio en crates legacy, porque la plantilla necesita un crate `{ctx}-domain`.
+- RS-2: `unwrap`, `todo!` y `expect`. Lo cubrirá `[workspace.lints]`.
+- RS-3, ERR-2 y ERR-3: firmas de error.
+- ERR-4: mapeo exhaustivo, Problem Details y `.env`.
+- TDD-2: baterías de contrato.
+- RS-1: dependencias entre contextos declaradas en Cargo.
+
+**Diferencias con la auditoría manual.** El test encontró dos traits más en el kernel que violan HEX-8: `DomainError` (`crates/shared/src/domain/domain_error.rs`) e `InfrastructureError` (`crates/shared/src/infrastructure/infrastructure_error.rs`). También clasifica como HEX-1 los `use` de infraestructura del composition root (`apps/api/src/lib.rs` y `state/*.rs`), porque la plantilla espera el composition root en un `apps/server` aparte.
+
 ## Resumen
 
 | ID | Regla | Violaciones | Pendientes |
@@ -46,8 +70,8 @@
 | RS-1 | Un crate por capa, sin dependencias entre contextos | 4 | 4 |
 | RS-2 | `Fault`/`Failure`; `panic!` solo para invariantes; sin `unwrap` | 7 | 7 |
 | RS-3 | Puertos async con `BoxFuture` | 1 | 1 |
-| RS-4 | `cargo test -p architecture` | 1 | 1 |
-| **Total** | | **65** | **65** |
+| RS-4 | `cargo test -p architecture` | 1 | 0 |
+| **Total** | | **65** | **64** |
 
 ## Arreglos inmediatos
 
@@ -103,7 +127,7 @@ Formato de cada línea: `ID · ruta:línea · problema · severidad — correcci
 - [ ] HEX-8 · `crates/shared/src/application/auth_context.rs:2` · la identidad autenticada del borde vive en el kernel · baja — moverla a un edge http compartido (`AuthenticatedAccount`).
 
 ### VER-1 — Lo verificable se expresa como test
-- [ ] VER-1 · `Cargo.toml:2` · no hay tests de arquitectura ni CI (no existen `tools/` ni `.github/`), así que ninguna regla HEX, ERR o RS está automatizada · alta — copiar `tools/architecture` de la plantilla rust-stack (`hex_1`, `hex_2_core`, `hex_4`, `hex_5`, `hex_6`, `hex_8`, `err_1` y `err_4`; este último habría detectado el `dbg!`).
+- [ ] VER-1 · `Cargo.toml:2` · no hay tests de arquitectura ni CI (no existen `tools/` ni `.github/`), así que ninguna regla HEX, ERR o RS está automatizada · alta — copiar `tools/architecture` de la plantilla rust-stack (`hex_1`, `hex_2_core`, `hex_4`, `hex_5`, `hex_6`, `hex_8`, `err_1` y `err_4`; este último habría detectado el `dbg!`). — *parcial: tests de arquitectura con trinquete añadidos (ver arriba); falta CI.*
 
 ### ERR-1 — Dos árboles sin jerarquía común
 - [ ] ERR-1 · `crates/shared/src/error.rs:16` · un único tipo para los dos árboles (`Domain`/`Application` frente a `Infrastructure`); el `From` genérico de la línea 32 hace que `?` absorba cualquier error · alta — `Failure<E> { Expected(E), Unexpected(Fault) }`.
@@ -180,7 +204,7 @@ Sin violaciones en `main..HEAD`.
 - [ ] RS-3 · `crates/iam/src/application/ports/outbound/account_repository.rs:5` · todos los puertos son síncronos y se llaman desde handlers axum async (`create.rs:27-31`), lo que bloqueará en cuanto haya E/S real · media — `BoxFuture<'a, Result<_, Fault>>`.
 
 ### RS-4 — Tests de arquitectura
-- [ ] RS-4 · `Cargo.toml:2` · `members` no incluye `tools/architecture` · alta — ver VER-1.
+- [x] RS-4 · `Cargo.toml:2` · `members` no incluye `tools/architecture` · alta — ver VER-1. — resuelto en el commit del trinquete.
 
 ## Lo que ya cumple (no tocar)
 
