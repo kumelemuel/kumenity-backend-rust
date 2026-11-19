@@ -1,9 +1,4 @@
-mod config;
-mod containers;
-mod middleware;
-mod server;
-
-use crate::{config::app::AppConfig, containers::app::AppContainer, server::Server};
+use app::{build_app, config::app::AppConfig};
 
 #[tokio::main]
 async fn main() {
@@ -11,9 +6,8 @@ async fn main() {
         eprintln!("Configuration error: {}", e);
         std::process::exit(1);
     });
-    let container = AppContainer::build(&config).await;
 
-    let app = Server::build(&container);
+    let app = build_app(&config).await;
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
 

@@ -2,7 +2,7 @@ use crate::config::{error::ConfigError, jwt::JwtConfig};
 
 #[derive(Debug)]
 pub struct AppConfig {
-    pub(crate) jwt: JwtConfig,
+    pub jwt: JwtConfig,
 }
 
 impl AppConfig {

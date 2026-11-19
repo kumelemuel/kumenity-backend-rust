@@ -1,7 +1,5 @@
-use crate::{
-    containers::app::AppContainer, middleware::auth::auth_middleware,
-};
-use axum::{middleware, Router};
+use crate::{containers::app::AppContainer, middleware::auth::auth_middleware};
+use axum::{Router, middleware};
 use tower_http::trace::TraceLayer;
 
 pub struct Server {}
