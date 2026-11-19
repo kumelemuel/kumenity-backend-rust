@@ -13,3 +13,8 @@ iam.workspace = true
 communities.workspace = true
 shared.workspace = true
 http = "1.4.0"
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+serde_json = "1"
+jsonwebtoken = "9"

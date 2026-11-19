@@ -9,8 +9,10 @@ pub trait CommunityRepositoryPort: Send + Sync {
 
 #[cfg(test)]
 pub mod test_utils {
-    use crate::application::ports::outbound::community_repository::CommunityRepositoryPort;
-    use crate::domain::aggregates::community::Community;
+    use crate::{
+        application::ports::outbound::community_repository::CommunityRepositoryPort,
+        domain::aggregates::community::Community,
+    };
 
     pub struct FakeCommunityRepository {
         should_fail: bool,

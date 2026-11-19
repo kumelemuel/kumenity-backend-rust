@@ -1,8 +1,10 @@
-use crate::domain::errors::invalid_membership_status_transition::InvalidMembershipStatusTransition;
-use crate::domain::errors::membership_error::MembershipError;
-use crate::domain::value_objects::membership_status::MembershipStatus;
-use crate::domain::value_objects::nickname::Nickname;
-use crate::domain::value_objects::role::Role;
+use crate::domain::{
+    errors::{
+        invalid_membership_status_transition::InvalidMembershipStatusTransition,
+        membership_error::MembershipError,
+    },
+    value_objects::{membership_status::MembershipStatus, nickname::Nickname, role::Role},
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Membership {

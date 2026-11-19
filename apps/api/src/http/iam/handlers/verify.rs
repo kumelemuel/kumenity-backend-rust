@@ -1,12 +1,14 @@
-use axum::Json;
-use axum::extract::State;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use crate::{
+    http::iam::{errors::error_mapper::map_application_error, requests::verify::VerifyRequest},
+    state::app::AppState,
+};
+use axum::{
+    Json,
+    extract::State,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 use iam::application::commands::verify_account::VerifyAccount;
-
-use crate::http::iam::errors::error_mapper::map_application_error;
-use crate::http::iam::requests::verify::VerifyRequest;
-use crate::state::app::AppState;
 
 pub async fn verify_handler(
     State(state): State<AppState>,

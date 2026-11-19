@@ -1,11 +1,11 @@
-use axum::Router;
-use axum::routing::post;
-
-use crate::http::iam::handlers::identify::identify_handler;
-use crate::http::iam::handlers::sign_in::sign_in_handler;
-use crate::http::iam::handlers::sign_up::sign_up_handler;
-use crate::http::iam::handlers::verify::verify_handler;
-use crate::state::app::AppState;
+use crate::{
+    http::iam::handlers::{
+        identify::identify_handler, sign_in::sign_in_handler, sign_up::sign_up_handler,
+        verify::verify_handler,
+    },
+    state::app::AppState,
+};
+use axum::{Router, routing::post};
 
 pub fn router() -> Router<AppState> {
     Router::new()

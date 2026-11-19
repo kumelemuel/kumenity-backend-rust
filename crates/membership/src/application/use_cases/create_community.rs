@@ -1,18 +1,25 @@
-use std::sync::Arc;
-
+use crate::{
+    application::{
+        commands::create_community::CreateCommunity,
+        errors::application_error::ApplicationError,
+        ports::{
+            inbound::community_creation::CommunityCreationPort,
+            outbound::community_repository::CommunityRepositoryPort,
+        },
+        results::community_created::CommunityCreated,
+    },
+    domain::{
+        aggregates::community::Community,
+        value_objects::{
+            community_id::CommunityId, community_name::CommunityName, community_slug::CommunitySlug,
+        },
+    },
+};
 use iam::domain::value_objects::AccountId;
-use shared::application::auth_context::AuthContext;
-use shared::application::common_application_error::CommonApplicationError;
-
-use crate::application::commands::create_community::CreateCommunity;
-use crate::application::errors::application_error::ApplicationError;
-use crate::application::ports::inbound::community_creation::CommunityCreationPort;
-use crate::application::ports::outbound::community_repository::CommunityRepositoryPort;
-use crate::application::results::community_created::CommunityCreated;
-use crate::domain::aggregates::community::Community;
-use crate::domain::value_objects::community_id::CommunityId;
-use crate::domain::value_objects::community_name::CommunityName;
-use crate::domain::value_objects::community_slug::CommunitySlug;
+use shared::application::{
+    auth_context::AuthContext, common_application_error::CommonApplicationError,
+};
+use std::sync::Arc;
 
 pub struct CreateCommunityUseCase {
     community_repository: Arc<dyn CommunityRepositoryPort>,
@@ -61,17 +68,20 @@ impl CommunityCreationPort for CreateCommunityUseCase {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use crate::application::{
+        commands::create_community::CreateCommunity,
+        errors::application_error::ApplicationError,
+        ports::{
+            inbound::community_creation::CommunityCreationPort,
+            outbound::community_repository::test_utils::FakeCommunityRepository,
+        },
+        use_cases::create_community::CreateCommunityUseCase,
+    };
     use iam::domain::value_objects::AccountId;
-    use shared::application::auth_context::AuthContext;
-    use shared::application::common_application_error::CommonApplicationError;
-
-    use crate::application::commands::create_community::CreateCommunity;
-    use crate::application::errors::application_error::ApplicationError;
-    use crate::application::ports::inbound::community_creation::CommunityCreationPort;
-    use crate::application::ports::outbound::community_repository::test_utils::FakeCommunityRepository;
-    use crate::application::use_cases::create_community::CreateCommunityUseCase;
+    use shared::application::{
+        auth_context::AuthContext, common_application_error::CommonApplicationError,
+    };
+    use std::sync::Arc;
 
     fn valid_auth_context() -> AuthContext {
         AuthContext {

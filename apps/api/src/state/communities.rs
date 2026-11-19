@@ -1,8 +1,11 @@
+use communities::{
+    application::{
+        ports::inbound::community_creation::CommunityCreationPort,
+        use_cases::create_community::CreateCommunityUseCase,
+    },
+    infrastructure::persistence::in_memory::community_repository::InMemoryCommunityRepository,
+};
 use std::sync::Arc;
-
-use communities::application::ports::inbound::community_creation::CommunityCreationPort;
-use communities::application::use_cases::create_community::CreateCommunityUseCase;
-use communities::infrastructure::persistence::in_memory::community_repository::InMemoryCommunityRepository;
 
 #[derive(Clone)]
 pub struct CommunitiesState {
