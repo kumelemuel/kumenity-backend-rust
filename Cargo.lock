@@ -10,10 +10,14 @@ dependencies = [
  "communities",
  "dotenvy",
  "http",
+ "http-body-util",
  "iam",
+ "jsonwebtoken",
  "serde",
+ "serde_json",
  "shared",
  "tokio",
+ "tower",
 ]
 
 [[package]]
