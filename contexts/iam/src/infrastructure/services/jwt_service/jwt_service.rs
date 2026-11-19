@@ -5,7 +5,7 @@ use crate::{
     },
     infrastructure::services::jwt_service::claims::Claims,
 };
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use shared::{
     application::ports::outbound::{error::TokenError, token_verifier::TokenVerifier},
     domain::model::verified_identity::VerifiedIdentity,

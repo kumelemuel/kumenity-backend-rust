@@ -8,7 +8,7 @@ use crate::{
         responses::created::CreatedResponse,
     },
 };
-use axum::{extract::State, response::IntoResponse, Extension, Json};
+use axum::{Extension, Json, extract::State, response::IntoResponse};
 use http::StatusCode;
 use shared::domain::model::verified_identity::VerifiedIdentity;
 use std::sync::Arc;

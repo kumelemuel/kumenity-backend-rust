@@ -17,9 +17,7 @@ pub mod test_utils {
             errors::account_repository::AccountRepositoryError,
             ports::outbound::account_repository::AccountRepositoryPort,
         },
-        domain::model::account::{
-            account::Account, account_factory::AccountFactory,
-        },
+        domain::model::account::{account::Account, account_factory::AccountFactory},
     };
 
     pub struct FakeAccountRepository {

@@ -7,10 +7,7 @@ use crate::{
     },
     infrastructure::http::handlers::account_handlers,
 };
-use axum::{
-    routing::post,
-    Router,
-};
+use axum::{Router, routing::post};
 use std::sync::Arc;
 
 pub struct IamRoutes {

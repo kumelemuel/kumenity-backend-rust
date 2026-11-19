@@ -25,7 +25,7 @@ use crate::{
         },
     },
 };
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use std::sync::Arc;
 
 pub async fn register(

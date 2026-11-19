@@ -2,7 +2,7 @@ use crate::{
     application::ports::inbound::create_community_use_case::CreateCommunityUseCase,
     infrastructure::http::handlers::community_handlers,
 };
-use axum::{routing::post, Router};
+use axum::{Router, routing::post};
 use std::sync::Arc;
 
 pub struct CommunitiesRoutes {

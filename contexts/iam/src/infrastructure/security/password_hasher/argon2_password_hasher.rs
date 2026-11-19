@@ -1,7 +1,7 @@
 use crate::application::ports::outbound::password_hasher::PasswordHasherPort;
 use argon2::{
-    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
 };
 use rand::rngs::OsRng;
 
