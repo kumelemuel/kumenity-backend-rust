@@ -22,7 +22,7 @@ Este archivo guarda el estado entre sesiones de la adopción de los principios c
 1. **ERR-4.1:** `.env` con `JWT_SECRET` está versionado. Sacarlo del índice, agregarlo a `.gitignore` y **rotar el secreto**, porque ya está en el historial.
 2. **ERR-4.2:** `dbg!(&account)` en `register_account.rs:55` imprime el email y el hash de la contraseña en cada registro.
 3. **ERR-1.1 / RS-2.1:** `SystemError`, con su `From` genérico, mezcla los errores de negocio con los técnicos. Hay que reemplazarlo por `{Verb}{Noun}Error` por caso de uso y `Fault`/`Failure<E>`.
-4. **VER-1 / RS-4:** `tools/architecture` ya existe, con trinquete sobre `tools/architecture/baseline.txt` (ad558fc). Faltan `[workspace.lints]` (RS-2.5) y un CI que corra fmt, clippy y test (VER-1.2).
+4. **VER-1 / RS-4:** `tools/architecture` ya existe, con trinquete sobre `tools/architecture/baseline.txt` (ad558fc), y el CI corre fmt, clippy y test (c54f6ae). Falta `[workspace.lints]` (RS-2.5).
 
 ## 1. Resumen
 
@@ -100,7 +100,7 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | HEX-8.8 | HEX-8 Kernel | shared/src/infrastructure/http/api_error_response.rs:4 | Un tipo de transporte HTTP (con `serde`) en el kernel. | media | `edge/http` con `Problem`. | abierto |
 | HEX-8.9 | HEX-8 Marcadores | shared/src/domain/aggregate_root.rs:6-8 | `AggregateRoot` no es un marcador: impone `record_event(&mut self)`, `pull_events` y `version`, una API mutable. | baja | Marcador vacío; los eventos se manejan con `take_events(self)` en el agregado. | abierto |
 | VER-1.1 | VER-1 Tests de arquitectura | Cargo.toml:2-5 | No existe `tools/architecture`: ninguna regla de dependencias o de nombres tiene test. | alta | Agregar `tools/architecture` (la plantilla de rust-stack). | resuelto (ad558fc) |
-| VER-1.2 | VER-1 CI | .github/workflows/sync-development.yml:22-58 | El único workflow sincroniza ramas; no corre `fmt`, `clippy` ni `test`. | alta | Workflow con el CI mínimo de RS-4. | abierto |
+| VER-1.2 | VER-1 CI | .github/workflows/sync-development.yml:22-58 | El único workflow sincroniza ramas; no corre `fmt`, `clippy` ni `test`. | alta | Workflow con el CI mínimo de RS-4. | resuelto (c54f6ae) |
 
 ### ERR (error-handling)
 
