@@ -14,12 +14,12 @@
 
 | Campo | Valor |
 |---|---|
-| Rebanada actual | **0 — Seguridad** (no iniciada) |
-| Rebanadas cerradas | ninguna |
+| Rebanada actual | **0b — Sign-in 401 para usuario inexistente** (no iniciada) |
+| Rebanadas cerradas | 0 — Seguridad (PR #16) |
 | Preparación hecha | red de caracterización (`d910100`), `cargo fmt` (`e473da7`), auditoría (`11d50f7`), trinquete (`4868078`) |
-| Preparación pendiente | integrar la rama `test/characterization-safety-net` en `main` (sin push ni PR todavía); cada rebanada sale de `main` |
-| Línea base | 74 entradas |
-| Tests | 212 en verde; 86 % de líneas cubiertas (sin `tools/`) |
+| Preparación pendiente | ninguna (la preparación entró en `main` con el PR #15); cada rebanada sale de `main` |
+| Línea base | 73 entradas |
+| Tests | 223 en verde (cobertura no remedida desde la preparación: 86 % de líneas sin `tools/`) |
 
 Al cerrar una rebanada: marca `[x]` en su fila del plan con el PR, actualiza esta tabla (rebanada actual, línea base y tests), registra los tokens en [Tokens por rebanada](#tokens-por-rebanada) y anota las fricciones que hayan aparecido.
 
@@ -57,7 +57,7 @@ Al cerrar una rebanada: marca `[x]` en su fila del plan con el PR, actualiza est
 
 | # | Rebanada | Cierra (inventario) | PR |
 |---|---|---|---|
-| 0 | Seguridad | ERR-4 `.env` y `dbg!`; RS-2 `todo!`, `unwrap`/`expect` y `[workspace.lints]` | [ ] |
+| 0 | Seguridad | ERR-4 `.env` y `dbg!`; RS-2 `todo!`, `unwrap`/`expect` y `[workspace.lints]` | [x] #16 |
 | 0b | Sign-in 401 para usuario inexistente | — (cambio de contrato) | [ ] |
 | 1 | Puerto del código de verificación | HEX-2 `code_validation.rs` | [ ] |
 | 2 | Eliminar `membership` | todas las entradas de `crates/membership` | [ ] |
@@ -123,7 +123,7 @@ Los tests de arquitectura vienen de `ai-harness/stacks/rust/template/tools/archi
 **Qué no automatiza todavía.** Estos hallazgos del inventario solo se pueden revisar a mano:
 - HEX-4: implementaciones `*UseCase` en `use_cases/`. La plantilla solo mira `commands/` y `queries/`.
 - HEX-4: que el contrato exponga el dominio en crates legacy, porque la plantilla necesita un crate `{ctx}-domain`.
-- RS-2: `unwrap`, `todo!` y `expect`. Lo cubrirá `[workspace.lints]`.
+- RS-2: `unwrap`, `todo!`, `unimplemented!`, `dbg!` y `expect` no los ve el trinquete, sino clippy con `[workspace.lints]` (rebanada 0). Sin CI, clippy solo corre en el gate de Stop, y únicamente sobre `apps/*` y `tools/*`.
 - RS-3, ERR-2 y ERR-3: firmas de error.
 - ERR-4: mapeo exhaustivo, Problem Details y `.env`.
 - TDD-2: baterías de contrato.
@@ -141,30 +141,30 @@ Los tests de arquitectura vienen de `ai-harness/stacks/rust/template/tools/archi
 | HEX-4 | Un `{Verb}{Noun}UseCase` + `Handler` por caso de uso | 4 | 4 |
 | HEX-5 | Puertos salientes por rol; adaptadores `{Tec}{Concepto}Adapter` | 3 | 3 |
 | HEX-6 | Vocabulario sin colisiones (`{Caso}HttpRequest`…) | 2 | 2 |
-| HEX-7 | El dominio decide, la aplicación orquesta | 4 | 4 |
+| HEX-7 | El dominio decide, la aplicación orquesta | 5 | 5 |
 | HEX-8 | Kernel delgado | 3 | 3 |
-| VER-1 | Lo verificable se expresa como test | 1 | 1 |
-| ERR-1 | Dos árboles sin jerarquía común | 7 | 7 |
+| VER-1 | Lo verificable se expresa como test | 2 | 2 |
+| ERR-1 | Dos árboles sin jerarquía común | 8 | 8 |
 | ERR-2 | Contrato de error acotado por caso de uso | 6 | 6 |
 | ERR-3 | Semántica de adaptadores | 2 | 2 |
-| ERR-4 | Transporte y logging solo en el borde; sin datos sensibles | 7 | 7 |
+| ERR-4 | Transporte y logging solo en el borde; sin datos sensibles | 7 | 5 |
 | TDD-1 | Test antes que producción | 0 | 0 |
 | TDD-2 | Estrategia por capa, dobles y baterías de contrato | 6 | 6 |
 | RS-1 | Un crate por capa, sin dependencias entre contextos | 4 | 4 |
-| RS-2 | `Fault`/`Failure`; `panic!` solo para invariantes; sin `unwrap` | 7 | 7 |
+| RS-2 | `Fault`/`Failure`; `panic!` solo para invariantes; sin `unwrap` | 7 | 1 |
 | RS-3 | Puertos async con `BoxFuture` | 1 | 1 |
 | RS-4 | `cargo test -p architecture` | 1 | 0 |
-| **Total** | | **65** | **64** |
+| **Total** | | **68** | **59** |
 
 ## Arreglos inmediatos
 
-Se pueden hacer ya, porque no dependen de la reestructuración. Son la rebanada 0 del plan; el `unwrap` de `membership` se cierra también si la rebanada 2 llega antes.
+Son la rebanada 0 del plan, cerrada en el PR #16.
 
-- [ ] **ERR-4**: `.env` está versionado (lo está desde `6a29cf7`) y `.gitignore` no lo excluye. Hay que añadirlo a `.gitignore`, sacarlo del índice, **rotar `JWT_SECRET`** y versionar solo un `.env.example` sin valores. El secreto ya forma parte del historial de git.
-- [ ] **ERR-4**: `crates/iam/src/application/use_cases/register_account.rs:64` contiene un `dbg!(&account)` que vuelca a stderr el hash de la contraseña, el email y el código de verificación.
-- [ ] **RS-2**: `crates/communities/src/infrastructure/persistence/in_memory/community_repository.rs:27` es un `todo!()` en un adaptador de producción. Hay que implementarlo con su test.
-- [ ] **RS-2**: `crates/membership/src/application/use_cases/create_community.rs:55` hace `unwrap` de `AccountId::from_str`, así que un `sub` inválido provoca un panic.
-- [ ] **RS-2**: `apps/api/src/config/jwt.rs:14` hace `unwrap` al parsear `JWT_EXPIRATION_TIME`.
+- [x] **ERR-4**: `.env` está versionado (lo está desde `6a29cf7`) y `.gitignore` no lo excluye. Hay que añadirlo a `.gitignore`, sacarlo del índice, **rotar `JWT_SECRET`** y versionar solo un `.env.example` sin valores. El secreto ya forma parte del historial de git. — resuelto en f5e0151 (la rotación la hace el dueño de cada entorno; el `.env` local ya tiene un secreto nuevo).
+- [x] **ERR-4**: `crates/iam/src/application/use_cases/register_account.rs:64` contiene un `dbg!(&account)` que vuelca a stderr el hash de la contraseña, el email y el código de verificación. — resuelto en 0a2464d
+- [x] **RS-2**: `crates/communities/src/infrastructure/persistence/in_memory/community_repository.rs:27` es un `todo!()` en un adaptador de producción. Hay que implementarlo con su test. — resuelto en 0a2464d
+- [x] **RS-2**: `crates/membership/src/application/use_cases/create_community.rs:55` hace `unwrap` de `AccountId::from_str`, así que un `sub` inválido provoca un panic. — resuelto en 0a2464d
+- [x] **RS-2**: `apps/api/src/config/jwt.rs:14` hace `unwrap` al parsear `JWT_EXPIRATION_TIME`. — resuelto en 0a2464d
 
 ## Inventario
 
@@ -202,6 +202,7 @@ Formato de cada línea: `ID · ruta:línea · problema · severidad — correcci
 - [ ] HEX-7 · `crates/iam/src/application/policies/password_policy.rs:8` · regla de negocio (longitud mínima de contraseña) en `application`, invocada desde el handler en `register_account.rs:53` · media — un value object de dominio (p. ej. `PlainPassword::new -> Result`) con su test puro.
 - [ ] HEX-7 · `crates/membership/src/domain/entities/membership.rs:11` · campos `pub` (`role`, `nickname`, `status`, líneas 11-13) que permiten saltarse las invariantes de rol y estado · media — campos privados y solo métodos.
 - [ ] HEX-7 · `crates/iam/src/domain/aggregates/account.rs:73` · agregado mutable: `&mut self` en `change_password`, `change_email`, `change_username`, `deactivate`, `activate`, `suspend` y `confirm_registration` (líneas 73-108). Igual en `crates/membership/src/domain/aggregates/community.rs:69` · baja — métodos que devuelven `Result<Self, E>`.
+- [ ] HEX-7 · `crates/communities/src/infrastructure/persistence/in_memory/community_repository.rs` · `get_public_list` normaliza la consulta (trim, minúsculas, blanco = sin filtro), regla que el contrato del puerto no declara; otro adaptador tendría que redescubrirla · baja — normalizar en el caso de uso y pasar un criterio limpio, o documentarla en el trait y fijarla en la batería de contrato (rebanada 6). *(Aparece en la rebanada 0.)*
 - [ ] HEX-7 · `crates/communities/src/domain/aggregates/community.rs:12` · agregado anémico: `_owner_id` nunca se lee y no hay comportamiento · baja — que las reglas de propiedad vivan en el agregado cuando existan.
 
 ### HEX-8 — Kernel delgado
@@ -211,6 +212,7 @@ Formato de cada línea: `ID · ruta:línea · problema · severidad — correcci
 
 ### VER-1 — Lo verificable se expresa como test
 - [ ] VER-1 · `Cargo.toml:2` · no hay tests de arquitectura ni CI (no existen `tools/` ni `.github/`), así que ninguna regla HEX, ERR o RS está automatizada · alta — copiar `tools/architecture` de la plantilla rust-stack (`hex_1`, `hex_2_core`, `hex_4`, `hex_5`, `hex_6`, `hex_8`, `err_1` y `err_4`; este último habría detectado el `dbg!`). — *parcial: tests de arquitectura con trinquete añadidos (ver arriba); falta CI.*
+- [ ] VER-1 · `tools/architecture` · nada exige `[lints] workspace = true` en cada `Cargo.toml`: un crate nuevo (rebanada 4) puede nacer sin los lints `deny` · media — test que recorra los `members` y falle si falta `lints.workspace = true`; conviene antes de la rebanada 4.
 
 ### ERR-1 — Dos árboles sin jerarquía común
 - [ ] ERR-1 · `crates/shared/src/error.rs:16` · un único tipo para los dos árboles (`Domain`/`Application` frente a `Infrastructure`); el `From` genérico de la línea 32 hace que `?` absorba cualquier error · alta — `Failure<E> { Expected(E), Unexpected(Fault) }`.
@@ -219,6 +221,7 @@ Formato de cada línea: `ID · ruta:línea · problema · severidad — correcci
 - [ ] ERR-1 · `crates/iam/src/application/ports/outbound/account_repository.rs:6` · lecturas que no pueden fallar en la firma: `find_* -> Option`, `get_public_list -> Vec` (`communities/.../community_repository.rs:7`), `hash` y `verify` (`password_hasher.rs:4-5`). Obligan al adaptador a hacer panic · media — `Result<Option<T>, Fault>`.
 - [ ] ERR-1 · `crates/membership/src/application/use_cases/create_community.rs:59` · un fallo técnico se convierte en la variante esperada `CommonApplicationError::Infrastructure` y se descarta la causa · media — propagarlo como `Fault`.
 - [ ] ERR-1 · `crates/communities/src/application/ports/inbound/public_communities_listing.rs:12` · caso de uso sin árbol A que aun así tiene tipo de error (`SystemError`) · baja — `Result<Response, Fault>`.
+- [ ] ERR-1 · `crates/iam/src/infrastructure/security/password_hasher/argon2_password_hasher.rs` · `verify` hace `.is_ok()` sobre `verify_password`, así que cualquier fallo interno de Argon2 se convierte en «contraseña incorrecta» · media — con el cambio de firma a `Result<bool, Fault>` (rebanadas 4 y 7), distinguir `password_hash::Error::Password` de los demás errores. *(Anterior a la rebanada 0; lo detectó su revisión.)*
 - [ ] ERR-1 · `crates/iam/src/domain/aggregates/account.rs:114` · `let _ =` descarta en silencio el `Result` de `transition_status` · baja — propagarlo o documentar el invariante con `expect("invariante: …")`.
 
 ### ERR-2 — Contrato de error acotado por caso de uso
@@ -247,9 +250,9 @@ Tests por variante. Son pseudo-variantes, identificadas por código, porque aún
 - [ ] ERR-3 · `crates/membership/src/application/ports/outbound/community_repository.rs:7` · firma de error no declarada (`Result<(), String>`; también `membership_repository.rs:4`) · media — `Result<(), Fault>`, o un `{Contrato}Error` si hay fallos declarados.
 
 ### ERR-4 — Transporte y logging solo en el borde
-- [ ] ERR-4 · `crates/iam/src/application/use_cases/register_account.rs:64` · `dbg!(&account)` vuelca datos sensibles a stderr (`Account` deriva `Debug` en `account.rs:6`) · alta — eliminarlo. *(Repetido en Arreglos inmediatos.)*
+- [x] ERR-4 · `crates/iam/src/application/use_cases/register_account.rs:64` · `dbg!(&account)` vuelca datos sensibles a stderr (`Account` deriva `Debug` en `account.rs:6`) · alta — eliminarlo. *(Repetido en Arreglos inmediatos.)* — resuelto en 0a2464d
 - [ ] ERR-4 · `apps/api/src/http/communities/errors/error_mapper.rs:38` · mapeo por string con fallback `_ => 500` en la línea 46, no exhaustivo (igual en `iam/errors/error_mapper.rs:41` y `:60`) · alta — `match` exhaustivo sobre el enum del contrato, con un helper por hoja.
-- [ ] ERR-4 · `.gitignore:1` · `.env` está versionado y no se ignora; puede contener `JWT_SECRET` · alta — ver Arreglos inmediatos.
+- [x] ERR-4 · `.gitignore:1` · `.env` está versionado y no se ignora; puede contener `JWT_SECRET` · alta — ver Arreglos inmediatos. — resuelto en f5e0151
 - [ ] ERR-4 · `crates/iam/src/domain/errors/error_codes.rs:1` · los códigos estables y los mensajes de usuario los define el núcleo (también `iam/application/errors/error_codes.rs:1`, `communities/{domain,application}/errors/error_codes.rs:1`, `membership/.../membership_error.rs:30` y `LayerError::code/message` en `shared/src/error.rs:11-12`) · media — mover los códigos a `apps/api` (`codes.rs`); el núcleo solo tiene variantes.
 - [ ] ERR-4 · `apps/api/src/http/common/errors/api_error_response.rs:4` · formato propio `{code, message}` en vez de RFC 9457; el 401 de `create.rs:24` va con cuerpo vacío · media — Problem Details con extensión `code`.
 - [ ] ERR-4 · `apps/api/src/lib.rs:34` · no hay manejador global, `FaultReporter` ni `CatchPanicLayer` (líneas 34-37): los fallos técnicos no se registran y un panic (`todo!`, `expect`) corta la conexión sin respuesta · media — rama `Unexpected → unexpected()` con 500 genérico y reporte, más `CatchPanicLayer`.
@@ -263,7 +266,7 @@ Sin violaciones en `main..HEAD`.
 ### TDD-2 — Estrategia por capa, dobles y baterías de contrato
 - [ ] TDD-2 · `crates/iam/src/application/ports/outbound/account_repository.rs:22` · el prefijo `Fake` no es cierto: `FakeAccountRepository` no guarda estado (`save` descarta en la línea 97), así que es un Stub. Igual `FakeCommunityRepository` (`communities/...:24`, `membership/...:17`), `FakePasswordHasher` (`password_hasher.rs:15`) y `FakeTokenGenerator` (`token_generator.rs:14`, que es un Fixed) · media — un Fake con `HashMap` y estado real, o renombrar a `Stub`/`Fixed`.
 - [ ] TDD-2 · `crates/communities/src/application/use_cases/list_public_communities.rs:63` · los dobles no siguen `{Prefijo}{Concepto}Adapter`: `SpyCommunityRepositoryAdapter` repite el rol, y los cinco del hallazgo anterior no llevan `Adapter` · baja — `SpyCommunityAdapter`, `FakeAccountAdapter`, etc.
-- [ ] TDD-2 · `crates/communities/src/application/ports/outbound/community_repository.rs:80` · doble incompleto (`get_public_list` es `todo!()`) y con constructores muertos copiados (`with_existing_id` en `:59`, `active_with_existing_username` en `:68`, campo `_activated`) · media — implementarlo y borrar lo que sobra.
+- [ ] TDD-2 · `crates/communities/src/application/ports/outbound/community_repository.rs:80` · doble incompleto (`get_public_list` era `todo!()`; desde 0a2464d devuelve una lista vacía) y con constructores muertos copiados (`with_existing_id` en `:59`, `active_with_existing_username` en `:68`, campo `_activated`) · media — implementarlo y borrar lo que sobra.
 - [ ] TDD-2 · `crates/iam/src/application/ports/outbound/account_repository.rs:5` · ninguno de los 6 puertos salientes tiene batería de contrato, así que el doble y el adaptador divergen sin aviso (el Spy devuelve una lista; el adaptador en memoria hace panic) · alta — `testing/contracts/{puerto}.rs` con su macro, invocada contra el doble y contra cada adaptador.
 - [ ] TDD-2 · `crates/iam/src/infrastructure/security/password_hasher/argon2_password_hasher.rs:11` · adaptadores sin test propio: Argon2, `JwtTokenGenerator`, `InMemoryAccount`, `InMemoryCommunity` y `JwtValidator` · media — la batería de contrato más los tests propios de cada tecnología.
 - [ ] TDD-2 · `apps/api/tests/communities_api.rs:208` · reglas de negocio probadas desde el endpoint contra la app completa (trim en `:208`, orden de validación en `:287`; `auth_api.rs:88` y `:95`) en vez de con un UseCase stub · baja — se justifican como red de caracterización; cuando haya tests del handler, el endpoint se reduce a la traducción de cada variante.
@@ -275,13 +278,13 @@ Sin violaciones en `main..HEAD`.
 - [ ] RS-1 · `Cargo.toml:8` · las versiones externas no se declaran en `[workspace.dependencies]` (`uuid` aparece en 3 manifiestos) · baja — centralizarlas.
 
 ### RS-2 — `Fault`/`Failure`, panics solo en invariantes, sin `unwrap`
-- [ ] RS-2 · `crates/communities/src/infrastructure/persistence/in_memory/community_repository.rs:27` · `todo!()` en un adaptador de producción · alta — implementarlo, con test.
-- [ ] RS-2 · `crates/membership/src/application/use_cases/create_community.rs:55` · `unwrap` de `AccountId::from_str` (línea 49): un `sub` inválido provoca panic · alta — traducirlo a una hoja, o validar en el borde.
-- [ ] RS-2 · `apps/api/src/config/jwt.rs:14` · `unwrap` al parsear `JWT_EXPIRATION_TIME` · media — devolver `ConfigError::Invalid`.
-- [ ] RS-2 · `crates/iam/src/infrastructure/security/password_hasher/argon2_password_hasher.rs:39` · `expect` sobre un hash persistido corrupto y sobre un fallo técnico de hashing (`:30`), que deberían ser `Fault` · media — `Fault::new("hash persistido inválido…")` a mano.
-- [ ] RS-2 · `Cargo.toml:1` · no hay `[workspace.lints]` con `unwrap_used` ni `unsafe` en deny · media — añadir los lints del workspace y `[lints] workspace = true` en cada crate.
-- [ ] RS-2 · `apps/api/src/authentication/bearer.rs:17` · `unwrap` sobre un invariante (también `main.rs:13` y `:15`, y `authenticate_account.rs:51`, `identify_account.rs:43` y `verify_account.rs:30`, todos tras un `is_some`) · baja — `expect("invariante: …")`, o `match`/`ok_or`.
-- [ ] RS-2 · `crates/iam/src/infrastructure/persistence/in_memory/account_repository.rs:27` · `expect` sin el prefijo `"invariante:"` (`:27`, `:35` y `:43`; en communities `:31`, `:39` y `:47`; en membership `:24`, `:32` y `:40`; en argon2 `:30` y `:34`) · baja — `expect("invariante: mutex no envenenado")`.
+- [x] RS-2 · `crates/communities/src/infrastructure/persistence/in_memory/community_repository.rs:27` · `todo!()` en un adaptador de producción · alta — implementarlo, con test. — resuelto en 0a2464d
+- [x] RS-2 · `crates/membership/src/application/use_cases/create_community.rs:55` · `unwrap` de `AccountId::from_str` (línea 49): un `sub` inválido provoca panic · alta — traducirlo a una hoja, o validar en el borde. — resuelto en 0a2464d (`ApplicationError::InvalidAccountId`)
+- [x] RS-2 · `apps/api/src/config/jwt.rs:14` · `unwrap` al parsear `JWT_EXPIRATION_TIME` · media — devolver `ConfigError::Invalid`. — resuelto en 0a2464d
+- [ ] RS-2 · `crates/iam/src/infrastructure/security/password_hasher/argon2_password_hasher.rs:39` · `expect` sobre un hash persistido corrupto y sobre un fallo técnico de hashing (`:30`), que deberían ser `Fault` · media — `Fault::new("hash persistido inválido…")` a mano. — *parcial en 0a2464d: los tres `expect` quedan como invariantes declarados (`#[expect(clippy::expect_used, reason)]` y «invariante: …»), porque el puerto aún no puede devolver `Fault`. Los dos de `hash()` son invariantes reales; el de `verify()` lo es por convención (hoy todo `HashedPassword` de producción sale de `hash()`, pero `from_hash` es público). Pasa a `PasswordHash::new(..).map_err(|e| Fault::new(..))?` con el cambio de firma de los puertos (rebanadas 4 y 7).*
+- [x] RS-2 · `Cargo.toml:1` · no hay `[workspace.lints]` con `unwrap_used` ni `unsafe` en deny · media — añadir los lints del workspace y `[lints] workspace = true` en cada crate. — resuelto en 328190d (`dbg_macro`, `todo`, `unwrap_used` y `expect_used` en `deny`, `unsafe_code` en `forbid`) y 0ef1ce5 (`unimplemented`)
+- [x] RS-2 · `apps/api/src/authentication/bearer.rs:17` · `unwrap` sobre un invariante (también `main.rs:13` y `:15`, y `authenticate_account.rs:51`, `identify_account.rs:43` y `verify_account.rs:30`, todos tras un `is_some`) · baja — `expect("invariante: …")`, o `match`/`ok_or`. — resuelto en 0a2464d (`split_once`, `let-else`; `main` sale con mensaje)
+- [x] RS-2 · `crates/iam/src/infrastructure/persistence/in_memory/account_repository.rs:27` · `expect` sin el prefijo `"invariante:"` (`:27`, `:35` y `:43`; en communities `:31`, `:39` y `:47`; en membership `:24`, `:32` y `:40`; en argon2 `:30` y `:34`) · baja — `expect("invariante: mutex no envenenado")`. — resuelto en 0a2464d: los repositorios en memoria recuperan el mutex envenenado (`PoisonError::into_inner`) en vez de hacer panic, para que un panic no tumbe todas las peticiones siguientes; Argon2 lleva el prefijo.
 
 ### RS-3 — Puertos async
 - [ ] RS-3 · `crates/iam/src/application/ports/outbound/account_repository.rs:5` · todos los puertos son síncronos y se llaman desde handlers axum async (`create.rs:27-31`), lo que bloqueará en cuanto haya E/S real · media — `BoxFuture<'a, Result<_, Fault>>`.
@@ -337,8 +340,11 @@ Lo que costó o confundió al adoptar craft-backend en este repo. Sirve de mater
 | prep. | Mientras se construía el trinquete, el hook post-edit (`cargo test -p architecture`) quedaba en rojo en cada edición porque aún no había línea base. | La línea base se generó a partir de la salida del test. |
 | prep. | Un `cargo fmt --all` reformateó 25 archivos ajenos al cambio. | Se aislaron en un commit de estilo (`e473da7`). |
 | prep. | `architecture-reviewer` no ejecuta `cargo` y no tiene acceso a `.env`: verifica leyendo, no compilando. | Las referencias `ruta:línea` se muestrearon a mano. |
-| 0 (previsto) | Con `expect_used` en `deny`, `tools/architecture` deja de pasar clippy (usa `expect("invariante: …")` en código de test de integración), y el gate de Stop corre clippy sobre `tools/*`. | Por decidir: comprobar si `allow-expect-in-tests` cubre los tests de integración y sus helpers (`tests/common`), o usar `#[expect(clippy::expect_used, reason = …)]`. |
-| 0 (previsto) | Con `unwrap_used` en `deny`, `membership` deja de compilar limpio aunque no esté cableado al servidor. | Corregir su `unwrap` en la 0 o adelantar la rebanada 2. |
+| 0 | Con `expect_used` en `deny`, `tools/architecture` y `apps/api/tests` dejan de pasar clippy: `allow-*-in-tests` solo cubre `#[test]` y `#[cfg(test)]`, no los helpers de los tests de integración (`tests/common` y funciones auxiliares). | `#![allow(clippy::expect_used, …, reason = …)]` en `tests/common/mod.rs` y en cada raíz de `tools/architecture/tests/*.rs`. La plantilla podría traerlo ya puesto. |
+| 0 | Con `unwrap_used` en `deny`, `membership` deja de compilar limpio aunque no esté cableado al servidor. | Se corrigió su `unwrap` (y sus `lock`) en la 0, sin adelantar la 2. |
+| 0 | `cargo clippy --workspace -- -D warnings` (lo que pide la skill rust-stack) ya fallaba en `main` por 15 avisos de lints por defecto en `crates/*` (`new_without_default`, `should_implement_trait`, `needless_borrow`…). El gate de Stop no lo nota porque solo mira `apps/*` y `tools/*`. | Fuera de alcance; quedan para cuando cada contexto se migre (rebanada 4). Mientras, los lints `deny` se comprueban con `cargo clippy --workspace --all-targets`, sin `-D warnings`. |
+| 0 | El trinquete detectó una dependencia nueva entre contextos en un test de infraestructura (`communities` → `iam::AccountId`), solo para construir un `Community`. | Helper `Community::dummy_with` en el `#[cfg(test)]` del dominio, que ya dependía de `iam`. Funcionó como se esperaba: la línea base no creció. |
+| 0 | La sesión principal corrió con Opus, no con Sonnet como prevé el flujo de modelos. Además, la sesión no puede leer su propio consumo (`/cost`): solo conoce los tokens del subagente. | Se registran los tokens de la revisión; los de la sesión principal los anota el usuario. |
 
 ## Tokens por rebanada
 
@@ -346,7 +352,7 @@ Sirve para confirmar el flujo de modelos (Sonnet implementa, Opus revisa), que h
 
 | Rebanada | PR | Sesión principal (Sonnet) | Revisión (Opus) | Total | Rondas de revisión | Notas |
 |---|---|---:|---:|---:|---:|---|
-| 0 | | | | | | |
+| 0 | #16 | *pendiente (`/cost`); corrió en Opus* | 58 569 | | 1 | 0 bloqueantes; 4 no bloqueantes (actualizar este documento, más 3 que quedan inventariados: HEX-7, VER-1 y Argon2); 2 menores aplicados (test de `Missing`, `unimplemented`) |
 | 0b | | | | | | |
 | 1 | | | | | | |
 | 2 | | | | | | |
