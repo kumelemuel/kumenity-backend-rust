@@ -7,6 +7,21 @@
 | Plugin | `craft-backend` 0.10.0 |
 | Generado por | agente `craft-backend:architecture-reviewer`, en solo lectura |
 | Red de seguridad | tests de caracterización en `apps/api/tests/` (38) y `list_public_communities.rs` (4), commit `d910100` |
+| Trinquete | `tools/architecture` + `baseline.txt` (74 entradas), commit `4868078` |
+| Plan de adopción | 2026-11-19 (ver [Plan de adopción](#plan-de-adopción)) |
+
+## Estado
+
+| Campo | Valor |
+|---|---|
+| Rebanada actual | **0 — Seguridad** (no iniciada) |
+| Rebanadas cerradas | ninguna |
+| Preparación hecha | red de caracterización (`d910100`), `cargo fmt` (`e473da7`), auditoría (`11d50f7`), trinquete (`4868078`) |
+| Preparación pendiente | integrar la rama `test/characterization-safety-net` en `main` (sin push ni PR todavía); cada rebanada sale de `main` |
+| Línea base | 74 entradas |
+| Tests | 212 en verde; 86 % de líneas cubiertas (sin `tools/`) |
+
+Al cerrar una rebanada: marca `[x]` en su fila del plan con el PR, actualiza esta tabla (rebanada actual, línea base y tests), registra los tokens en [Tokens por rebanada](#tokens-por-rebanada) y anota las fricciones que hayan aparecido.
 
 **Límites de la auditoría.**
 - El reviewer no ejecutó `cargo`: todas las líneas se verificaron leyendo los archivos.
@@ -23,6 +38,74 @@
   - `apps/api/tests/communities_api.rs`: un `sub` inválido da 400 con un código de IAM, y no existe la ruta de listado.
   - `apps/api/tests/auth_api.rs`: sign-in de un usuario inexistente da 404, lo que revela qué cuentas existen.
   - Los asserts sobre `{code, message}` cambiarán con Problem Details.
+
+## Plan de adopción
+
+### Decisiones
+
+- **`membership` se elimina.** Nadie depende de él y duplica el caso «crear comunidad» de `communities`.
+- **Los identificadores entre contextos no van al kernel.** Cada contexto define su propio newtype (p. ej. `OwnerId` en `communities`), y la traducción entre ellos se hace en el composition root.
+- **Flujo de modelos.** La sesión principal implementa con Sonnet. `architecture-reviewer` revisa con Opus, que está fijado en su frontmatter. Este flujo se validó con katas, no en un refactor real, así que hay que registrar los tokens de cada rebanada para confirmarlo.
+
+### Reglas de cada rebanada
+
+- Una rebanada, una sesión, un PR. Al terminar: revisión con `architecture-reviewer`, actualización de la línea base y de este documento, y `/clear`.
+- La red de caracterización sigue en verde, salvo los cambios de contrato deliberados (0b y 8), que se justifican en el PR.
+- Las entradas de la línea base se borran o se mueven en el mismo PR que el código que las cambia; nunca se agregan entradas nuevas.
+
+### Rebanadas
+
+| # | Rebanada | Cierra (inventario) | PR |
+|---|---|---|---|
+| 0 | Seguridad | ERR-4 `.env` y `dbg!`; RS-2 `todo!`, `unwrap`/`expect` y `[workspace.lints]` | [ ] |
+| 0b | Sign-in 401 para usuario inexistente | — (cambio de contrato) | [ ] |
+| 1 | Puerto del código de verificación | HEX-2 `code_validation.rs` | [ ] |
+| 2 | Eliminar `membership` | todas las entradas de `crates/membership` | [ ] |
+| 3 | Cortar `communities` → `iam::domain::AccountId` | RS-1 dependencia entre contextos | [ ] |
+| 4 | Estructura, puertos y kernel, contexto por contexto | RS-1, HEX-1, HEX-2 (Cargo), HEX-3, HEX-4, HEX-5, HEX-8 | [ ] |
+| 5 | Separar handlers y composition root en `apps/api` | HEX-1 `lib.rs`/`state`, HEX-3 y HEX-5 `token_validator.rs` | [ ] |
+| 6 | Baterías de contrato por puerto | TDD-2 | [ ] |
+| 7 | Dos árboles de errores, contrato HTTP idéntico | ERR-1, ERR-2, ERR-3, ERR-4 (mapper exhaustivo), HEX-1 `error_mapper.rs` | [ ] |
+| 8 | Cambios de contrato de errores, uno por PR | ERR-2 `sub` inválido, ERR-4 Problem Details y 401 sin cuerpo | [ ] |
+
+**0. Seguridad.**
+- Rotar `JWT_SECRET`, sacar `.env` del control de versiones (`.gitignore` y `git rm --cached`) y versionar un `.env.example` sin valores. El secreto viejo sigue en el historial: la rotación es lo que lo invalida.
+- Quitar el `dbg!` de `register_account.rs:64`, el `todo!()` de `get_public_list` (implementarlo con su test) y los `unwrap`/`expect` que pueden tumbar el servidor: `config/jwt.rs:14`, `main.rs`, `bearer.rs:17`, Argon2 y los `lock()` de los repositorios en memoria.
+- Lints `clippy::dbg_macro`, `clippy::todo`, `clippy::unwrap_used` y `clippy::expect_used` en `deny` en `[workspace.lints]`, con `[lints] workspace = true` en cada crate. Se permiten en tests (`allow-unwrap-in-tests`, `allow-expect-in-tests` y `allow-dbg-in-tests` en `clippy.toml`).
+- Ojo: `tools/architecture` y `membership` también heredan los lints. Ver [Fricciones](#fricciones-del-harness).
+
+**0b. Sign-in responde 401 para un usuario inexistente.** Corrige la enumeración de usuarios: el 404 actual revela qué cuentas existen. Es un cambio de contrato deliberado: el test `sign_in_unknown_username_returns_404` (`auth_api.rs`) se reescribe y se justifica en el PR. Para que no se distinga de una contraseña incorrecta, debe devolver el mismo código y mensaje (`IAM_LOGIN_FAILED`).
+- No cierra toda la enumeración: `/auth/identify` (404 frente a 200) y el 409 de sign-up siguen revelando cuentas, por diseño. Tampoco iguala el tiempo de respuesta, porque con un usuario inexistente no se ejecuta Argon2. Decidir en el PR si eso queda fuera de alcance.
+
+**1. Puerto para generar el código de verificación.** El puerto se declara en `iam::application` y tiene un doble `Fixed…Adapter` (p. ej. `FixedVerificationCodeAdapter`). Con él, se añade un test HTTP del flujo completo registro → verificación → login. Para inyectar el doble en los tests, `build_app` tiene que aceptar el generador. `verify_with_wrong_code_returns_400…` puede pasar entonces a ser determinista.
+
+**2. Eliminar `membership`** y sus entradas de la línea base. Se cierran por eliminación todos los hallazgos con ruta `crates/membership`. Hay que quitarlo de `members` solo si se lista explícitamente (hoy entra por `crates/*`).
+
+**3. Cortar la dependencia de `iam::domain::AccountId` desde `communities`.** `communities` define `OwnerId`, y el composition root traduce el `sub` del token. Dos tests de caracterización condicionan cómo se hace:
+- `create_with_token_whose_subject_is_not_a_uuid_returns_400` fija el código `IAM_INVALID_ACCOUNT_ID_FORMAT`, que hay que mantener hasta la rebanada 8.
+- `create_validates_slug_before_account_id_and_name` fija que el slug se valida antes que el id. Si el composition root valida el `sub` antes de llamar al caso de uso, el orden cambia y el test falla. O se preserva el orden en esta rebanada, o se trata como cambio de contrato en la 8.
+
+**4. Estructura, puertos en `application` y kernel reducido**, un contexto a la vez: primero `communities` y después `iam`.
+- Crates por capa (`contexts/{ctx}/{domain,application,infrastructure}`). Los puertos se declaran en `application`.
+- El kernel queda en `Clock`, `IdGenerator` y `FaultReporter`, más las primitivas (`Fault`, `Failure<E>`, `BoxFuture`).
+- Los renombres `{Prefijo}{Concepto}Adapter`, tanto de los adaptadores como de los dobles, van en un commit aparte dentro del PR.
+- Las entradas de la línea base se mueven en el mismo PR que sus archivos.
+
+**5. Separar en `apps/api` los handlers (adaptadores de entrada) del composition root.**
+
+**6. Baterías de contrato por puerto** (JWT, repositorios y Argon2), invocadas contra el doble y contra el adaptador real.
+
+**7. Dos árboles de errores** (`Failure<E>` con `Expected`/`Unexpected(Fault)`) y un `{Verb}{Noun}Error` por caso de uso, con el contrato HTTP idéntico: la caracterización sigue en verde sin tocarla.
+
+**8. Cambios de contrato de errores**, uno por PR y justificados: el código y estado del `sub` inválido (401 desde el borde), Problem Details (RFC 9457) y el cuerpo del 401.
+
+**Sin rebanada asignada.** Hay que ubicarlos cuando se llegue:
+- RS-3 (puertos async): encaja en la 4, con el cambio de firma de los puertos.
+- HEX-6 (DTOs `…Http…`): encaja en la 5.
+- HEX-7 (el dominio decide).
+- ERR-4: manejador global, `FaultReporter` en el borde y `CatchPanicLayer`, que requieren `Fault`, es decir, la 7. También el `Debug` de los DTOs con contraseña.
+- VER-1: CI que ejecute `cargo test --workspace` y clippy.
+- RS-1: `[workspace.dependencies]`, el directorio `contexts/iam` obsoleto y `crates/iam/Cargo.lock`.
 
 ## Trinquete de arquitectura (`tools/architecture`)
 
@@ -75,7 +158,7 @@ Los tests de arquitectura vienen de `ai-harness/stacks/rust/template/tools/archi
 
 ## Arreglos inmediatos
 
-Se pueden hacer ya, porque no dependen de la reestructuración:
+Se pueden hacer ya, porque no dependen de la reestructuración. Son la rebanada 0 del plan; el `unwrap` de `membership` se cierra también si la rebanada 2 llega antes.
 
 - [ ] **ERR-4**: `.env` está versionado (lo está desde `6a29cf7`) y `.gitignore` no lo excluye. Hay que añadirlo a `.gitignore`, sacarlo del índice, **rotar `JWT_SECRET`** y versionar solo un `.env.example` sin valores. El secreto ya forma parte del historial de git.
 - [ ] **ERR-4**: `crates/iam/src/application/use_cases/register_account.rs:64` contiene un `dbg!(&account)` que vuelca a stderr el hash de la contraseña, el email y el código de verificación.
@@ -220,6 +303,8 @@ Sin violaciones en `main..HEAD`.
 
 ## Orden de corrección y dependencias
 
+> Orden que propuso el reviewer en la auditoría. El [Plan de adopción](#plan-de-adopción) lo sustituye: la decisión del punto 10 ya está tomada (`membership` se elimina) y los demás puntos están repartidos en las rebanadas. Se conserva como referencia de las dependencias entre cambios.
+
 1. **Arreglos inmediatos**, independientes de todo lo demás (ver la sección del mismo nombre).
 2. **Mantener verde la red de caracterización** durante toda la migración y justificar cada cambio en sus tests (TDD-1).
 3. **Kernel antes que contratos.** Introducir `Fault`, `Failure<E>`, `BoxFuture` e `IdGenerator` junto a `SystemError`, y borrar `SystemError` solo cuando ningún caso de uso lo use.
@@ -233,9 +318,42 @@ Sin violaciones en `main..HEAD`.
 
 ## Observaciones sin ID
 
-- **`membership` es código muerto.** Ningún crate depende de él.
+- **`membership` es código muerto.** Ningún crate depende de él. Decisión: se elimina (rebanada 2).
 - **Duplica la propiedad de "crear comunidad".** Su `CreateCommunity` repite el caso de uso de `communities`, así que dos contextos son dueños del mismo caso.
 - **Correcciones a premisas de la auditoría:**
   - `FakeAccountRepository` no tiene ningún `todo!()`; el único `todo!()` en un doble es `FakeCommunityRepository::get_public_list`.
   - Las baterías de contrato aplican a los puertos **salientes**, no a los de entrada.
   - Que `membership` duplique los value objects de `communities` no viola RS-1: cada contexto tiene su propia vista.
+
+## Fricciones del harness
+
+Lo que costó o confundió al adoptar craft-backend en este repo. Sirve de material para mejorar el plugin y la plantilla. Añade una entrada por fricción, con la rebanada en que apareció.
+
+| Rebanada | Fricción | Cómo se resolvió |
+|---|---|---|
+| prep. | La plantilla `tools/architecture` asume crates por capa. Con capas como módulos de un solo crate, ignoraba los contextos legacy. | Se adaptó `tests/common/mod.rs` (kernel en `crates/shared`, una capa por `src/{capa}`) y se añadió `hex_1_legacy_modules_point_inward`. |
+| prep. | La plantilla espera el composition root en `apps/server`, así que los `use` de infraestructura de `apps/api/src/lib.rs` y `state/*.rs` cuentan como HEX-1. | Quedan en la línea base hasta la rebanada 5. |
+| prep. | HEX-4 automático solo mira `commands/` y `queries/`; las implementaciones en `use_cases/` no se detectan. | Revisión manual (ver *Qué no automatiza todavía*). |
+| prep. | Mientras se construía el trinquete, el hook post-edit (`cargo test -p architecture`) quedaba en rojo en cada edición porque aún no había línea base. | La línea base se generó a partir de la salida del test. |
+| prep. | Un `cargo fmt --all` reformateó 25 archivos ajenos al cambio. | Se aislaron en un commit de estilo (`e473da7`). |
+| prep. | `architecture-reviewer` no ejecuta `cargo` y no tiene acceso a `.env`: verifica leyendo, no compilando. | Las referencias `ruta:línea` se muestrearon a mano. |
+| 0 (previsto) | Con `expect_used` en `deny`, `tools/architecture` deja de pasar clippy (usa `expect("invariante: …")` en código de test de integración), y el gate de Stop corre clippy sobre `tools/*`. | Por decidir: comprobar si `allow-expect-in-tests` cubre los tests de integración y sus helpers (`tests/common`), o usar `#[expect(clippy::expect_used, reason = …)]`. |
+| 0 (previsto) | Con `unwrap_used` en `deny`, `membership` deja de compilar limpio aunque no esté cableado al servidor. | Corregir su `unwrap` en la 0 o adelantar la rebanada 2. |
+
+## Tokens por rebanada
+
+Sirve para confirmar el flujo de modelos (Sonnet implementa, Opus revisa), que hasta ahora solo se validó con katas. Al cerrar cada sesión, anota el uso que reporte Claude Code (p. ej. `/cost`) antes del `/clear`. Separa la sesión principal de la revisión de `architecture-reviewer`.
+
+| Rebanada | PR | Sesión principal (Sonnet) | Revisión (Opus) | Total | Rondas de revisión | Notas |
+|---|---|---:|---:|---:|---:|---|
+| 0 | | | | | | |
+| 0b | | | | | | |
+| 1 | | | | | | |
+| 2 | | | | | | |
+| 3 | | | | | | |
+| 4 · communities | | | | | | |
+| 4 · iam | | | | | | |
+| 5 | | | | | | |
+| 6 | | | | | | |
+| 7 | | | | | | |
+| 8 · … | | | | | | |
