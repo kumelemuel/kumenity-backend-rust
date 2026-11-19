@@ -3,6 +3,9 @@ name = "api"
 version = "0.1.0"
 edition = "2024"
 
+[lints]
+workspace = true
+
 [dependencies]
 tokio = { version = "1", features = ["full"] }
 axum = "0.8.7"

@@ -5,6 +5,11 @@
 //! escriben en stdout o stderr. El árbol B se registra en el borde, a través
 //! de `FaultReporter`.
 
+#![allow(
+    clippy::expect_used,
+    reason = "helpers de tests de integración: allow-expect-in-tests de clippy.toml solo cubre #[test] y #[cfg(test)]"
+)]
+
 mod common;
 
 use common::{Layer, assert_no_violations, crates, parse, relative, rust_files};

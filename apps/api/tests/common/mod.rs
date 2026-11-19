@@ -3,6 +3,12 @@
 //! These tests only depend on `api::build_app` and on the HTTP contract
 //! (paths, JSON bodies, status codes, JWT format), never on internal types,
 //! so they survive moving modules around.
+
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "helpers de tests de integración: allow-*-in-tests de clippy.toml solo cubre #[test] y #[cfg(test)]"
+)]
 #![allow(dead_code)]
 
 use api::{build_app, config::jwt::JwtConfig};

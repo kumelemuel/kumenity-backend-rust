@@ -1,6 +1,11 @@
 //! Errores (ERR-1, RS-2): ni el dominio ni los errores de `application` implementan
 //! `std::error::Error`.
 
+#![allow(
+    clippy::expect_used,
+    reason = "helpers de tests de integración: allow-expect-in-tests de clippy.toml solo cubre #[test] y #[cfg(test)]"
+)]
+
 mod common;
 
 use common::{Layer, assert_no_violations, crates, parse, relative, rust_files};

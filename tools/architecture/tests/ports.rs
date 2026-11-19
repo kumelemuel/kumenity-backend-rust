@@ -7,6 +7,11 @@
 //! junta los dos árboles en la firma de un puerto. Un dominio que nombra
 //! cualquiera de ellas está declarando una frontera técnica.
 
+#![allow(
+    clippy::expect_used,
+    reason = "helpers de tests de integración: allow-expect-in-tests de clippy.toml solo cubre #[test] y #[cfg(test)]"
+)]
+
 mod common;
 
 use common::{Layer, assert_no_violations, crates, parse, relative, rust_files};

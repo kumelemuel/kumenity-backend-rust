@@ -1,5 +1,10 @@
 //! Kernel compartido delgado (HEX-8).
 
+#![allow(
+    clippy::expect_used,
+    reason = "helpers de tests de integración: allow-expect-in-tests de clippy.toml solo cubre #[test] y #[cfg(test)]"
+)]
+
 mod common;
 
 use common::{

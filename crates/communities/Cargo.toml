@@ -3,6 +3,9 @@ name = "communities"
 version = "0.1.0"
 edition = "2024"
 
+[lints]
+workspace = true
+
 [dependencies]
 uuid = { version = "1.19.0", features = ["v4"] }
 

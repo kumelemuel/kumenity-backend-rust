@@ -1,4 +1,8 @@
 #![allow(dead_code)]
+#![allow(
+    clippy::expect_used,
+    reason = "helpers de tests de integración: allow-*-in-tests de clippy.toml solo cubre #[test] y #[cfg(test)]"
+)]
 
 use std::{
     fs,

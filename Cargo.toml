@@ -10,3 +10,12 @@ resolver = "3"
 iam = { path = "crates/iam" }
 communities = { path = "crates/communities" }
 shared = { path = "crates/shared" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unwrap_used = "deny"
+expect_used = "deny"

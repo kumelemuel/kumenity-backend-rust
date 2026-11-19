@@ -5,6 +5,11 @@
 //! capa de un crate legacy (`crates/{ctx}/src/{capa}`) Cargo no ve nada, así que
 //! `hex_1_legacy_modules_point_inward` lo verifica sobre las rutas del código.
 
+#![allow(
+    clippy::expect_used,
+    reason = "helpers de tests de integración: allow-expect-in-tests de clippy.toml solo cubre #[test] y #[cfg(test)]"
+)]
+
 mod common;
 
 use common::{Crate, Layer, assert_no_violations, crates, parse, relative, rust_files};
