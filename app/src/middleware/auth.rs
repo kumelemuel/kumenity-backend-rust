@@ -3,7 +3,7 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Response},
 };
-use http::{header::AUTHORIZATION, StatusCode};
+use http::{StatusCode, header::AUTHORIZATION};
 use shared::application::ports::outbound::token_verifier::TokenVerifier;
 use std::sync::Arc;
 
