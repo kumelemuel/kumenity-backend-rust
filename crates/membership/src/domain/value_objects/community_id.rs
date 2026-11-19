@@ -1,6 +1,5 @@
-use uuid::Uuid;
-
 use crate::domain::errors::invalid_community_id::InvalidCommunityId;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CommunityId(Uuid);
@@ -30,9 +29,8 @@ impl CommunityId {
 
 #[cfg(test)]
 mod tests {
-    use uuid::Uuid;
-
     use super::*;
+    use uuid::Uuid;
 
     #[test]
     fn generates_unique_ids() {

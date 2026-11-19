@@ -1,14 +1,13 @@
-use std::collections::HashMap;
-
+use crate::domain::{
+    entities::membership::Membership,
+    errors::community_error::CommunityError,
+    value_objects::{
+        community_id::CommunityId, community_name::CommunityName, community_slug::CommunitySlug,
+        nickname::Nickname, role::Role,
+    },
+};
 use iam::domain::value_objects::AccountId;
-
-use crate::domain::entities::membership::Membership;
-use crate::domain::errors::community_error::CommunityError;
-use crate::domain::value_objects::community_id::CommunityId;
-use crate::domain::value_objects::community_name::CommunityName;
-use crate::domain::value_objects::community_slug::CommunitySlug;
-use crate::domain::value_objects::nickname::Nickname;
-use crate::domain::value_objects::role::Role;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Community {

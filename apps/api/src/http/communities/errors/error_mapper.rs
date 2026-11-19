@@ -1,8 +1,8 @@
 use crate::http::common::errors::api_error_response::ApiErrorResponse;
 use axum::{
+    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
 use communities::{
     application::errors::error_codes::{

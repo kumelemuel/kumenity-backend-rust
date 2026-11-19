@@ -1,14 +1,18 @@
-use axum::Json;
-use axum::extract::State;
-use axum::response::{IntoResponse, Response};
+use crate::{
+    http::communities::{
+        errors::error_mapper::map_application_error, requests::create::CreateRequest,
+        responses::created::CreatedResponse,
+    },
+    middleware::auth::authenticate,
+    state::app::AppState,
+};
+use axum::{
+    Json,
+    extract::State,
+    response::{IntoResponse, Response},
+};
 use communities::application::commands::create_community::CreateCommunity;
 use http::{HeaderMap, StatusCode};
-
-use crate::http::communities::errors::error_mapper::map_application_error;
-use crate::http::communities::requests::create::CreateRequest;
-use crate::http::communities::responses::created::CreatedResponse;
-use crate::middleware::auth::authenticate;
-use crate::state::app::AppState;
 
 pub async fn create_handler(
     headers: HeaderMap,

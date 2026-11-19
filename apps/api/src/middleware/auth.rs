@@ -1,10 +1,8 @@
-use std::sync::Arc;
-
+use crate::authentication::{
+    bearer::extract_bearer, error::AuthError, token_validator::TokenValidator,
+};
 use shared::application::auth_context::AuthContext;
-
-use crate::authentication::bearer::extract_bearer;
-use crate::authentication::error::AuthError;
-use crate::authentication::token_validator::TokenValidator;
+use std::sync::Arc;
 
 pub fn authenticate(
     headers: &http::HeaderMap,

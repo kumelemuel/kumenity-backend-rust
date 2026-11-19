@@ -1,8 +1,8 @@
+use crate::{
+    authentication::token_validator::TokenValidator,
+    state::{communities::CommunitiesState, iam::IamState},
+};
 use std::sync::Arc;
-
-use crate::authentication::token_validator::TokenValidator;
-use crate::state::communities::CommunitiesState;
-use crate::state::iam::IamState;
 
 #[derive(Clone)]
 pub struct AppState {

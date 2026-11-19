@@ -1,13 +1,17 @@
-use axum::Json;
-use axum::extract::State;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use crate::{
+    http::iam::{
+        errors::error_mapper::map_application_error, requests::identify::IdentifyRequest,
+        responses::identified::IdentifiedResponse,
+    },
+    state::app::AppState,
+};
+use axum::{
+    Json,
+    extract::State,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 use iam::application::commands::identify_account::IdentifyAccount;
-
-use crate::http::iam::errors::error_mapper::map_application_error;
-use crate::http::iam::requests::identify::IdentifyRequest;
-use crate::http::iam::responses::identified::IdentifiedResponse;
-use crate::state::app::AppState;
 
 pub async fn identify_handler(
     State(state): State<AppState>,

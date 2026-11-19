@@ -1,10 +1,8 @@
+use crate::authentication::{claims::Claims, error::TokenValidationError};
+use iam::infrastructure::security::token_generator::{
+    error::JwtError, jwt_token_generator::JwtTokenGenerator,
+};
 use std::sync::Arc;
-
-use iam::infrastructure::security::token_generator::error::JwtError;
-use iam::infrastructure::security::token_generator::jwt_token_generator::JwtTokenGenerator;
-
-use crate::authentication::claims::Claims;
-use crate::authentication::error::TokenValidationError;
 
 pub trait TokenValidator: Send + Sync {
     fn validate(&self, token: &str) -> Result<Claims, TokenValidationError>;

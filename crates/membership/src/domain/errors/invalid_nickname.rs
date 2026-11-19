@@ -1,6 +1,5 @@
-use std::fmt;
-
 use shared::domain::DomainError;
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub struct InvalidNickname;
