@@ -23,7 +23,7 @@ Este archivo guarda el estado entre sesiones de la adopción de los principios c
 2. **ERR-1.1 / RS-2.1:** `SystemError`, con su `From` genérico, mezcla los errores de negocio con los técnicos. Hay que reemplazarlo por `{Verb}{Noun}Error` por caso de uso y `Fault`/`Failure<E>`.
 3. **RS-1 / HEX-1 / HEX-2:** separar cada contexto en crates por capa, empezando por `communities` (HEX-1.1).
 
-Ya resueltas: ERR-4.2 (`dbg!`), ERR-4.3 (`Debug` con el secreto), VER-1.1/RS-4.1 (`tools/architecture` con trinquete sobre `baseline.txt`), VER-1.2 (CI con fmt, clippy y test), RS-2.5 (`[workspace.lints]`) ERR-1.2/ERR-1.3 (los errores ya no implementan `std::error::Error`) y HEX-8.4/HEX-8.7 (código muerto del kernel).
+Ya resueltas: ERR-4.2 (`dbg!`), ERR-4.3 (`Debug` con el secreto), VER-1.1/RS-4.1 (`tools/architecture` con trinquete sobre `baseline.txt`), VER-1.2 (CI con fmt, clippy y test), RS-2.5 (`[workspace.lints]`) ERR-1.2/ERR-1.3 (los errores ya no implementan `std::error::Error`) HEX-8.4/HEX-8.7 (código muerto del kernel) y RS-1.3/RS-1.4 (herencia del workspace, sin `anyhow`).
 
 ## 1. Resumen
 
@@ -159,8 +159,8 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 |---|---|---|---|---|---|---|
 | RS-1.1 | RS-1 Crate por capa | Cargo.toml:2-5 | Un crate por contexto (`contexts/*`), con las capas como módulos; no hay `kernel/` ni `edge/http`. | alta | `contexts/{ctx}/{domain,application,infrastructure,api}` (migración incremental). | abierto |
 | RS-1.2 | RS-1 Kernel | shared/Cargo.toml:2 | El kernel se llama `shared` y tiene capas propias (`application`, `infrastructure/http`). | media | `kernel/` (solo std) + `edge/http`. | abierto |
-| RS-1.3 | RS-1 Herencia | Cargo.toml:1-11 | Sin `[workspace.package]` ni `[workspace.lints]`; versiones repetidas por crate (`uuid` en contexts/iam/Cargo.toml:7 y contexts/communities/Cargo.toml:7, `serde` en cuatro crates). | baja | Herencia del workspace. | abierto |
-| RS-1.4 | RS-1 Dependencias | app/Cargo.toml:18 | `anyhow` está declarado y no se usa: cargo avisa `unused dependency`. Hallado en R2, fuera de la auditoría. | baja | Quitarlo, junto con RS-1.3 (R6). | abierto |
+| RS-1.3 | RS-1 Herencia | Cargo.toml:1-11 | Sin `[workspace.package]` ni `[workspace.lints]`; versiones repetidas por crate (`uuid` en contexts/iam/Cargo.toml:7 y contexts/communities/Cargo.toml:7, `serde` en cuatro crates). | baja | Herencia del workspace. | resuelto (991e672) |
+| RS-1.4 | RS-1 Dependencias | app/Cargo.toml:18 | `anyhow` está declarado y no se usa: cargo avisa `unused dependency`. Hallado en R2, fuera de la auditoría. | baja | Quitarlo, junto con RS-1.3 (R6). | resuelto (991e672) |
 | RS-2.1 | RS-2 Árbol B = `Fault` | shared/src/error.rs:16 | No existen `Fault` ni `Failure<E>`; el árbol B viaja como `SystemError::Infrastructure`. | alta | `kernel::Fault` y `kernel::Failure`. | abierto |
 | RS-2.2 | RS-2 `panic!` solo invariantes | iam/…/account.rs:36,40,44; account_id.rs:13,17; account_status.rs:18,22; events/account_event.rs:10,14,18; communities/…/in_memory/community_repository.rs:27 | 11 `todo!()` en código de producción. El de `get_public_list` haría caer la petición si se cablea. | media | Implementar o eliminar los `impl` de trait vacíos. | abierto |
 | RS-2.3 | RS-2 `unwrap` prohibido | iam/…/authenticate_account.rs:55; verify_account.rs:30; identify_account.rs:44; account_status.rs:79 (dos veces), 81; app/src/config/jwt.rs:15; app/src/main.rs:12,14 | `unwrap` en producción. En `account_status.rs` panica ante un dato persistido; en `jwt.rs`, ante un `JWT_EXPIRATION_TIME` no numérico. | media | `let Some(..) else`, `?` o `ConfigError`. | resuelto (0415e3e, 4355c9f, ebcd593, 9315004) |
@@ -321,12 +321,22 @@ Tamaños: XS (<50 líneas), S (<200), M (<500), L (>500 o muchos archivos).
 - **Contrato HTTP:** sin cambios.
 - **Tamaño:** S.
 
-**R6. Herencia del workspace.**
+**R6. Herencia del workspace.** *Hecha (ver §5.8).*
 - **IDs:** RS-1.3 y RS-1.4 (quitar `anyhow` de `app`).
 - **Toca:** todos los `Cargo.toml`, con `[workspace.package]` y las dependencias externas en `[workspace.dependencies]`. No cambia ninguna ruta.
 - **Línea base:** sin cambios.
 - **Riesgo:** el `Cargo.lock`; se verifica con `--locked`.
 - **Tamaño:** S.
+- **Resultado:**
+  - Commit `991e672`. `[workspace.package]` con `version` y `edition`; los seis crates los heredan (`publish = false` sigue en `architecture`). Las 17 dependencias externas pasan a `[workspace.dependencies]`, con las features que comparten todos sus usuarios. La única feature propia de un crate es `util` de `tower`, en las `[dev-dependencies]` de `app`.
+  - Cuando dos crates pedían requisitos distintos (`serde` `"1"` y `"1.0.228"`, `tower` `"0.5"` y `"0.5.3"`), el workspace toma el más específico. Ya era el que fijaba la resolución, así que la versión resuelta no cambia.
+  - Verificado contra `main`: el `Cargo.lock` solo pierde `anyhow`; `cargo tree --workspace -e features,normal,dev,build` es idéntico salvo `anyhow`, y las claves de `[dependencies]`, `[dev-dependencies]` y `[build-dependencies]` de cada manifiesto, que es lo único que leen los tests `hex_1_*`, `hex_2_*` y `hex_8_*` (`Crate::dependencies`), también: solo falta `anyhow`. `dep.workspace = true` conserva la clave, así que ningún test perdió detección.
+  - Sin rojo: es un refactor de manifiestos sin cambio de comportamiento, y la línea base no cambia. Desaparece el aviso `unused dependency` de `anyhow`.
+  - `contexts/iam/Cargo.lock` (versionado, §4) no se tocó.
+  - Revisión con `craft-backend:architecture-reviewer`: sin hallazgos en el diff. Señaló dos huecos de verificación (VER-1), que no son violaciones actuales y quedan fuera de esta rebanada porque cerrarlos exige tests nuevos en `tools/architecture`:
+    - `Crate::dependencies` (tests/common/mod.rs:69) lee solo la clave y no resuelve `package =`. Con la herencia, un renombre en la raíz (`foo = { package = "axum" }`) más `foo.workspace = true` en domain o application pasaría `hex_2_*`. Hoy no hay ningún `package =` en el workspace. Corrección propuesta: resolver `workspace = true` contra `[workspace.dependencies]` de la raíz y usar su `package`, o leer `cargo metadata`.
+    - Ningún test exige `workspace = true` en las dependencias externas de los miembros, así que un crate nuevo puede volver a fijar una versión propia (RS-1.3) sin que nada falle.
+    - `iam` en `contexts/communities/Cargo.toml`, que ya figura como HEX-1.1 (R16).
 
 #### Fase 2: puertos salientes, uno por rebanada
 
@@ -740,6 +750,7 @@ Una fila por rebanada fusionada. **Tokens** es el consumo de la sesión que hizo
 | R2 | #26 | `ad2f129`, `4149660`, `8a70093` | `nightly-2026-11-19` | $2.67 (opus-5-5: 3.7k input, 39.0k output, 4.2m cache read, 143.1k cache write; 8m 19s API, 26m 9s wall) | sí (ver PR) | Apilado sobre #25. 188 tests, fmt y clippy en verde localmente. Sin test de tiempos: el Spy fija la llamada al señuelo. |
 | R3 | #27 | `eb30039`, `f552921` | `nightly-2026-11-19` | $1.48 (opus-5-5: 1.8k input, 18.8k output, 1.9m cache read, 106.8k cache write; 4m 27s API, 4m 54s wall) | sí (ver PR) | Línea base −17 (todas las `err_1_*`). 188 tests, fmt y clippy en verde localmente. |
 | R4 | #28 | `80c00e4` | `nightly-2026-11-19` | $0.80 (opus-5-5: 1.3k input, 10.5k output, 778.9k cache read, 59.8k cache write; 2m 34s API, 2m 40s wall) | sí (ver PR) | Línea base −2 (`hex_8_kernel_traits`: `domain_error.rs`, `infrastructure_error.rs`). 188 tests, fmt y clippy en verde localmente. |
+| R6 | #29 | `991e672` | `nightly-2026-11-19` | $1.37 (opus-5-5: 447 input, 16.6k output, 1.6m cache read, 98.0k cache write; 3m 17s API, 4m 26s wall) | sí (ver PR) | Línea base sin cambios. `Cargo.lock` solo pierde `anyhow`; features efectivas idénticas. 188 tests, fmt y clippy en verde localmente. Commit aparte `45fe532` con `/slice`. |
 
 ### 5.9 Puntos de replanificación
 
