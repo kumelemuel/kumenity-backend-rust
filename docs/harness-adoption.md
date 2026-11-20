@@ -133,7 +133,7 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | ERR-4.4 | ERR-4 Códigos en el borde | iam/src/domain/errors/error_codes.rs:1-12; iam/src/application/errors/error_codes.rs:1-4; communities/src/domain/errors/error_codes.rs:1-9; communities/src/application/errors/error_codes.rs:1-2 | Los códigos estables y los mensajes de cliente viven en el núcleo. | media | `{ctx}-api/src/codes.rs`. | abierto |
 | ERR-4.5 | ERR-4 `fold` exhaustivo | contexts/iam/src/infrastructure/http/errors/error_mapper.rs:40-60; contexts/communities/src/infrastructure/http/errors/error_mapper.rs:37-46 | El status HTTP se decide comparando strings, con un comodín `_ => 500` (líneas 59 y 45). | media | `match` exhaustivo sobre el enum del contrato. | abierto |
 | ERR-4.6 | ERR-4 Problem Details | shared/src/infrastructure/http/api_error_response.rs:4; app/src/middleware/auth.rs:22,28 | Las respuestas de error usan `{code,message}` y el 401 va con cuerpo vacío, no en RFC 9457. | media | `edge_http::Problem` con un helper por hoja. | abierto |
-| ERR-4.7 | ERR-4 Manejador global | app/src/server.rs:24-27 | No hay manejador del árbol B, ni `FaultReporter`, ni `CatchPanicLayer`. Los `todo!`/`expect` cortan la conexión y las fallas técnicas no se registran. | media | `CatchPanicLayer` + `unexpected()` que reporta y devuelve un 500 genérico. | abierto |
+| ERR-4.7 | ERR-4 Manejador global | app/src/server.rs:24-27 | No hay manejador del árbol B, ni `FaultReporter`, ni `CatchPanicLayer`. Los `todo!`/`expect` cortan la conexión y las fallas técnicas no se registran. | media | `CatchPanicLayer` + `unexpected()` que reporta y devuelve un 500 genérico. | abierto: R5 (29890cb) existe el trait `FaultReporter`, y los mappers escriben el `Fault` en stderr como interino; faltan el adaptador, `unexpected()` y `CatchPanicLayer` (R26, R30) |
 | ERR-4.8 | ERR-4 Identidad faltante | contexts/communities/src/infrastructure/http/handlers/community_handlers.rs:18 | `Extension<VerifiedIdentity>` obligatoria: en una ruta sin proteger responde 500, no 401. | baja | `Option<Extension<AuthenticatedAccount>>` → 401. | abierto |
 
 ### TDD (tdd)
@@ -161,7 +161,7 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | RS-1.2 | RS-1 Kernel | shared/Cargo.toml:2 | El kernel se llama `shared` y tiene capas propias (`application`, `infrastructure/http`). | media | `kernel/` (solo std) + `edge/http`. | abierto |
 | RS-1.3 | RS-1 Herencia | Cargo.toml:1-11 | Sin `[workspace.package]` ni `[workspace.lints]`; versiones repetidas por crate (`uuid` en contexts/iam/Cargo.toml:7 y contexts/communities/Cargo.toml:7, `serde` en cuatro crates). | baja | Herencia del workspace. | resuelto (991e672) |
 | RS-1.4 | RS-1 Dependencias | app/Cargo.toml:18 | `anyhow` está declarado y no se usa: cargo avisa `unused dependency`. Hallado en R2, fuera de la auditoría. | baja | Quitarlo, junto con RS-1.3 (R6). | resuelto (991e672) |
-| RS-2.1 | RS-2 Árbol B = `Fault` | shared/src/error.rs:16 | No existen `Fault` ni `Failure<E>`; el árbol B viaja como `SystemError::Infrastructure`. | alta | `kernel::Fault` y `kernel::Failure`. | abierto |
+| RS-2.1 | RS-2 Árbol B = `Fault` | shared/src/error.rs:16 | No existen `Fault` ni `Failure<E>`; el árbol B viaja como `SystemError::Infrastructure`. | alta | `kernel::Fault` y `kernel::Failure`. | abierto: R5 (e76c162, 29890cb, 446726b) agrega `Fault` y `Failure<E>` y el puente `SystemError::Unexpected`; falta retirar `SystemError` (R19) |
 | RS-2.2 | RS-2 `panic!` solo invariantes | iam/…/account.rs:36,40,44; account_id.rs:13,17; account_status.rs:18,22; events/account_event.rs:10,14,18; communities/…/in_memory/community_repository.rs:27 | 11 `todo!()` en código de producción. El de `get_public_list` haría caer la petición si se cablea. | media | Implementar o eliminar los `impl` de trait vacíos. | abierto |
 | RS-2.3 | RS-2 `unwrap` prohibido | iam/…/authenticate_account.rs:55; verify_account.rs:30; identify_account.rs:44; account_status.rs:79 (dos veces), 81; app/src/config/jwt.rs:15; app/src/main.rs:12,14 | `unwrap` en producción. En `account_status.rs` panica ante un dato persistido; en `jwt.rs`, ante un `JWT_EXPIRATION_TIME` no numérico. | media | `let Some(..) else`, `?` o `ConfigError`. | resuelto (0415e3e, 4355c9f, ebcd593, 9315004) |
 | RS-2.4 | RS-2 `expect("invariante: …")` | iam/…/argon2_password_hasher.rs:26,32; iam/…/in_memory/account_repository.rs:28,36,44; communities/…/in_memory/community_repository.rs:31,39,47 | Los mensajes no empiezan con "invariante:". Argon2 usa `expect` para una falla técnica (línea 26) y para un hash persistido corrupto (línea 32), que deberían ser `Fault`. | media | `Fault` en Argon2; "invariante: mutex sin envenenar" en los mutex. | abierto |
@@ -313,13 +313,25 @@ Tamaños: XS (<50 líneas), S (<200), M (<500), L (>500 o muchos archivos).
     - las 2 entradas que quedan de `hex_8_kernel_traits` (`token_verifier.rs` en R10, `error.rs` en R19);
     - `anyhow` sin usar en `app/Cargo.toml` (advertencia de cargo, anotada en R3).
 
-**R5. Primitivas del kernel en `shared`.**
+**R5. Primitivas del kernel en `shared`.** *Hecha (ver §5.8).*
 - **IDs:** RS-2.1 (parcial).
-- **Objetivo:** `shared/src/{fault,failure,id}.rs` copiados de `template/kernel` (`Fault`, `Failure<E>`, `IdGenerator`, `FaultReporter`) y `Clock`, con la misma disposición que `kernel/src`, para que R29 sea un `git mv`. Se agrega un puente temporal `SystemError::Unexpected(Fault)`, que los dos mappers responden como 500 con el cuerpo de D7: `{"code":"INTERNAL_ERROR","message":"We couldn't complete your request right now. Please try again."}`. Se borra en R19.
+- **Objetivo:** `shared/src/{fault,failure,id}.rs` copiados de `template/kernel` (`Fault`, `Failure<E>`, `IdGenerator`, `FaultReporter`), con la misma disposición que `kernel/src`, para que R29 sea un `git mv`. Se agrega un puente temporal `SystemError::Unexpected(Fault)`, que los dos mappers responden como 500 con el cuerpo de D7: `{"code":"INTERNAL_ERROR","message":"We couldn't complete your request right now. Please try again."}`. Se borra en R19.
 - **Línea base:** sin cambios. Los traits nuevos son capacidades de la lista.
 - **Rojo:** los tests del template `display_never_exposes_the_technical_detail`, `question_mark_converts_technical_errors_into_fault` y `map_expected_translates_only_the_expected_tree` (no compilan). Además, un test del mapper: `unexpected_fault_maps_to_internal_server_error`, que afirma el status y el cuerpo exacto de D7.
 - **Contrato HTTP:** sin cambios.
 - **Tamaño:** S.
+- **Resultado:**
+  - Commit `e76c162`: `fault.rs`, `failure.rs` e `id.rs` copiados de ai-harness `97a8f2973efd05642f40df39cd8c0671a4fc658c` (`stacks/rust/template/kernel/src`), con sus tests y la misma disposición plana. La única diferencia con el template es que el `rustfmt.toml` del repo (`imports_granularity = "Crate"`) une los dos `use std::…` de `fault.rs`. `lib.rs` declara los módulos privados y reexporta `Failure`, `Fault`, `FaultReporter` e `IdGenerator`, como el template.
+  - `Clock` no se copió: el template no lo define (su README dice "aún sin uso en la plantilla"). Decidido por el usuario: entra en R21, con su primer uso.
+  - `shared/Cargo.toml` no cambia. `hex_8_kernel_depends_only_on_std` y `hex_8_kernel_traits_…` siguen con sus entradas (1 y 2); el segundo revisa 8 traits en lugar de 6.
+  - Commit `29890cb`: `SystemError::Unexpected(Fault)`. Los dos `error_mapper.rs` lo responden con `unexpected()`, que da 500 con el cuerpo de D7. El detalle del `Fault` va a stderr con `eprintln!` (no hay `tracing` en el proyecto), marcado como interino hasta R26 (ERR-4.7). Ese registro no tiene test.
+  - Commit `446726b`: a pedido del revisor, el código de D7 vive en `SystemError::UNEXPECTED_CODE`, que usan `code()` y los dos mappers. Así el test del mapper cubre también la rama de `code()`. Se comprobó que el test falla si cambia el literal.
+  - Rojo: con solo los tests del template, `shared` no compila (faltan `Fault` y `Failure`). `unexpected_fault_maps_to_internal_server_error` (iam y communities) no compila sin la variante. Con un brazo provisorio que respondía 500 sin cuerpo, falla por el cuerpo (`left: ""`). El test lee el cuerpo con un `poll` y `Waker::noop()` de std, para no agregar `tokio` a las dev-dependencies de los contextos (`hex_2_core` las cuenta).
+  - 194 tests (188 + 4 del template + 2 de los mappers), fmt y clippy en verde. `app/tests/` y `account_lifecycle.rs` quedaron intactos.
+  - Revisión con `craft-backend:architecture-reviewer`: aplicado el hallazgo de `code()` (arriba). Lo demás queda para otras rebanadas:
+    - el `eprintln!` escribe solo el `Display` del error de primer nivel, sin la cadena de `source()`; `StderrFaultReporterAdapter` debería recorrerla (R26);
+    - `unexpected()` está duplicado en los dos mappers (R19 retira los mappers; R26/R30 dan el borde común);
+    - el `Debug` de `Fault` imprime el `source` (igual que el template): un `{:?}` sobre `SystemError` expondría el detalle. Hoy nada en producción lo hace.
 
 **R6. Herencia del workspace.** *Hecha (ver §5.8).*
 - **IDs:** RS-1.3 y RS-1.4 (quitar `anyhow` de `app`).
@@ -560,6 +572,7 @@ En todas, el contrato HTTP se mantiene.
   - `confirm(&self, …) -> Result<Self, …>`;
   - `AggregateRoot` como marcador;
   - `DomainEvent` sin `chrono`;
+  - el trait `Clock` en `shared/src/clock.rs`, solo `std`, que R5 dejó fuera porque el template no lo define. Entra aquí con su primer uso y un test que lo exija;
   - eventos implementados o retirados, según D4.
 - **Rojo:**
   - `confirm_returns_the_active_account_and_leaves_the_original_untouched`;
