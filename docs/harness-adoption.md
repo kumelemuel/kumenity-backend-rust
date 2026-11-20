@@ -23,7 +23,7 @@ Este archivo guarda el estado entre sesiones de la adopción de los principios c
 2. **ERR-1.1 / RS-2.1:** `SystemError`, con su `From` genérico, mezcla los errores de negocio con los técnicos. Hay que reemplazarlo por `{Verb}{Noun}Error` por caso de uso y `Fault`/`Failure<E>`.
 3. **RS-1 / HEX-1 / HEX-2:** separar cada contexto en crates por capa, empezando por `communities` (HEX-1.1).
 
-Ya resueltas: ERR-4.2 (`dbg!`), ERR-4.3 (`Debug` con el secreto), VER-1.1/RS-4.1 (`tools/architecture` con trinquete sobre `baseline.txt`), VER-1.2 (CI con fmt, clippy y test), RS-2.5 (`[workspace.lints]`) y ERR-1.2/ERR-1.3 (los errores ya no implementan `std::error::Error`).
+Ya resueltas: ERR-4.2 (`dbg!`), ERR-4.3 (`Debug` con el secreto), VER-1.1/RS-4.1 (`tools/architecture` con trinquete sobre `baseline.txt`), VER-1.2 (CI con fmt, clippy y test), RS-2.5 (`[workspace.lints]`) ERR-1.2/ERR-1.3 (los errores ya no implementan `std::error::Error`) y HEX-8.4/HEX-8.7 (código muerto del kernel).
 
 ## 1. Resumen
 
@@ -94,10 +94,10 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | HEX-8.1 | HEX-8 Kernel sin dependencias | shared/Cargo.toml:7-8 | El kernel depende de `chrono` y `serde`. | alta | Kernel solo `std`. | abierto |
 | HEX-8.2 | HEX-8 Marcadores | shared/src/domain/domain_event.rs:5 | El marcador `DomainEvent` exige `DateTime<Utc>` de `chrono`. | media | Sin dependencias; el instante llega de `Clock`. | abierto |
 | HEX-8.3 | HEX-8 Kernel | shared/src/error.rs:9 | `ErrorLayout` y `SystemError` (línea 16), un error global por capas, viven en el kernel. | alta | `Fault` + `Failure<E>` (RS-2). | abierto |
-| HEX-8.4 | HEX-8 Marcadores de error | shared/src/domain/domain_error.rs:3; shared/src/infrastructure/infrastructure_error.rs:3 | Traits `DomainError` e `InfrastructureError`: Rust no los necesita (y aquí nadie los usa). | media | Eliminarlos. | abierto |
+| HEX-8.4 | HEX-8 Marcadores de error | shared/src/domain/domain_error.rs:3; shared/src/infrastructure/infrastructure_error.rs:3 | Traits `DomainError` e `InfrastructureError`: Rust no los necesita (y aquí nadie los usa). | media | Eliminarlos. | resuelto (80c00e4) |
 | HEX-8.5 | HEX-8 Sin puertos | shared/src/application/ports/outbound/token_verifier.rs:6 | Un puerto de negocio (`TokenVerifier`) y su `TokenError` (error.rs:2) están en el kernel; no es una capacidad de la lista. | alta | Moverlo a `iam` (ver HEX-1.5). | abierto |
 | HEX-8.6 | HEX-8 Sin modelos | shared/src/domain/model/verified_identity.rs:2; shared/src/application/auth_context.rs:2 | Tipos de identidad en el kernel. | media | `AuthenticatedAccount` en `edge/http`. | abierto |
-| HEX-8.7 | HEX-8 Kernel | shared/src/application/common_application_error.rs:2 | `CommonApplicationError` está muerto y es un error compartido de aplicación. | baja | Eliminarlo. | abierto |
+| HEX-8.7 | HEX-8 Kernel | shared/src/application/common_application_error.rs:2 | `CommonApplicationError` está muerto y es un error compartido de aplicación. | baja | Eliminarlo. | resuelto (80c00e4) |
 | HEX-8.8 | HEX-8 Kernel | shared/src/infrastructure/http/api_error_response.rs:4 | Un tipo de transporte HTTP (con `serde`) en el kernel. | media | `edge/http` con `Problem`. | abierto |
 | HEX-8.9 | HEX-8 Marcadores | shared/src/domain/aggregate_root.rs:6-8 | `AggregateRoot` no es un marcador: impone `record_event(&mut self)`, `pull_events` y `version`, una API mutable. | baja | Marcador vacío; los eventos se manejan con `take_events(self)` en el agregado. | abierto |
 | VER-1.1 | VER-1 Tests de arquitectura | Cargo.toml:2-5 | No existe `tools/architecture`: ninguna regla de dependencias o de nombres tiene test. | alta | Agregar `tools/architecture` (la plantilla de rust-stack). | resuelto (ad558fc) |
@@ -297,11 +297,21 @@ Tamaños: XS (<50 líneas), S (<200), M (<500), L (>500 o muchos archivos).
     - `if !account.can_authenticate()` en el handler (HEX-7.2);
     - `ErrorLayout`/`SystemError`, que siguen mezclando los dos árboles (HEX-8.3, ERR-1.1, ERR-2.2; R5 a R19).
 
-**R4. Borrar código muerto del kernel.**
+**R4. Borrar código muerto del kernel.** *Hecha (ver §5.8).*
 - **IDs:** HEX-8.4, HEX-8.7.
 - **Toca:** `shared/src/domain/domain_error.rs`, `shared/src/infrastructure/infrastructure_error.rs` y `shared/src/application/common_application_error.rs`.
 - **Línea base: −2** (`hex_8_kernel_traits`: `domain_error.rs` e `infrastructure_error.rs`).
 - **Tamaño:** XS.
+- **Resultado:**
+  - Commit `80c00e4`. Se borraron los tres archivos, los `pub mod` de los tres `mod.rs` y los `pub use DomainError` y `pub use InfrastructureError`.
+  - Antes de borrar se buscó cada nombre (tipo, trait y módulo) en todo el workspace, tests incluidos. Nadie los usaba: el único rastro era un `use` y un `CommonApplicationError::Infrastructure` **comentados** en `list_public_communities.rs` (líneas 51 y 128), que no compilan y desaparecen con el archivo en R18. No se tocaron.
+  - Ningún módulo quedó vacío: `shared/src/domain/` conserva `aggregate_root`, `domain_event`, `entity`, `model` y `value_object`; `shared/src/infrastructure/` conserva `http`; `shared/src/application/` conserva `auth_context` y `ports`. Ninguna otra entrada de la línea base cambió de ruta.
+  - El rojo fue el trinquete: `hex_8_kernel_traits_are_model_markers_or_listed_capabilities` falló con "Ya no violan: borrar" para `domain_error.rs` e `infrastructure_error.rs`. Se borraron las 2 líneas de `baseline.txt`; quedan 2 (`token_verifier.rs` y `error.rs`).
+  - Ningún test cambió, salvo la línea base. `app/tests/` y `account_lifecycle.rs` quedaron intactos. 188 tests, fmt y clippy en verde.
+  - Revisión con `craft-backend:architecture-reviewer`: sin hallazgos en el diff ni hallazgos nuevos. Lo que señaló de otras rebanadas ya figura en el inventario y no se corrigió aquí:
+    - las referencias comentadas en `list_public_communities.rs`, dentro del bloque de tests comentado (TDD-1.1, R18);
+    - las 2 entradas que quedan de `hex_8_kernel_traits` (`token_verifier.rs` en R10, `error.rs` en R19);
+    - `anyhow` sin usar en `app/Cargo.toml` (advertencia de cargo, anotada en R3).
 
 **R5. Primitivas del kernel en `shared`.**
 - **IDs:** RS-2.1 (parcial).
@@ -684,7 +694,7 @@ R1 ─┬─ R2 ─────────────────────�
 | `hex_5_outbound_ports_are_named_by_role` | 4 | R10 (R7 a R10) |
 | `hex_5_adapters_are_named_by_technology_and_concept` | 8 | R10 (R7 a R10) |
 | `hex_4_use_case_implementations_are_handlers` | 6 | R17 (R18, R11, R13 a R15, R17) |
-| `hex_8_kernel_traits_are_model_markers_or_listed_capabilities` | 4 | R19 (R4, R10, R19) |
+| `hex_8_kernel_traits_are_model_markers_or_listed_capabilities` | 4 | R19 (R4, R10, R19); R4: −2 (80c00e4), quedan 2 |
 | `hex_8_kernel_depends_only_on_std` | 1 | R25 |
 | `hex_2_core_depends_only_on_std_and_the_kernel` | 3 | R28 (R25, R27, R28) |
 | `hex_2_server_frameworks_only_at_the_edge` | 2 | R28 (R27, R28) |
@@ -729,6 +739,7 @@ Una fila por rebanada fusionada. **Tokens** es el consumo de la sesión que hizo
 | R1 | #24 | ver PR | `nightly-2026-11-19` | pendiente: dato de `/cost` | no: no toca código de producción | Apilado sobre #23, que lleva #21 y #22 a `main`. fmt, clippy y 187 tests en verde localmente. #24 se fusionó en `ci/rust-checks`, no en `main`; lo lleva a `main` #25. |
 | R2 | #26 | `ad2f129`, `4149660`, `8a70093` | `nightly-2026-11-19` | $2.67 (opus-5-5: 3.7k input, 39.0k output, 4.2m cache read, 143.1k cache write; 8m 19s API, 26m 9s wall) | sí (ver PR) | Apilado sobre #25. 188 tests, fmt y clippy en verde localmente. Sin test de tiempos: el Spy fija la llamada al señuelo. |
 | R3 | #27 | `eb30039`, `f552921` | `nightly-2026-11-19` | $1.48 (opus-5-5: 1.8k input, 18.8k output, 1.9m cache read, 106.8k cache write; 4m 27s API, 4m 54s wall) | sí (ver PR) | Línea base −17 (todas las `err_1_*`). 188 tests, fmt y clippy en verde localmente. |
+| R4 | ver PR | `80c00e4` | `nightly-2026-11-19` | pendiente | sí (ver PR) | Línea base −2 (`hex_8_kernel_traits`: `domain_error.rs`, `infrastructure_error.rs`). 188 tests, fmt y clippy en verde localmente. |
 
 ### 5.9 Puntos de replanificación
 
