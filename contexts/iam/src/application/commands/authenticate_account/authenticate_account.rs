@@ -95,8 +95,9 @@ mod tests {
 
     const DECOY_HASH: &str = "decoy-hash";
 
-    /// Records every `verify` call. It answers `true` so a test can prove the
-    /// handler ignores the outcome of the decoy verification.
+    /// Records every `verify` call. It answers `true` so
+    /// `fails_with_login_failed_when_account_does_not_exist` proves the handler
+    /// ignores the outcome of the decoy verification.
     #[derive(Default)]
     struct SpyPasswordHasherPortAdapter {
         verify_calls: Mutex<Vec<(String, String)>>,
@@ -138,7 +139,7 @@ mod tests {
             DECOY_HASH.to_string(),
         );
 
-        let result = use_case.execute(AuthenticateAccountCommand {
+        let _ = use_case.execute(AuthenticateAccountCommand {
             username: "ghost".to_string(),
             password: "any_password".to_string(),
         });
@@ -147,14 +148,12 @@ mod tests {
             hasher.verify_calls(),
             vec![("any_password".to_string(), DECOY_HASH.to_string())]
         );
-        let err = result.expect_err("Expected error");
-        assert_eq!(err.code(), IAM_LOGIN_FAILED);
     }
 
     #[test]
     fn fails_with_login_failed_when_account_does_not_exist() {
         let repo = Arc::new(FakeAccountRepository::success());
-        let hasher = Arc::new(FakePasswordHasher);
+        let hasher = Arc::new(SpyPasswordHasherPortAdapter::default());
         let token_generator = Arc::new(FakeTokenGenerator);
 
         let use_case =
