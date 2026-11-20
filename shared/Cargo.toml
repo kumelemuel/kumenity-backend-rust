@@ -6,3 +6,5 @@ edition = "2024"
 [dependencies]
 chrono = { version = "0.4", features = ["clock"] }
 serde = { version = "1.0.228", features = ["derive"] }
+[lints]
+workspace = true

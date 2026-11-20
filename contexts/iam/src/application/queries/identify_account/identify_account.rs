@@ -8,7 +8,7 @@ use crate::{
             query::IdentifyAccountQuery, response::IdentifyAccountResponse,
         },
     },
-    domain::{errors::AccountError, model::account::account::Account},
+    domain::errors::AccountError,
 };
 use shared::{domain::value_object::ValueObject, error::SystemError};
 use std::sync::Arc;
@@ -25,23 +25,16 @@ impl IdentifyAccount {
 
 impl IdentifyAccountUseCase for IdentifyAccount {
     fn execute(&self, cmd: IdentifyAccountQuery) -> Result<IdentifyAccountResponse, SystemError> {
-        let mut account: Option<Account> = None;
-        let existing_email = self.account_repository.find_by_email(cmd.identify.as_str());
-        if existing_email.is_none() {
-            let existing_username = self
-                .account_repository
-                .find_by_username(cmd.identify.as_str());
-            if existing_username.is_some() {
-                account = existing_username;
-            }
-        } else {
-            account = existing_email;
-        }
-
-        if account.is_none() {
+        let Some(account) = self
+            .account_repository
+            .find_by_email(cmd.identify.as_str())
+            .or_else(|| {
+                self.account_repository
+                    .find_by_username(cmd.identify.as_str())
+            })
+        else {
             return Err(AccountError::AccountNotFound.into());
-        }
-        let account = account.unwrap();
+        };
 
         Ok(IdentifyAccountResponse {
             username: account.username().value().to_owned(),
