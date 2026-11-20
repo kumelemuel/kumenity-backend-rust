@@ -5,7 +5,7 @@ pub struct PasswordPolicy;
 impl PasswordPolicy {
     pub fn validate(raw: &str) -> Result<(), PasswordPolicyError> {
         if raw.len() < 8 {
-            return Err(PasswordPolicyError::TooShort.into());
+            return Err(PasswordPolicyError::TooShort);
         }
 
         Ok(())

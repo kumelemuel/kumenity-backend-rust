@@ -31,6 +31,8 @@ impl AccountId {
         Ok(Self(uuid))
     }
 
+    // Pendiente: implementar `FromStr` en lugar de un método inherente (cambia los llamadores).
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(value: &str) -> Result<Self, AccountIdError> {
         let uuid = Uuid::parse_str(value).map_err(|_| AccountIdError::WrongFormat)?;
         Self::from_uuid(uuid)

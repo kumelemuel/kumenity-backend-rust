@@ -14,6 +14,12 @@ pub struct InMemoryCommunityRepository {
     communities: Arc<Mutex<HashMap<CommunityId, Community>>>,
 }
 
+impl Default for InMemoryCommunityRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InMemoryCommunityRepository {
     pub fn new() -> Self {
         Self {
