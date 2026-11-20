@@ -24,7 +24,9 @@ use iam::{
                 register_account_use_case::RegisterAccountUseCase,
                 verify_account_use_case::VerifyAccountUseCase,
             },
-            outbound::account_repository::AccountRepositoryPort,
+            outbound::{
+                account_repository::AccountRepositoryPort, password_hasher::PasswordHasherPort,
+            },
         },
         queries::identify_account::{
             identify_account::IdentifyAccount, query::IdentifyAccountQuery,
@@ -56,11 +58,12 @@ struct Iam {
 fn iam() -> Iam {
     let repository = Arc::new(InMemoryAccountRepository::new());
     let hasher = Arc::new(Argon2PasswordHasher::new());
+    let decoy_hash = hasher.hash("lifecycle-decoy");
     let jwt = Arc::new(JwtService::new("lifecycle-secret".into(), 3600));
     Iam {
         register: RegisterAccount::new(repository.clone(), hasher.clone()),
         verify: VerifyAccount::new(repository.clone()),
-        authenticate: AuthenticateAccount::new(repository.clone(), hasher, jwt.clone()),
+        authenticate: AuthenticateAccount::new(repository.clone(), hasher, jwt.clone(), decoy_hash),
         identify: IdentifyAccount::new(repository.clone()),
         repository,
         jwt,
