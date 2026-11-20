@@ -11,8 +11,6 @@ impl fmt::Display for TokenGeneratorError {
     }
 }
 
-impl std::error::Error for TokenGeneratorError {}
-
 impl ErrorLayout for TokenGeneratorError {
     fn architecture_layer(&self) -> ArchitectureLayer {
         ArchitectureLayer::Application

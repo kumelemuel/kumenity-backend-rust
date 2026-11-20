@@ -17,8 +17,6 @@ impl fmt::Display for AccountStatusError {
     }
 }
 
-impl std::error::Error for AccountStatusError {}
-
 impl ErrorLayout for AccountStatusError {
     fn architecture_layer(&self) -> ArchitectureLayer {
         ArchitectureLayer::Domain

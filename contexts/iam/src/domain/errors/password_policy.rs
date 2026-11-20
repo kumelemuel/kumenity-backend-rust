@@ -17,8 +17,6 @@ impl fmt::Display for PasswordPolicyError {
     }
 }
 
-impl std::error::Error for PasswordPolicyError {}
-
 impl ErrorLayout for PasswordPolicyError {
     fn architecture_layer(&self) -> ArchitectureLayer {
         ArchitectureLayer::Application

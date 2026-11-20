@@ -15,8 +15,6 @@ impl fmt::Display for EmailError {
     }
 }
 
-impl std::error::Error for EmailError {}
-
 impl ErrorLayout for EmailError {
     fn architecture_layer(&self) -> ArchitectureLayer {
         ArchitectureLayer::Domain

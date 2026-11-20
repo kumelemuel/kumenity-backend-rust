@@ -15,8 +15,6 @@ impl fmt::Display for UsernameError {
     }
 }
 
-impl std::error::Error for UsernameError {}
-
 impl ErrorLayout for UsernameError {
     fn architecture_layer(&self) -> ArchitectureLayer {
         ArchitectureLayer::Domain

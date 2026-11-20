@@ -15,8 +15,6 @@ impl fmt::Display for HashedPasswordError {
     }
 }
 
-impl std::error::Error for HashedPasswordError {}
-
 impl ErrorLayout for HashedPasswordError {
     fn architecture_layer(&self) -> ArchitectureLayer {
         ArchitectureLayer::Domain

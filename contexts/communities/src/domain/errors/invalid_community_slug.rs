@@ -11,8 +11,6 @@ impl fmt::Display for InvalidCommunitySlug {
     }
 }
 
-impl std::error::Error for InvalidCommunitySlug {}
-
 impl ErrorLayout for InvalidCommunitySlug {
     fn architecture_layer(&self) -> ArchitectureLayer {
         ArchitectureLayer::Domain
