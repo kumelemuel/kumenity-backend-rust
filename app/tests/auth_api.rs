@@ -281,16 +281,16 @@ async fn authenticate(app: &axum::Router, username: &str, password: &str) -> Tes
 }
 
 #[tokio::test]
-async fn authenticate_unknown_username_returns_404() {
+async fn authenticate_unknown_username_returns_401_login_failed() {
     let app = app().await;
 
     let response = authenticate(&app, "ghost", PASSWORD).await;
 
     assert_error(
         &response,
-        StatusCode::NOT_FOUND,
-        "IAM_ACCOUNT_NOT_FOUND",
-        "No account was found with the provided information.",
+        StatusCode::UNAUTHORIZED,
+        "IAM_LOGIN_FAILED",
+        "The username or password is incorrect.",
     );
 }
 
@@ -326,14 +326,14 @@ async fn authenticate_unverified_account_returns_401_cannot_authenticate() {
 
 /// Authentication looks the account up by username only.
 #[tokio::test]
-async fn authenticate_by_email_returns_404() {
+async fn authenticate_by_email_returns_401() {
     let app = app().await;
     register(&app, "ana", "ana@example.com", PASSWORD).await;
 
     let response = authenticate(&app, "ana@example.com", PASSWORD).await;
 
-    assert_eq!(response.status, StatusCode::NOT_FOUND);
-    assert_eq!(response.body["code"], "IAM_ACCOUNT_NOT_FOUND");
+    assert_eq!(response.status, StatusCode::UNAUTHORIZED);
+    assert_eq!(response.body["code"], "IAM_LOGIN_FAILED");
 }
 
 // ---------- /auth/verify ----------
