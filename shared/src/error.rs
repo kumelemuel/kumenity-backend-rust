@@ -24,13 +24,15 @@ pub enum SystemError {
 }
 
 impl SystemError {
+    /// Código de D7 para `Unexpected`: el borde lo usa en el cuerpo del 500.
+    pub const UNEXPECTED_CODE: &'static str = "INTERNAL_ERROR";
+
     pub fn code(&self) -> &'static str {
         match self {
             SystemError::Domain(err) => err.code(),
             SystemError::Application(err) => err.code(),
             SystemError::Infrastructure(err) => err.code(),
-            // Sin código propio: el borde responde el cuerpo genérico de D7.
-            SystemError::Unexpected(_) => "INTERNAL_ERROR",
+            SystemError::Unexpected(_) => Self::UNEXPECTED_CODE,
         }
     }
 }

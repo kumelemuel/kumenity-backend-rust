@@ -18,7 +18,7 @@ use shared::{
 
 pub fn map_application_error(error: SystemError) -> Response {
     let (status, code, message) = match error {
-        SystemError::Unexpected(fault) => return unexpected(fault),
+        SystemError::Unexpected(fault) => return unexpected(SystemError::UNEXPECTED_CODE, fault),
         SystemError::Domain(err)
         | SystemError::Application(err)
         | SystemError::Infrastructure(err) => {
@@ -37,13 +37,12 @@ pub fn map_application_error(error: SystemError) -> Response {
     (status, Json(body)).into_response()
 }
 
-/// Cuerpo interino del 500 por `Fault` (D7), hasta Problem Details (R30).
-const INTERNAL_ERROR: &str = "INTERNAL_ERROR";
+/// Mensaje interino del 500 por `Fault` (D7), hasta Problem Details (R30).
 const INTERNAL_ERROR_MESSAGE: &str =
     "We couldn't complete your request right now. Please try again.";
 
 /// Árbol B: 500 genérico, sin exponer el detalle del `Fault` al cliente.
-fn unexpected(fault: Fault) -> Response {
+fn unexpected(code: &'static str, fault: Fault) -> Response {
     // INTERINO hasta R26 (ERR-4.7): todavía no hay `FaultReporter` cableado.
     // Para que el 500 no sea silencioso (ERR-1.4), el detalle va a stderr, donde
     // hoy se registran los errores. R26/R30 lo reemplazan por
@@ -51,7 +50,7 @@ fn unexpected(fault: Fault) -> Response {
     eprintln!("communities: unexpected fault: {}", fault.detail());
 
     let body = ApiErrorResponse {
-        code: INTERNAL_ERROR.to_string(),
+        code: code.to_string(),
         message: INTERNAL_ERROR_MESSAGE.to_string(),
     };
 
