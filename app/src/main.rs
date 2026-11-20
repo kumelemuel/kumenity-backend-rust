@@ -9,7 +9,15 @@ async fn main() {
 
     let app = build_app(&config).await;
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
+        .await
+        .unwrap_or_else(|e| {
+            eprintln!("Cannot bind 0.0.0.0:3000: {e}");
+            std::process::exit(1);
+        });
 
-    axum::serve(listener, app).await.unwrap();
+    if let Err(e) = axum::serve(listener, app).await {
+        eprintln!("Server error: {e}");
+        std::process::exit(1);
+    }
 }

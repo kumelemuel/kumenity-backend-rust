@@ -10,3 +10,10 @@ resolver = "3"
 iam = { path = "contexts/iam" }
 communities = { path = "contexts/communities" }
 shared = { path = "shared" }
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+# Árbol B: `panic!`/`expect("invariante: …")` solo para invariantes rotos.
+# `unwrap` no dice cuál invariante se rompió.
+unwrap_used = "deny"

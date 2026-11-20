@@ -58,7 +58,7 @@ pub fn post_json(path: &str, body: Value) -> Request<Body> {
     Request::post(path)
         .header(header::CONTENT_TYPE, "application/json")
         .body(Body::from(body.to_string()))
-        .unwrap()
+        .expect("valid request")
 }
 
 pub fn post_json_with_auth(path: &str, authorization: &str, body: Value) -> Request<Body> {
@@ -66,7 +66,7 @@ pub fn post_json_with_auth(path: &str, authorization: &str, body: Value) -> Requ
         .header(header::CONTENT_TYPE, "application/json")
         .header(header::AUTHORIZATION, authorization)
         .body(Body::from(body.to_string()))
-        .unwrap()
+        .expect("valid request")
 }
 
 pub async fn register(app: &Router, username: &str, email: &str, password: &str) -> TestResponse {
@@ -88,7 +88,7 @@ pub fn assert_error(response: &TestResponse, status: StatusCode, code: &str, mes
 fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
+        .expect("clock after the Unix epoch")
         .as_secs()
 }
 
@@ -99,7 +99,7 @@ pub fn token_for(sub: &str, secret: &str, exp: u64) -> String {
         &json!({ "sub": sub, "exp": exp }),
         &jsonwebtoken::EncodingKey::from_secret(secret.as_bytes()),
     )
-    .unwrap()
+    .expect("token can be encoded")
 }
 
 pub fn valid_token_for(sub: &str) -> String {
