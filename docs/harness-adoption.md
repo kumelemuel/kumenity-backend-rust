@@ -714,7 +714,7 @@ Una fila por rebanada fusionada. **Tokens** es el consumo de la sesión que hizo
 | Rebanada | PR | Commit | Toolchain | Tokens | Revisor | Notas |
 |---|---|---|---|---|---|---|
 | R1 | #24 | ver PR | `nightly-2026-11-19` | pendiente: dato de `/cost` | no: no toca código de producción | Apilado sobre #23, que lleva #21 y #22 a `main`. fmt, clippy y 187 tests en verde localmente. #24 se fusionó en `ci/rust-checks`, no en `main`; lo lleva a `main` #25. |
-| R2 | #26 | `ad2f129`, `4149660`, `8a70093` | `nightly-2026-11-19` | pendiente: dato de `/cost` | sí (ver PR) | Apilado sobre #25. 188 tests, fmt y clippy en verde localmente. Sin test de tiempos: el Spy fija la llamada al señuelo. |
+| R2 | #26 | `ad2f129`, `4149660`, `8a70093` | `nightly-2026-11-19` | $2.67 (opus-5-5: 3.7k input, 39.0k output, 4.2m cache read, 143.1k cache write; 8m 19s API, 26m 9s wall) | sí (ver PR) | Apilado sobre #25. 188 tests, fmt y clippy en verde localmente. Sin test de tiempos: el Spy fija la llamada al señuelo. |
 
 ### 5.9 Puntos de replanificación
 
