@@ -1,3 +1,4 @@
+use crate::Fault;
 use std::fmt::Debug;
 
 #[derive(Debug)]
@@ -17,6 +18,9 @@ pub enum SystemError {
     Domain(Box<dyn ErrorLayout>),
     Application(Box<dyn ErrorLayout>),
     Infrastructure(Box<dyn ErrorLayout>),
+    /// Puente temporal hacia el árbol B (ERR-1): un `Fault` viaja por aquí hasta
+    /// que cada caso de uso tenga su `Failure<{Verb}{Noun}Error>`. Se borra en R19.
+    Unexpected(Fault),
 }
 
 impl SystemError {
@@ -25,6 +29,8 @@ impl SystemError {
             SystemError::Domain(err) => err.code(),
             SystemError::Application(err) => err.code(),
             SystemError::Infrastructure(err) => err.code(),
+            // Sin código propio: el borde responde el cuerpo genérico de D7.
+            SystemError::Unexpected(_) => "INTERNAL_ERROR",
         }
     }
 }
