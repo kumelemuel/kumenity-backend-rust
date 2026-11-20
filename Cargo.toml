@@ -6,10 +6,33 @@ members = [
 ]
 resolver = "3"
 
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
 [workspace.dependencies]
 iam = { path = "contexts/iam" }
 communities = { path = "contexts/communities" }
 shared = { path = "shared" }
+
+argon2 = "0.5.3"
+axum = "0.8.7"
+chrono = { version = "0.4", features = ["clock"] }
+dotenvy = "0.15"
+http = "1.4.0"
+http-body-util = "0.1"
+jsonwebtoken = "9"
+proc-macro2 = { version = "1", features = ["span-locations"] }
+rand = "0.8.5"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1"
+syn = { version = "2", features = ["full", "visit"] }
+tokio = { version = "1", features = ["full"] }
+toml = "0.8"
+tower = "0.5.3"
+tower-http = { version = "0.6.8", features = ["trace"] }
+uuid = { version = "1.19.0", features = ["v4"] }
+
 [workspace.lints.rust]
 unsafe_code = "forbid"
 
