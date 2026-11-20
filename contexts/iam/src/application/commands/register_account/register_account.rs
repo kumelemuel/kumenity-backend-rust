@@ -52,8 +52,6 @@ impl RegisterAccountUseCase for RegisterAccount {
 
         self.account_repository.save(&account)?;
 
-        dbg!(&account);
-
         Ok(RegisterAccountResponse {
             id: account.id().as_uuid().to_string(),
             username: account.username().value().to_owned(),
