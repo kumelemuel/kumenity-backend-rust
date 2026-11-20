@@ -189,6 +189,7 @@ Partes que sí se cumplen dentro de reglas que tienen hallazgos:
 No cuentan en el inventario. Si se confirman, pasan a él con el siguiente ID libre de su regla.
 
 - ~~**Enumeración de usuarios (ERR-4).** `authenticate` responde 404 a un usuario inexistente y 401 a una contraseña incorrecta, así que se puede saber qué nombres de usuario existen.~~ Confirmada por el usuario y resuelta en R2 (ad2f129, 4149660): 401 `IAM_LOGIN_FAILED` y verificación contra un hash señuelo (D6).
+- **El señuelo y los parámetros de Argon2 (R2).** `verify` usa los parámetros del hash guardado. Si `Argon2::default()` cambia al actualizar el crate, el señuelo (generado al arrancar con los parámetros nuevos) y los hashes viejos dejan de costar lo mismo. Hoy no pasa; habría que revisarlo al subir `argon2` o al cambiar sus parámetros.
 - **`Account` deriva `Debug` con `HashedPassword` dentro** (account.rs:14). Cualquier log futuro con `{:?}` filtra el hash. No viola nada hoy, quitando el `dbg!` de ERR-4.2.
 - **Orden en `RegisterAccount`.** Hashea con Argon2 (register_account.rs:49) antes de validar la política de contraseña dentro de la factory. Es orquestación cuestionable (costo y contraseña en claro pasada al dominio), no claramente un `if` de negocio en el handler.
 - **Tests de caracterización en `app/tests/`.** Prueban reglas de negocio (longitudes, formatos) por el endpoint, y con adaptadores reales en vez de `Stub…UseCase`. Es la violación típica de TDD-2, pero están ahí a propósito como red de seguridad para el refactor. No los conté.
@@ -259,11 +260,17 @@ Tamaños: XS (<50 líneas), S (<200), M (<500), L (>500 o muchos archivos).
 - **Fuera de alcance:** un test HTTP que mida tiempos. Sería inestable en CI; el test del handler alcanza para fijar la llamada al señuelo.
 - **Tamaño:** S.
 - **Resultado:**
-  - Commits `ad2f129` (401 + reemplazo de los dos tests HTTP) y `4149660` (señuelo).
+  - Commits `ad2f129` (401 + reemplazo de los dos tests HTTP), `4149660` (señuelo) y `8a70093` (`std::hint::black_box` sobre el `verify` descartado, a pedido del revisor).
   - El doble se llama `SpyPasswordHasherPortAdapter` y no `SpyPasswordHashingAdapter`. El test de arquitectura deriva el concepto del puerto actual, `PasswordHasherPort`, y la línea base no admite entradas nuevas. R9 lo renombra junto con el puerto y lo mueve a `application/testing.rs`. Devuelve `true` en `verify` para probar que el handler descarta el resultado.
   - Se borró el test de handler `fails_when_account_not_found`: fijaba el 404 que reemplaza `fails_with_login_failed_when_account_does_not_exist`.
   - `account_lifecycle.rs`: adaptación mecánica (decidida por el usuario en R2). `iam()` genera el señuelo con `hasher.hash("lifecycle-decoy")` y lo pasa a `AuthenticateAccount::new`, más el import de `PasswordHasherPort`. Ningún escenario ni aserto cambia.
-  - Los tests nuevos afirman sobre `err.code()`, como el resto del archivo. Pasar a variantes es ERR-2.6.
+  - Los tests nuevos afirman sobre `err.code()`, como el resto del archivo. Pasar a variantes es ERR-2.6, y la migración cubre `fails_with_login_failed_when_account_does_not_exist` y `verifies_against_the_decoy_hash_when_account_does_not_exist`, que afirman el mismo código.
+  - Revisión con `craft-backend:architecture-reviewer`: ningún hallazgo bloqueante. Lo que señaló de otras rebanadas ya figura en el inventario y no se corrigió aquí:
+    - el sufijo `Port` de `PasswordHasherPort` (HEX-5.1, R9);
+    - `FakePasswordHasher` sin estado ni batería (TDD-2.1, TDD-2.3, R9);
+    - los `expect` de Argon2, de los que `hash` ahora corre también al arrancar para generar el señuelo (RS-2.4, R9);
+    - `if !verify` e `if !can_authenticate` en el handler (HEX-7.2);
+    - `SystemError` y los asertos sobre `code()` (ERR-2.1, ERR-2.6, R14).
 
 #### Fase 1: limpieza barata en el lugar
 
@@ -707,7 +714,7 @@ Una fila por rebanada fusionada. **Tokens** es el consumo de la sesión que hizo
 | Rebanada | PR | Commit | Toolchain | Tokens | Revisor | Notas |
 |---|---|---|---|---|---|---|
 | R1 | #24 | ver PR | `nightly-2026-11-19` | pendiente: dato de `/cost` | no: no toca código de producción | Apilado sobre #23, que lleva #21 y #22 a `main`. fmt, clippy y 187 tests en verde localmente. #24 se fusionó en `ci/rust-checks`, no en `main`; lo lleva a `main` #25. |
-| R2 | PR_R2 | `ad2f129`, `4149660` | `nightly-2026-11-19` | pendiente: dato de `/cost` | sí (ver PR) | Apilado sobre #25. 188 tests, fmt y clippy en verde localmente. Sin test de tiempos: el Spy fija la llamada al señuelo. |
+| R2 | PR_R2 | `ad2f129`, `4149660`, `8a70093` | `nightly-2026-11-19` | pendiente: dato de `/cost` | sí (ver PR) | Apilado sobre #25. 188 tests, fmt y clippy en verde localmente. Sin test de tiempos: el Spy fija la llamada al señuelo. |
 
 ### 5.9 Puntos de replanificación
 
