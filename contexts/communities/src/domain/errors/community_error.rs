@@ -35,8 +35,6 @@ impl fmt::Display for CommunityError {
     }
 }
 
-impl std::error::Error for CommunityError {}
-
 impl ErrorLayout for CommunityError {
     fn architecture_layer(&self) -> ArchitectureLayer {
         ArchitectureLayer::Domain

@@ -1,4 +1,4 @@
-use std::{error::Error, fmt::Debug};
+use std::fmt::Debug;
 
 #[derive(Debug)]
 pub enum ArchitectureLayer {
@@ -6,7 +6,7 @@ pub enum ArchitectureLayer {
     Application,
     Infrastructure,
 }
-pub trait ErrorLayout: Error + Send + Sync {
+pub trait ErrorLayout: Debug + Send + Sync {
     fn architecture_layer(&self) -> ArchitectureLayer;
     fn code(&self) -> &'static str;
     fn message(&self) -> &'static str;

@@ -11,8 +11,6 @@ impl fmt::Display for CommunityRepositoryError {
     }
 }
 
-impl std::error::Error for CommunityRepositoryError {}
-
 impl ErrorLayout for CommunityRepositoryError {
     fn architecture_layer(&self) -> ArchitectureLayer {
         ArchitectureLayer::Application

@@ -15,8 +15,6 @@ impl fmt::Display for CodeValidationError {
     }
 }
 
-impl std::error::Error for CodeValidationError {}
-
 impl ErrorLayout for CodeValidationError {
     fn architecture_layer(&self) -> ArchitectureLayer {
         ArchitectureLayer::Domain

@@ -11,8 +11,6 @@ impl fmt::Display for AccountRepositoryError {
     }
 }
 
-impl std::error::Error for AccountRepositoryError {}
-
 impl ErrorLayout for AccountRepositoryError {
     fn architecture_layer(&self) -> ArchitectureLayer {
         ArchitectureLayer::Application

@@ -23,7 +23,7 @@ Este archivo guarda el estado entre sesiones de la adopción de los principios c
 2. **ERR-1.1 / RS-2.1:** `SystemError`, con su `From` genérico, mezcla los errores de negocio con los técnicos. Hay que reemplazarlo por `{Verb}{Noun}Error` por caso de uso y `Fault`/`Failure<E>`.
 3. **RS-1 / HEX-1 / HEX-2:** separar cada contexto en crates por capa, empezando por `communities` (HEX-1.1).
 
-Ya resueltas: ERR-4.2 (`dbg!`), ERR-4.3 (`Debug` con el secreto), VER-1.1/RS-4.1 (`tools/architecture` con trinquete sobre `baseline.txt`), VER-1.2 (CI con fmt, clippy y test) y RS-2.5 (`[workspace.lints]`).
+Ya resueltas: ERR-4.2 (`dbg!`), ERR-4.3 (`Debug` con el secreto), VER-1.1/RS-4.1 (`tools/architecture` con trinquete sobre `baseline.txt`), VER-1.2 (CI con fmt, clippy y test), RS-2.5 (`[workspace.lints]`) y ERR-1.2/ERR-1.3 (los errores ya no implementan `std::error::Error`).
 
 ## 1. Resumen
 
@@ -108,8 +108,8 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | ID | Regla | archivo:línea | Violación | Sev. | Corrección | Estado |
 |---|---|---|---|---|---|---|
 | ERR-1.1 | ERR-1 Dos árboles | shared/src/error.rs:16 | `SystemError` mezcla los fallos de negocio con los técnicos (`Infrastructure`) en un tipo. El `impl<T: ErrorLayout> From<T>` (línea 32) hace que `?` los absorba implícitamente. | alta | `Failure<{Verb}{Noun}Error>` y `Fault` separados. | abierto |
-| ERR-1.2 | ERR-1 Errores de dominio | iam/src/domain/errors/account.rs:27, account_id.rs:20, account_status.rs:20, code_validation.rs:18, email.rs:18, hashed_password.rs:18, password_policy.rs:20, username.rs:18; communities/src/domain/errors/community_error.rs:38, invalid_community_id.rs:14, invalid_community_name.rs:14, invalid_community_slug.rs:14 | Los errores de dominio implementan `std::error::Error`: un `?` los manda al canal técnico. | alta | Solo `Debug` + `Display`. | abierto |
-| ERR-1.3 | ERR-1 Errores de application | iam/src/application/errors/account_repository.rs:14, authenticate_account.rs:24, token_generator.rs:14; communities/src/application/errors/community_creation.rs:20, community_repository.rs:14 | Las hojas y los errores de puerto implementan `std::error::Error`. | media | Quitar el `impl`. | abierto |
+| ERR-1.2 | ERR-1 Errores de dominio | iam/src/domain/errors/account.rs:27, account_id.rs:20, account_status.rs:20, code_validation.rs:18, email.rs:18, hashed_password.rs:18, password_policy.rs:20, username.rs:18; communities/src/domain/errors/community_error.rs:38, invalid_community_id.rs:14, invalid_community_name.rs:14, invalid_community_slug.rs:14 | Los errores de dominio implementan `std::error::Error`: un `?` los manda al canal técnico. | alta | Solo `Debug` + `Display`. | resuelto (eb30039) |
+| ERR-1.3 | ERR-1 Errores de application | iam/src/application/errors/account_repository.rs:14, authenticate_account.rs:24, token_generator.rs:14; communities/src/application/errors/community_creation.rs:20, community_repository.rs:14 | Las hojas y los errores de puerto implementan `std::error::Error`. | media | Quitar el `impl`. | resuelto (eb30039) |
 | ERR-1.4 | ERR-1 Fallo silenciado | contexts/iam/src/domain/model/account/account.rs:127-129 | `let _ = self.transition_status(…).map_err(…)` descarta el `Result` y responde `Ok`, aunque la transición falle. | media | Propagar con `?`, o `expect("invariante: Registered→Active siempre válida")`. | abierto |
 | ERR-1.5 | ERR-1 Conversión implícita | contexts/iam/src/domain/model/account/account_factory.rs:39-43 | En `reconstitute`, un dato persistido corrupto se convierte en error de negocio (400) con `?`. | media | En el adaptador, conversión a `Fault` a mano y con contexto. | abierto |
 | ERR-1.6 | ERR-1 Sin árbol A | contexts/communities/src/application/ports/inbound/list_public_communities_use_case.rs:11 | El caso de uso no tiene fallos de negocio, pero declara un tipo de error (`SystemError`). | baja | `Result<Response, Fault>`. | abierto |
@@ -274,7 +274,7 @@ Tamaños: XS (<50 líneas), S (<200), M (<500), L (>500 o muchos archivos).
 
 #### Fase 1: limpieza barata en el lugar
 
-**R3. Los errores dejan de implementar `std::error::Error`.**
+**R3. Los errores dejan de implementar `std::error::Error`.** *Hecha (ver §5.8).*
 - **IDs:** ERR-1.2, ERR-1.3.
 - **Toca:**
   - `shared/src/error.rs`: `ErrorLayout` pasa a exigir `Debug` en lugar de `Error`;
@@ -283,6 +283,19 @@ Tamaños: XS (<50 líneas), S (<200), M (<500), L (>500 o muchos archivos).
 - **Tests:** el trinquete.
 - **Riesgo:** nulo.
 - **Tamaño:** S.
+- **Resultado:**
+  - Commit `eb30039`. Ningún tipo usaba `thiserror`, y todos tenían `Display` a mano, así que solo se quitaron los 17 `impl std::error::Error for … {}` vacíos y el `use std::error::Error` de `shared/src/error.rs`.
+  - El rojo fue el trinquete: con los `impl` quitados, `err_1_domain_errors_do_not_implement_std_error` (12) y `err_1_application_errors_do_not_implement_std_error` (5) fallaron con "Ya no violan: borrar". Se borraron las 17 líneas de `baseline.txt`.
+  - Nada dependía de que fueran `Error`: no hay `?` hacia `anyhow`, ni `Box<dyn Error>`, ni `.source()`. Compiló sin tocar otro archivo.
+  - Ningún test cambió, salvo la línea base. `app/tests/` y `account_lifecycle.rs` quedaron intactos.
+  - Commit aparte `f552921` (`test(iam)`): se separaron los dos tests de R2. `verifies_against_the_decoy_hash_when_account_does_not_exist` afirma solo la llamada al Spy. `fails_with_login_failed_when_account_does_not_exist` afirma solo la respuesta y ahora usa el Spy, que responde `true` en `verify`, para seguir probando que el handler descarta el veredicto del señuelo (con `FakePasswordHasher` el señuelo da `false` y esa garantía se perdía).
+  - Fuera de alcance, sin tocar: `ErrorWithCode` de los tests de los dos `error_mapper.rs` sigue implementando `Error`, que ya no hace falta (se borra con los mappers en R19); `app/src/config/error.rs` (`ConfigError`) implementa `Error` y es del composition root, donde está permitido; `anyhow` en `app/Cargo.toml` no se usa (advertencia `unused_dependencies` de cargo, ya presente en `main`).
+  - Revisión con `craft-backend:architecture-reviewer`: sin hallazgos en el diff ni hallazgos nuevos. Lo que señaló de otras rebanadas ya figura en el inventario y no se corrigió aquí:
+    - el sufijo `Port` en `SpyPasswordHasherPortAdapter` (HEX-5.1, R9);
+    - los asertos sobre `err.code()` (ERR-2.6);
+    - la falta de `fails_when_token_generation_fails` (ERR-2.8);
+    - `if !account.can_authenticate()` en el handler (HEX-7.2);
+    - `ErrorLayout`/`SystemError`, que siguen mezclando los dos árboles (HEX-8.3, ERR-1.1, ERR-2.2; R5 a R19).
 
 **R4. Borrar código muerto del kernel.**
 - **IDs:** HEX-8.4, HEX-8.7.
@@ -665,8 +678,8 @@ R1 ─┬─ R2 ─────────────────────�
 
 | Test | Entradas hoy | Queda en cero en |
 |---|---|---|
-| `err_1_domain_errors_do_not_implement_std_error` | 12 | R3 |
-| `err_1_application_errors_do_not_implement_std_error` | 5 | R3 |
+| `err_1_domain_errors_do_not_implement_std_error` | 12 | R3: en cero (eb30039) |
+| `err_1_application_errors_do_not_implement_std_error` | 5 | R3: en cero (eb30039) |
 | `hex_1_dependencies_point_inward` | 1 | R16 |
 | `hex_5_outbound_ports_are_named_by_role` | 4 | R10 (R7 a R10) |
 | `hex_5_adapters_are_named_by_technology_and_concept` | 8 | R10 (R7 a R10) |
@@ -715,6 +728,7 @@ Una fila por rebanada fusionada. **Tokens** es el consumo de la sesión que hizo
 |---|---|---|---|---|---|---|
 | R1 | #24 | ver PR | `nightly-2026-11-19` | pendiente: dato de `/cost` | no: no toca código de producción | Apilado sobre #23, que lleva #21 y #22 a `main`. fmt, clippy y 187 tests en verde localmente. #24 se fusionó en `ci/rust-checks`, no en `main`; lo lleva a `main` #25. |
 | R2 | #26 | `ad2f129`, `4149660`, `8a70093` | `nightly-2026-11-19` | $2.67 (opus-5-5: 3.7k input, 39.0k output, 4.2m cache read, 143.1k cache write; 8m 19s API, 26m 9s wall) | sí (ver PR) | Apilado sobre #25. 188 tests, fmt y clippy en verde localmente. Sin test de tiempos: el Spy fija la llamada al señuelo. |
+| R3 | #27 | `eb30039`, `f552921` | `nightly-2026-11-19` | $1.48 (opus-5-5: 1.8k input, 18.8k output, 1.9m cache read, 106.8k cache write; 4m 27s API, 4m 54s wall) | sí (ver PR) | Línea base −17 (todas las `err_1_*`). 188 tests, fmt y clippy en verde localmente. |
 
 ### 5.9 Puntos de replanificación
 

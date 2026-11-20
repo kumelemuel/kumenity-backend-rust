@@ -21,8 +21,6 @@ impl fmt::Display for AuthenticateAccountError {
     }
 }
 
-impl std::error::Error for AuthenticateAccountError {}
-
 impl ErrorLayout for AuthenticateAccountError {
     fn architecture_layer(&self) -> ArchitectureLayer {
         ArchitectureLayer::Application

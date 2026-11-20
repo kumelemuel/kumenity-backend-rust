@@ -17,8 +17,6 @@ impl fmt::Display for CommunityCreationError {
     }
 }
 
-impl std::error::Error for CommunityCreationError {}
-
 impl ErrorLayout for CommunityCreationError {
     fn architecture_layer(&self) -> ArchitectureLayer {
         ArchitectureLayer::Application
