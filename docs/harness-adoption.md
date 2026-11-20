@@ -8,7 +8,7 @@ Este archivo guarda el estado entre sesiones de la adopción de los principios c
 | Plugin | `craft-backend@ai-harness` 0.12.0 |
 | Commit auditado | `d0b0eeb` (rama `ci/sync-development`) |
 | Revisor | `craft-backend:architecture-reviewer`, auditoría completa en solo lectura |
-| Hallazgos | 93: 25 de severidad alta, 48 media, 20 baja |
+| Hallazgos | 94: 25 de severidad alta, 48 media, 21 baja (RS-1.4 agregado en R2, fuera de la auditoría) |
 
 ## Cómo mantener este archivo
 
@@ -43,11 +43,11 @@ Ya resueltas: ERR-4.2 (`dbg!`), ERR-4.3 (`Debug` con el secreto), VER-1.1/RS-4.1
 | ERR-4 Transporte en el borde | 2 | 5 | 1 | 8 |
 | TDD-1 Test primero | 0 | 4 | 3 | 7 |
 | TDD-2 Tests por capa y dobles | 1 | 2 | 2 | 5 |
-| RS-1 Crate por capa | 1 | 1 | 1 | 3 |
+| RS-1 Crate por capa | 1 | 1 | 2 | 4 |
 | RS-2 `Fault` y `panic!` | 1 | 4 | 0 | 5 |
 | RS-3 Puertos async | 0 | 1 | 0 | 1 |
 | RS-4 Tests de arquitectura | 1 | 0 | 0 | 1 |
-| **Total** | **25** | **48** | **20** | **93** |
+| **Total** | **25** | **48** | **21** | **94** |
 
 Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se repite igual en varios archivos, la fila lista todas las ubicaciones.
 
@@ -74,7 +74,7 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | HEX-2.4 | HEX-2 Núcleo sin framework | contexts/iam/src/domain/model/account/events/account_event.rs:1 | El dominio usa `chrono`. | media | El instante llega de `Clock`. | abierto |
 | HEX-2.5 | HEX-2 Núcleo sin framework | contexts/communities/Cargo.toml:7-9 | `uuid`, `axum` y `serde` están disponibles en `domain` y `application`. | alta | Separar crates por capa. | abierto |
 | HEX-2.6 | HEX-2 Núcleo sin framework | contexts/communities/src/domain/model/community/community_id.rs:2 | El dominio usa `uuid`. | media | `IdGenerator` + value object sobre `String`. | abierto |
-| HEX-4.1 | HEX-4 Casos de uso | iam/…/authenticate_account.rs:20; register_account.rs:18; verify_account.rs:14; identify_account.rs:16; communities/…/create_community.rs:21; list_public_communities.rs:14 | Las implementaciones no se llaman `{Verb}{Noun}Handler` (`AuthenticateAccount`, `RegisterAccount`…). | media | Renombrar a `AuthenticateAccountHandler` y demás, en `handler.rs`. | abierto |
+| HEX-4.1 | HEX-4 Casos de uso | iam/…/authenticate_account.rs:17; register_account.rs:18; verify_account.rs:14; identify_account.rs:16; communities/…/create_community.rs:21; list_public_communities.rs:14 | Las implementaciones no se llaman `{Verb}{Noun}Handler` (`AuthenticateAccount`, `RegisterAccount`…). | media | Renombrar a `AuthenticateAccountHandler` y demás, en `handler.rs`. | abierto |
 | HEX-4.2 | HEX-4 Casos de uso | contexts/communities/src/application/ports/inbound/create_community_use_case.rs:10 | `execute` recibe un segundo argumento, `VerifiedIdentity`, del dominio del kernel: el contrato expone un tipo de `domain` fuera del `Command`. | media | Campo `owner_id: String` en `CreateCommunityCommand`. | abierto |
 | HEX-4.3 | HEX-4 Casos de uso | contexts/communities/src/application/ports/inbound/list_public_communities_use_case.rs:6 | Le falta `Send + Sync`, recibe un `AuthContext` que no usa (línea 10) y no está cableado. | baja | Firma `execute(query)`, con `Send + Sync`, o eliminarlo. | abierto |
 | HEX-4.4 | HEX-4 Casos de uso | contexts/iam/src/application/errors/authenticate_account.rs:6 | El `Error` del caso de uso vive en `errors/`, no junto al handler. | baja | `commands/authenticate_account/error.rs`. | abierto |
@@ -116,12 +116,12 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | ERR-1.7 | ERR-1 Firma del puerto | iam/…/ports/outbound/account_repository.rs:7-9; password_hasher.rs:2-3; communities/…/community_repository.rs:7-10 | `find_*` devuelve `Option` sin `Result`, `hash` devuelve `String` y `verify`, `bool`: un adaptador real no puede reportar una falla técnica y tiene que entrar en pánico. | media | `Result<Option<T>, Fault>`, `Result<String, Fault>`. | abierto |
 | ERR-2.1 | ERR-2 Contrato por caso de uso | iam/…/ports/inbound/authenticate_account_use_case.rs:10, identify_account_use_case.rs:7, register_account_use_case.rs:10, verify_account_use_case.rs:5; communities/…/create_community_use_case.rs:11 | Ningún caso de uso tiene su `{Verb}{Noun}Error` cerrado: todos devuelven el global `SystemError`. | alta | `RegisterAccountError { Validation, Conflict }` y demás, junto al handler. | abierto |
 | ERR-2.2 | ERR-2 Sin envolver | shared/src/error.rs:17-19 | Los errores se envuelven (`Domain(Box<dyn ErrorLayout>)`), y el error de dominio llega tal cual al contrato (p. ej. `AccountError::EmailAlreadyExists.into()` en register_account.rs:38). | alta | Traducir a una hoja plana (`Conflict { resource }`). | abierto |
-| ERR-2.3 | ERR-2 Contrato incompleto | contexts/iam/src/application/errors/authenticate_account.rs:6 | `AuthenticateAccountError` no cubre `NotFound` (viene de `AccountError`) ni la falla de token: hay contratos parciales mezclados. | media | Un enum cerrado con todas las variantes que el caso produce. | abierto |
+| ERR-2.3 | ERR-2 Contrato incompleto | contexts/iam/src/application/errors/authenticate_account.rs:6 | `AuthenticateAccountError` no cubre `NotFound` (viene de `AccountError`) ni la falla de token: hay contratos parciales mezclados. | media | Un enum cerrado con todas las variantes que el caso produce. | abierto: R2 (ad2f129) quitó `NotFound` del caso; falta la falla de token |
 | ERR-2.4 | ERR-2 Nombre | contexts/communities/src/application/errors/community_creation.rs:6 | `CommunityCreationError` en vez de `CreateCommunityError`, y fuera del directorio del caso. | baja | `commands/create_community/error.rs`. | abierto |
 | ERR-2.5 | ERR-2 Variante correcta | contexts/iam/src/domain/model/account/account_status.rs:89 | Un estado ilegible se reporta como `InvalidTransition`. | baja | Dato corrupto → `Fault` en el adaptador. | abierto |
 | ERR-2.6 | ERR-2 Tests por variante | contexts/iam/src/application/commands/register_account/register_account.rs:125 (patrón en todos los tests de handler) | Los tests afirman sobre `err.code()` (un string), no sobre la variante. | baja | `matches!(r, Err(Failure::Expected(…)))`. | abierto |
 | ERR-2.7 | ERR-2 Test por variante | contexts/iam/src/application/commands/register_account/register_account.rs:65 | Falta el test del handler para contraseña corta (`fails_when_password_is_too_short`). Falla de repositorio sin test de endpoint (solo el unit test del mapper). | media | Agregar ambos. | abierto |
-| ERR-2.8 | ERR-2 Test por variante | contexts/iam/src/application/commands/authenticate_account/authenticate_account.rs:76 | La falla del generador de tokens no tiene test de handler (`fails_when_token_generation_fails`) ni de endpoint. | media | Doble que falle + test. | abierto |
+| ERR-2.8 | ERR-2 Test por variante | contexts/iam/src/application/commands/authenticate_account/authenticate_account.rs:77 | La falla del generador de tokens no tiene test de handler (`fails_when_token_generation_fails`) ni de endpoint. | media | Doble que falle + test. | abierto |
 | ERR-2.9 | ERR-2 Test por variante | contexts/iam/src/application/commands/verify_account/verify_account.rs:41 | Faltan el test de handler para código fuera de rango (`fails_when_code_is_out_of_range`) y los de handler y endpoint para la falla del repositorio (`fails_when_repository_fails`). | media | Agregar los tests. | abierto |
 | ERR-2.10 | ERR-2 Test por variante | contexts/communities/src/application/commands/create_community/create_community.rs:62 | El owner con formato inválido o nil no tiene test de handler (`fails_when_owner_id_is_invalid`), solo de endpoint. La falla de repositorio no tiene test de endpoint. | media | Agregar los tests. | abierto |
 | ERR-3.1 | ERR-3 Respondió vs no pudo | contexts/iam/src/infrastructure/services/jwt_service/jwt_service.rs:85-92 | Un token inválido o vencido se devuelve como `Err(TokenError)`; es un veredicto, no un fallo. | media | `Ok(AccessTokenVerdict::Invalid)`. | abierto |
@@ -160,6 +160,7 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | RS-1.1 | RS-1 Crate por capa | Cargo.toml:2-5 | Un crate por contexto (`contexts/*`), con las capas como módulos; no hay `kernel/` ni `edge/http`. | alta | `contexts/{ctx}/{domain,application,infrastructure,api}` (migración incremental). | abierto |
 | RS-1.2 | RS-1 Kernel | shared/Cargo.toml:2 | El kernel se llama `shared` y tiene capas propias (`application`, `infrastructure/http`). | media | `kernel/` (solo std) + `edge/http`. | abierto |
 | RS-1.3 | RS-1 Herencia | Cargo.toml:1-11 | Sin `[workspace.package]` ni `[workspace.lints]`; versiones repetidas por crate (`uuid` en contexts/iam/Cargo.toml:7 y contexts/communities/Cargo.toml:7, `serde` en cuatro crates). | baja | Herencia del workspace. | abierto |
+| RS-1.4 | RS-1 Dependencias | app/Cargo.toml:18 | `anyhow` está declarado y no se usa: cargo avisa `unused dependency`. Hallado en R2, fuera de la auditoría. | baja | Quitarlo, junto con RS-1.3 (R6). | abierto |
 | RS-2.1 | RS-2 Árbol B = `Fault` | shared/src/error.rs:16 | No existen `Fault` ni `Failure<E>`; el árbol B viaja como `SystemError::Infrastructure`. | alta | `kernel::Fault` y `kernel::Failure`. | abierto |
 | RS-2.2 | RS-2 `panic!` solo invariantes | iam/…/account.rs:36,40,44; account_id.rs:13,17; account_status.rs:18,22; events/account_event.rs:10,14,18; communities/…/in_memory/community_repository.rs:27 | 11 `todo!()` en código de producción. El de `get_public_list` haría caer la petición si se cablea. | media | Implementar o eliminar los `impl` de trait vacíos. | abierto |
 | RS-2.3 | RS-2 `unwrap` prohibido | iam/…/authenticate_account.rs:55; verify_account.rs:30; identify_account.rs:44; account_status.rs:79 (dos veces), 81; app/src/config/jwt.rs:15; app/src/main.rs:12,14 | `unwrap` en producción. En `account_status.rs` panica ante un dato persistido; en `jwt.rs`, ante un `JWT_EXPIRATION_TIME` no numérico. | media | `let Some(..) else`, `?` o `ConfigError`. | resuelto (0415e3e, 4355c9f, ebcd593, 9315004) |
@@ -187,7 +188,7 @@ Partes que sí se cumplen dentro de reglas que tienen hallazgos:
 
 No cuentan en el inventario. Si se confirman, pasan a él con el siguiente ID libre de su regla.
 
-- **Enumeración de usuarios (ERR-4).** `authenticate` responde 404 a un usuario inexistente y 401 a una contraseña incorrecta, así que se puede saber qué nombres de usuario existen. Es decisión de producto (ERR-2), pero conviene revisarla.
+- ~~**Enumeración de usuarios (ERR-4).** `authenticate` responde 404 a un usuario inexistente y 401 a una contraseña incorrecta, así que se puede saber qué nombres de usuario existen.~~ Confirmada por el usuario y resuelta en R2 (ad2f129, 4149660): 401 `IAM_LOGIN_FAILED` y verificación contra un hash señuelo (D6).
 - **`Account` deriva `Debug` con `HashedPassword` dentro** (account.rs:14). Cualquier log futuro con `{:?}` filtra el hash. No viola nada hoy, quitando el `dbg!` de ERR-4.2.
 - **Orden en `RegisterAccount`.** Hashea con Argon2 (register_account.rs:49) antes de validar la política de contraseña dentro de la factory. Es orquestación cuestionable (costo y contraseña en claro pasada al dominio), no claramente un `if` de negocio en el handler.
 - **Tests de caracterización en `app/tests/`.** Prueban reglas de negocio (longitudes, formatos) por el endpoint, y con adaptadores reales en vez de `Stub…UseCase`. Es la violación típica de TDD-2, pero están ahí a propósito como red de seguridad para el refactor. No los conté.
@@ -245,7 +246,7 @@ Tamaños: XS (<50 líneas), S (<200), M (<500), L (>500 o muchos archivos).
 - **Contrato HTTP:** sin cambios.
 - **Tamaño:** XS.
 
-**R2. Sign-in responde 401 a un usuario inexistente (decidido).**
+**R2. Sign-in responde 401 a un usuario inexistente (decidido).** *Hecha (ver §5.8).*
 - **IDs:** ninguno. Viene de la duda de la §4 confirmada por el usuario.
 - **Toca:** `authenticate_account.rs` y sus tests, y el cableado de `AuthenticateAccount` en `app/src/containers/`.
 - **Alcance de D6 (decidido: sí, dentro de R2).** Cuando el usuario no existe, el handler igual llama a `verify` del hasher, con la contraseña recibida contra un **hash señuelo**, y descarta el resultado. Así el 401 tarda lo mismo que con una contraseña incorrecta. El composition root genera el señuelo una sola vez al arrancar (`hasher.hash(<valor aleatorio>)`) y se lo pasa al handler, así que tiene los mismos parámetros de Argon2 que los hashes reales. El handler no conoce el formato del hash.
@@ -257,6 +258,12 @@ Tamaños: XS (<50 líneas), S (<200), M (<500), L (>500 o muchos archivos).
 - **Contrato HTTP: cambia.** `POST /auth/authenticate` con un usuario inexistente pasa de 404 `IAM_ACCOUNT_NOT_FOUND` a 401 `IAM_LOGIN_FAILED`. Se reemplazan `authenticate_unknown_username_returns_404` y `authenticate_by_email_returns_404`.
 - **Fuera de alcance:** un test HTTP que mida tiempos. Sería inestable en CI; el test del handler alcanza para fijar la llamada al señuelo.
 - **Tamaño:** S.
+- **Resultado:**
+  - Commits `ad2f129` (401 + reemplazo de los dos tests HTTP) y `4149660` (señuelo).
+  - El doble se llama `SpyPasswordHasherPortAdapter` y no `SpyPasswordHashingAdapter`. El test de arquitectura deriva el concepto del puerto actual, `PasswordHasherPort`, y la línea base no admite entradas nuevas. R9 lo renombra junto con el puerto y lo mueve a `application/testing.rs`. Devuelve `true` en `verify` para probar que el handler descarta el resultado.
+  - Se borró el test de handler `fails_when_account_not_found`: fijaba el 404 que reemplaza `fails_with_login_failed_when_account_does_not_exist`.
+  - `account_lifecycle.rs`: adaptación mecánica (decidida por el usuario en R2). `iam()` genera el señuelo con `hasher.hash("lifecycle-decoy")` y lo pasa a `AuthenticateAccount::new`, más el import de `PasswordHasherPort`. Ningún escenario ni aserto cambia.
+  - Los tests nuevos afirman sobre `err.code()`, como el resto del archivo. Pasar a variantes es ERR-2.6.
 
 #### Fase 1: limpieza barata en el lugar
 
@@ -285,7 +292,7 @@ Tamaños: XS (<50 líneas), S (<200), M (<500), L (>500 o muchos archivos).
 - **Tamaño:** S.
 
 **R6. Herencia del workspace.**
-- **IDs:** RS-1.3.
+- **IDs:** RS-1.3 y RS-1.4 (quitar `anyhow` de `app`).
 - **Toca:** todos los `Cargo.toml`, con `[workspace.package]` y las dependencias externas en `[workspace.dependencies]`. No cambia ninguna ruta.
 - **Línea base:** sin cambios.
 - **Riesgo:** el `Cargo.lock`; se verifica con `--locked`.
@@ -337,7 +344,9 @@ Una falla del puerto llega al handler todavía no migrado como `SystemError::Une
 - **IDs:** HEX-5.1, HEX-5.2 (Argon2), RS-2.4 (Argon2, a `Fault`), TDD-2.3, TDD-2.4 y TDD-1.3 (Argon2).
 - **Cambios:**
   - `hash` pasa a `Result<String, Fault>` y `verify` a `Result<bool, Fault>`;
-  - un `FixedPasswordHashingAdapter` coherente, con el hash derivado de la contraseña.
+  - un `FixedPasswordHashingAdapter` coherente, con el hash derivado de la contraseña;
+  - el `SpyPasswordHasherPortAdapter` de R2 sale de los tests de `authenticate_account.rs` a `application/testing.rs` como `SpyPasswordHashingAdapter`;
+  - el señuelo de R2: con `hash` falible, el composition root propaga el `Fault` al arrancar. Hay que decidir qué hace el handler si el `verify` del señuelo devuelve `Fault`.
 - **Línea base: −2:** `hex_5_outbound` y `hex_5_adapters` de `password_hasher.rs`. Y **−1:** `hex_5_adapters` de `argon2_password_hasher.rs`.
 - **Rojo:**
   - batería `verify_accepts_the_hashed_password_and_rejects_another`, contra el doble actual (compara texto plano con el hash) y contra Argon2;
@@ -636,7 +645,7 @@ R1 ─┬─ R2 ─────────────────────�
 
 | Rebanada | Cambio | Tests de caracterización que cambian |
 |---|---|---|
-| R2 | Sign-in de un usuario inexistente: de 404 a 401 `IAM_LOGIN_FAILED` | `authenticate_unknown_username_returns_404`, `authenticate_by_email_returns_404` |
+| R2 (hecho) | Sign-in de un usuario inexistente: de 404 a 401 `IAM_LOGIN_FAILED` | `authenticate_unknown_username_returns_404` → `authenticate_unknown_username_returns_401_login_failed`; `authenticate_by_email_returns_404` → `authenticate_by_email_returns_401` |
 | R5, R7, R8, R10 | 500 de infraestructura con `{"code":"INTERNAL_ERROR",…}` (D7), sin `*_REPOSITORY_ERROR` ni `IAM_TOKEN_GENERATOR_ERROR` | ninguno (solo los tests del mapper) |
 | R12 | Duplicado por mayúsculas o espacios: de 201 a 409 | `register_accepts_same_email_with_different_casing`, `register_accepts_same_username_with_surrounding_spaces` |
 | R12 | Username inválido + email tomado: de 409 `IAM_ACCOUNT_EMAIL_ALREADY_EXISTS` a 400 `IAM_INVALID_USERNAME` | `register_with_invalid_username_and_taken_email_returns_409` (lo agrega R12 en su primer commit) pasa a `register_rejects_invalid_username_before_checking_taken_email` |
@@ -697,7 +706,8 @@ Una fila por rebanada fusionada. **Tokens** es el consumo de la sesión que hizo
 
 | Rebanada | PR | Commit | Toolchain | Tokens | Revisor | Notas |
 |---|---|---|---|---|---|---|
-| R1 | #24 | ver PR | `nightly-2026-11-19` | pendiente: dato de `/cost` | no: no toca código de producción | Apilado sobre #23, que lleva #21 y #22 a `main`. fmt, clippy y 187 tests en verde localmente. |
+| R1 | #24 | ver PR | `nightly-2026-11-19` | pendiente: dato de `/cost` | no: no toca código de producción | Apilado sobre #23, que lleva #21 y #22 a `main`. fmt, clippy y 187 tests en verde localmente. #24 se fusionó en `ci/rust-checks`, no en `main`; lo lleva a `main` #25. |
+| R2 | PR_R2 | `ad2f129`, `4149660` | `nightly-2026-11-19` | pendiente: dato de `/cost` | sí (ver PR) | Apilado sobre #25. 188 tests, fmt y clippy en verde localmente. Sin test de tiempos: el Spy fija la llamada al señuelo. |
 
 ### 5.9 Puntos de replanificación
 

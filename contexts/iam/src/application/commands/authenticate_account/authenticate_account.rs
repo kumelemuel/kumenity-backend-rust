@@ -47,10 +47,12 @@ impl AuthenticateAccountUseCase for AuthenticateAccount {
             .find_by_username(cmd.username.as_str())
         else {
             // Pay the same hashing cost as a wrong password, so the response
-            // time does not reveal whether the username exists.
-            let _ = self
-                .password_hasher
-                .verify(cmd.password.as_str(), &self.decoy_hash);
+            // time does not reveal whether the username exists. The outcome is
+            // discarded; `black_box` keeps the optimizer from dropping the call.
+            std::hint::black_box(
+                self.password_hasher
+                    .verify(cmd.password.as_str(), &self.decoy_hash),
+            );
             return Err(AuthenticateAccountError::LoginFailed.into());
         };
 
