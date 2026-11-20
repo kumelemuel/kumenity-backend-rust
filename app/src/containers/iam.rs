@@ -5,11 +5,14 @@ use iam::{
             register_account::register_account::RegisterAccount,
             verify_account::verify_account::VerifyAccount,
         },
-        ports::inbound::{
-            authenticate_account_use_case::AuthenticateAccountUseCase,
-            identify_account_use_case::IdentifyAccountUseCase,
-            register_account_use_case::RegisterAccountUseCase,
-            verify_account_use_case::VerifyAccountUseCase,
+        ports::{
+            inbound::{
+                authenticate_account_use_case::AuthenticateAccountUseCase,
+                identify_account_use_case::IdentifyAccountUseCase,
+                register_account_use_case::RegisterAccountUseCase,
+                verify_account_use_case::VerifyAccountUseCase,
+            },
+            outbound::password_hasher::PasswordHasherPort,
         },
         queries::identify_account::identify_account::IdentifyAccount,
     },
@@ -20,7 +23,10 @@ use iam::{
         services::jwt_service::jwt_service::JwtService,
     },
 };
-use std::sync::Arc;
+use std::{
+    hash::{BuildHasher, Hasher, RandomState},
+    sync::Arc,
+};
 
 #[derive(Clone)]
 pub struct IamContainer {
@@ -37,10 +43,14 @@ impl IamContainer {
 
         let register_account =
             RegisterAccount::new(account_repository.clone(), password_hasher.clone());
+        // Hashed once, with the same adapter and parameters as real
+        // passwords, so verifying against it costs the same (D6).
+        let decoy_hash = password_hasher.hash(&random_decoy_password());
         let authenticate_account = AuthenticateAccount::new(
             account_repository.clone(),
             password_hasher.clone(),
             jwt_service,
+            decoy_hash,
         );
         let verify_account = VerifyAccount::new(account_repository.clone());
         let identify_account = IdentifyAccount::new(account_repository.clone());
@@ -61,4 +71,8 @@ impl IamContainer {
             self.identify_account.clone(),
         )
     }
+}
+
+fn random_decoy_password() -> String {
+    format!("{:016x}", RandomState::new().build_hasher().finish())
 }
