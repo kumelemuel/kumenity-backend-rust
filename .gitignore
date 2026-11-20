@@ -1,2 +1,4 @@
 /target/
 **/target/
+# Secretos locales: copiar .env.example a .env
+.env

@@ -81,7 +81,12 @@ impl Iam {
 
     /// Reads the verification code that would be sent to the user.
     fn delivered_code(&self, email: &str) -> u32 {
-        match *self.repository.find_by_email(email).unwrap().status() {
+        match *self
+            .repository
+            .find_by_email(email)
+            .expect("account was registered")
+            .status()
+        {
             AccountStatus::Registered { code_validation } => *code_validation.value(),
             other => panic!("account is not pending verification: {other:?}"),
         }
@@ -108,7 +113,7 @@ impl Iam {
             .execute(IdentifyAccountQuery {
                 identify: identify.into(),
             })
-            .unwrap()
+            .expect("account can be identified")
             .status
     }
 }

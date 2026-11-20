@@ -74,14 +74,13 @@ impl AccountStatus {
     // HEX-7.7: el parseo del formato persistido pasa al adaptador (docs/harness-adoption.md)
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(value: &str) -> Result<Self, AccountStatusError> {
-        let registered = value.starts_with("registered:");
-        if registered {
-            Ok(AccountStatus::Registered {
-                code_validation: CodeValidation::new(
-                    value.strip_prefix("registered:").unwrap().parse().unwrap(),
-                )
-                .unwrap(),
-            })
+        if let Some(code) = value.strip_prefix("registered:") {
+            let code_validation = code
+                .parse()
+                .ok()
+                .and_then(|code| CodeValidation::new(code).ok())
+                .ok_or(AccountStatusError::InvalidTransition)?;
+            Ok(AccountStatus::Registered { code_validation })
         } else {
             match value {
                 "active" => Ok(AccountStatus::Active),
@@ -97,6 +96,27 @@ impl AccountStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn from_str_rejects_a_non_numeric_registration_code() {
+        let result = AccountStatus::from_str("registered:abc");
+
+        assert!(matches!(result, Err(AccountStatusError::InvalidTransition)));
+    }
+
+    #[test]
+    fn from_str_rejects_an_out_of_range_registration_code() {
+        let result = AccountStatus::from_str("registered:1");
+
+        assert!(matches!(result, Err(AccountStatusError::InvalidTransition)));
+    }
+
+    #[test]
+    fn from_str_rejects_an_unknown_status() {
+        let result = AccountStatus::from_str("frozen");
+
+        assert!(matches!(result, Err(AccountStatusError::InvalidTransition)));
+    }
 
     #[test]
     fn registered_can_transition_to_active() {
