@@ -15,10 +15,13 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use shared::{error::SystemError, infrastructure::http::api_error_response::ApiErrorResponse};
+use shared::{
+    Fault, error::SystemError, infrastructure::http::api_error_response::ApiErrorResponse,
+};
 
 pub fn map_application_error(error: SystemError) -> Response {
     let (status, code, message) = match error {
+        SystemError::Unexpected(fault) => return unexpected(SystemError::UNEXPECTED_CODE, fault),
         SystemError::Domain(err)
         | SystemError::Application(err)
         | SystemError::Infrastructure(err) => {
@@ -35,6 +38,26 @@ pub fn map_application_error(error: SystemError) -> Response {
     };
 
     (status, Json(body)).into_response()
+}
+
+/// Mensaje interino del 500 por `Fault` (D7), hasta Problem Details (R30).
+const INTERNAL_ERROR_MESSAGE: &str =
+    "We couldn't complete your request right now. Please try again.";
+
+/// Árbol B: 500 genérico, sin exponer el detalle del `Fault` al cliente.
+fn unexpected(code: &'static str, fault: Fault) -> Response {
+    // INTERINO hasta R26 (ERR-4.7): todavía no hay `FaultReporter` cableado.
+    // Para que el 500 no sea silencioso (ERR-1.4), el detalle va a stderr, donde
+    // hoy se registran los errores. R26/R30 lo reemplazan por
+    // `unexpected(fault, reporter)` con `StderrFaultReporterAdapter`.
+    eprintln!("iam: unexpected fault: {}", fault.detail());
+
+    let body = ApiErrorResponse {
+        code: code.to_string(),
+        message: INTERNAL_ERROR_MESSAGE.to_string(),
+    };
+
+    (StatusCode::INTERNAL_SERVER_ERROR, Json(body)).into_response()
 }
 
 fn status_from_error_code(code: &str) -> StatusCode {
@@ -145,5 +168,34 @@ mod tests {
                 "{code}"
             );
         }
+    }
+
+    /// Cuerpo de D7: lo único que ve el cliente ante un `Fault`.
+    const D7_BODY: &str = r#"{"code":"INTERNAL_ERROR","message":"We couldn't complete your request right now. Please try again."}"#;
+
+    fn body_of(response: Response) -> String {
+        use std::{
+            future::Future,
+            pin::pin,
+            task::{Context, Poll, Waker},
+        };
+        let mut future = pin!(axum::body::to_bytes(response.into_body(), usize::MAX));
+        let Poll::Ready(bytes) = future
+            .as_mut()
+            .poll(&mut Context::from_waker(Waker::noop()))
+        else {
+            panic!("el cuerpo de un Json está completo: no puede quedar pendiente");
+        };
+        String::from_utf8(bytes.unwrap().to_vec()).unwrap()
+    }
+
+    #[test]
+    fn unexpected_fault_maps_to_internal_server_error() {
+        let fault = Fault::new("connection refused: db.internal:5432");
+
+        let response = map_application_error(SystemError::Unexpected(fault));
+
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(body_of(response), D7_BODY);
     }
 }
