@@ -3,10 +3,9 @@
 mod common;
 
 use common::{
-    CAPABILITIES, Layer, MODEL_MARKERS, assert_no_violations, crates, parse, relative, rust_files,
+    CAPABILITIES, Layer, MODEL_MARKERS, assert_no_violations, crates, declared_dependencies,
+    dependency_key, parse, relative,
 };
-
-const DEPENDENCY_SECTIONS: &[&str] = &["dependencies", "dev-dependencies", "build-dependencies"];
 
 fn kernel() -> common::Crate {
     crates()
@@ -18,29 +17,15 @@ fn kernel() -> common::Crate {
 #[test]
 fn hex_8_kernel_depends_only_on_std() {
     let kernel = kernel();
-    let manifest = format!("{}/Cargo.toml", relative(&kernel.dir));
     let mut violations = Vec::new();
 
-    for section in DEPENDENCY_SECTIONS {
-        if let Some(table) = kernel.manifest.get(*section).and_then(|v| v.as_table()) {
-            for dep in table.keys() {
-                violations.push(format!("{manifest}: [{section}] declara `{dep}`"));
-            }
-        }
-    }
-    // `[target.'cfg(…)'.dependencies]` también es una dependencia.
-    if let Some(targets) = kernel.manifest.get("target").and_then(|v| v.as_table()) {
-        for (cfg, table) in targets {
-            for section in DEPENDENCY_SECTIONS {
-                if let Some(deps) = table.get(*section).and_then(|v| v.as_table()) {
-                    for dep in deps.keys() {
-                        violations.push(format!(
-                            "{manifest}: [target.{cfg}.{section}] declara `{dep}`"
-                        ));
-                    }
-                }
-            }
-        }
+    // También `[target.'cfg(…)'.*]`: es una dependencia igual.
+    let dir = relative(&kernel.dir);
+    for (section, dep, _) in declared_dependencies(&kernel.manifest) {
+        violations.push(format!(
+            "{}: [{section}] declara `{dep}`",
+            dependency_key(std::path::Path::new(&dir), &section, &dep)
+        ));
     }
 
     assert_no_violations(
@@ -86,7 +71,7 @@ fn hex_8_kernel_traits_are_model_markers_or_listed_capabilities() {
     let mut violations = Vec::new();
     let mut checked = 0;
 
-    for path in rust_files(&kernel.path("src")) {
+    for path in kernel.files("src") {
         let mut traits = Vec::new();
         public_traits(&parse(&path).items, &mut traits);
         checked += traits.len();

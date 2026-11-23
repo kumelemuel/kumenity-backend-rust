@@ -1,20 +1,38 @@
-# Línea base del trinquete de tools/architecture.
+# Línea base del trinquete de tools/architecture (VER-1).
 #
-# Formato: `<test> <ruta>`. Cada línea es una ruta que hoy viola la regla de ese test.
-# El test falla si aparece una violación en una ruta que no está aquí, o si una
-# línea de aquí ya no viola (hay que borrarla). Esta lista solo se achica:
-# no agregar líneas; corregir la violación.
+# Formato: `<test> <clave> [n]`. `<test>` es el nombre de la función del
+# test; `<clave>` es lo que el mensaje de la violación pone antes del primer
+# `:`: la ruta del archivo, o `ruta/Cargo.toml#sección.paquete` en los tests
+# de dependencias. `n` es cuántas violaciones de esa clave se admiten (1).
+#
+# El test falla si aparece una clave que no está aquí o que supera su `n`, y
+# si una entrada ya no viola o viola menos (hay que borrarla o bajar `n`). Esta lista solo se achica:
+# no agregar líneas, corregir la violación. Para mover un archivo con
+# entradas: corregir en el lugar, borrar la entrada y después mover.
+#
+# En un proyecto nuevo queda vacía. En una adopción se llena una sola vez,
+# con la auditoría inicial (skill `craft-backend:adoption`).
 #
 # Los IDs de hallazgo (HEX-1.1…) están en docs/harness-adoption.md.
 
-hex_1_dependencies_point_inward contexts/communities/Cargo.toml
+hex_1_dependencies_point_inward contexts/communities/Cargo.toml#dependencies.iam 4
 
-hex_2_core_depends_only_on_std_and_the_kernel contexts/communities/Cargo.toml
-hex_2_core_depends_only_on_std_and_the_kernel contexts/iam/Cargo.toml
-hex_2_core_depends_only_on_std_and_the_kernel shared/Cargo.toml
+hex_2_core_depends_only_on_std_and_the_kernel contexts/communities/Cargo.toml#dependencies.axum 2
+hex_2_core_depends_only_on_std_and_the_kernel contexts/communities/Cargo.toml#dependencies.http 2
+hex_2_core_depends_only_on_std_and_the_kernel contexts/communities/Cargo.toml#dependencies.serde 2
+hex_2_core_depends_only_on_std_and_the_kernel contexts/communities/Cargo.toml#dependencies.uuid 2
+hex_2_core_depends_only_on_std_and_the_kernel contexts/iam/Cargo.toml#dependencies.argon2 2
+hex_2_core_depends_only_on_std_and_the_kernel contexts/iam/Cargo.toml#dependencies.axum 2
+hex_2_core_depends_only_on_std_and_the_kernel contexts/iam/Cargo.toml#dependencies.chrono 2
+hex_2_core_depends_only_on_std_and_the_kernel contexts/iam/Cargo.toml#dependencies.jsonwebtoken 2
+hex_2_core_depends_only_on_std_and_the_kernel contexts/iam/Cargo.toml#dependencies.rand 2
+hex_2_core_depends_only_on_std_and_the_kernel contexts/iam/Cargo.toml#dependencies.serde 2
+hex_2_core_depends_only_on_std_and_the_kernel contexts/iam/Cargo.toml#dependencies.uuid 2
+hex_2_core_depends_only_on_std_and_the_kernel shared/Cargo.toml#dependencies.chrono
+hex_2_core_depends_only_on_std_and_the_kernel shared/Cargo.toml#dependencies.serde
 
-hex_2_server_frameworks_only_at_the_edge contexts/communities/Cargo.toml
-hex_2_server_frameworks_only_at_the_edge contexts/iam/Cargo.toml
+hex_2_server_frameworks_only_at_the_edge contexts/communities/Cargo.toml#dependencies.axum 3
+hex_2_server_frameworks_only_at_the_edge contexts/iam/Cargo.toml#dependencies.axum 3
 
 hex_4_use_case_implementations_are_handlers contexts/communities/src/application/commands/create_community/create_community.rs
 hex_4_use_case_implementations_are_handlers contexts/communities/src/application/queries/list_public_communities/list_public_communities.rs
@@ -47,7 +65,8 @@ hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/h
 hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/http/responses/signed_in.rs
 hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/http/responses/signed_up.rs
 
-hex_8_kernel_depends_only_on_std shared/Cargo.toml
+hex_8_kernel_depends_only_on_std shared/Cargo.toml#dependencies.chrono
+hex_8_kernel_depends_only_on_std shared/Cargo.toml#dependencies.serde
 
 hex_8_kernel_traits_are_model_markers_or_listed_capabilities shared/src/application/ports/outbound/token_verifier.rs
 hex_8_kernel_traits_are_model_markers_or_listed_capabilities shared/src/error.rs
