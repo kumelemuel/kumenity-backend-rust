@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use std::{
-    collections::BTreeSet,
+    collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
 };
@@ -43,36 +43,135 @@ pub struct Crate {
     pub context: Option<String>,
     /// Directorio del `Cargo.toml`.
     pub dir: PathBuf,
-    /// Raíz del código de la capa. En un crate RS-1 es `dir/src`; en un crate
-    /// legacy es el módulo de la capa (`contexts/iam/src/domain`).
+    /// Raíz del código de la capa: `dir/src` en un crate por capa; el módulo de
+    /// la capa en un contexto legacy (`contexts/iam/src/domain`).
     pub src: PathBuf,
-    /// Tests de integración de la capa. En un crate legacy no hay (los
-    /// `tests/` del crate no pertenecen a una sola capa).
-    pub tests: PathBuf,
+    /// Tests de integración de la capa: `dir/tests`. En un contexto legacy no
+    /// hay: los `tests/` del crate no pertenecen a una sola capa.
+    pub tests: Option<PathBuf>,
+    /// legacy: `true` si es una capa virtual de un contexto legacy.
+    pub legacy: bool,
+    /// legacy: archivo del módulo de la capa (`src/domain.rs`), si existe.
+    pub module_file: Option<PathBuf>,
+    /// legacy: submódulo que pertenece a otra capa (`infrastructure/http` es
+    /// Api, no Infrastructure).
+    pub skip: Option<PathBuf>,
     pub manifest: toml::Table,
+    /// `[workspace.dependencies]` de la raíz, para resolver `dep.workspace = true`.
+    pub workspace: toml::Table,
 }
 
 impl Crate {
-    /// Ruta de un subdirectorio escrito como en un crate RS-1 (`src/ports/inbound`,
-    /// `tests`), resuelta contra la raíz real de la capa.
-    pub fn path(&self, sub: &str) -> PathBuf {
-        let mut parts = sub.splitn(2, '/');
-        let (head, rest) = (parts.next().unwrap_or_default(), parts.next());
+    /// Ruta escrita como en un crate por capa (`src/ports/inbound`, `tests`),
+    /// resuelta contra la raíz real de la capa. `None` si la capa no tiene ese
+    /// directorio (los `tests/` de un contexto legacy).
+    pub fn path(&self, sub: &str) -> Option<PathBuf> {
+        let (head, rest) = sub.split_once('/').unwrap_or((sub, ""));
         let base = match head {
-            "src" => &self.src,
-            "tests" => &self.tests,
-            _ => return self.dir.join(sub),
+            "src" => self.src.clone(),
+            "tests" => self.tests.clone()?,
+            _ => return Some(self.dir.join(sub)),
         };
-        rest.map_or_else(|| base.clone(), |rest| base.join(rest))
+        Some(if rest.is_empty() {
+            base
+        } else {
+            base.join(rest)
+        })
     }
 
+    /// Archivos `.rs` bajo [`Crate::path`]; vacío si la capa no lo tiene. En
+    /// legacy, `files("src")` incluye el archivo del módulo y excluye el
+    /// submódulo de otra capa.
+    pub fn files(&self, sub: &str) -> Vec<PathBuf> {
+        let mut files: Vec<PathBuf> = self
+            .path(sub)
+            .map(|p| rust_files(&p))
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|f| !self.skip.as_ref().is_some_and(|s| f.starts_with(s)))
+            .collect();
+        if sub == "src" {
+            files.extend(self.module_file.iter().filter(|f| f.is_file()).cloned());
+            files.sort();
+        }
+        files
+    }
+
+    /// Nombres de paquete de todas las dependencias declaradas (ver [`dependency_names`]).
     pub fn dependencies(&self) -> Vec<String> {
-        ["dependencies", "dev-dependencies", "build-dependencies"]
-            .iter()
-            .filter_map(|section| self.manifest.get(*section).and_then(|v| v.as_table()))
-            .flat_map(|table| table.keys().cloned())
+        dependency_names(&self.manifest, &self.workspace)
+    }
+
+    /// `(sección, paquete)` de cada dependencia, en el orden de [`Crate::dependencies`].
+    pub fn sectioned_dependencies(&self) -> Vec<(String, String)> {
+        declared_dependencies(&self.manifest)
+            .into_iter()
+            .map(|(section, _, _)| section)
+            .zip(self.dependencies())
             .collect()
     }
+}
+
+/// Secciones de dependencias de un manifiesto.
+pub const DEPENDENCY_SECTIONS: &[&str] =
+    &["dependencies", "dev-dependencies", "build-dependencies"];
+
+/// Cada dependencia declarada en `manifest`, también las de
+/// `[target.'cfg(…)'.*]`: `(sección, clave, valor)`.
+pub fn declared_dependencies(manifest: &toml::Table) -> Vec<(String, String, toml::Value)> {
+    let mut tables: Vec<(String, &toml::Table)> = DEPENDENCY_SECTIONS
+        .iter()
+        .filter_map(|section| Some((section.to_string(), manifest.get(*section)?.as_table()?)))
+        .collect();
+    if let Some(targets) = manifest.get("target").and_then(|t| t.as_table()) {
+        for (cfg, target) in targets {
+            for section in DEPENDENCY_SECTIONS {
+                if let Some(table) = target.get(*section).and_then(|v| v.as_table()) {
+                    tables.push((format!("target.'{cfg}'.{section}"), table));
+                }
+            }
+        }
+    }
+    tables
+        .into_iter()
+        .flat_map(|(section, table)| {
+            table
+                .iter()
+                .map(move |(k, v)| (section.clone(), k.clone(), v.clone()))
+        })
+        .collect()
+}
+
+fn inherits(value: &toml::Value) -> bool {
+    value.get("workspace").and_then(toml::Value::as_bool) == Some(true)
+}
+
+fn package_of(value: &toml::Value) -> Option<String> {
+    value.get("package")?.as_str().map(str::to_string)
+}
+
+/// Nombres de paquete de las dependencias de `manifest`. Resuelve los
+/// renombres (`foo = { package = "axum" }`), también cuando el renombre está en
+/// `[workspace.dependencies]` y el miembro solo dice `foo.workspace = true`.
+pub fn dependency_names(manifest: &toml::Table, workspace: &toml::Table) -> Vec<String> {
+    declared_dependencies(manifest)
+        .into_iter()
+        .map(|(_, key, value)| {
+            let inherited = inherits(&value)
+                .then(|| workspace.get(&key).and_then(package_of))
+                .flatten();
+            package_of(&value).or(inherited).unwrap_or(key)
+        })
+        .collect()
+}
+
+/// Dependencias que no heredan del workspace (`workspace = true`): `(sección, clave)`.
+pub fn non_inherited(manifest: &toml::Table) -> Vec<(String, String)> {
+    declared_dependencies(manifest)
+        .into_iter()
+        .filter(|(_, _, value)| !inherits(value))
+        .map(|(section, key, _)| (section, key))
+        .collect()
 }
 
 pub fn root() -> PathBuf {
@@ -95,7 +194,20 @@ fn subdirs(dir: &Path) -> Vec<PathBuf> {
     dirs
 }
 
-fn load(dir: PathBuf, layer: Layer, context: Option<String>) -> Crate {
+/// `[workspace.dependencies]` del `Cargo.toml` de `root`.
+pub fn workspace_dependencies_at(root: &Path) -> toml::Table {
+    let text =
+        fs::read_to_string(root.join("Cargo.toml")).expect("invariante: Cargo.toml raíz legible");
+    let manifest: toml::Table = text.parse().expect("invariante: Cargo.toml raíz válido");
+    manifest
+        .get("workspace")
+        .and_then(|w| w.get("dependencies"))
+        .and_then(|d| d.as_table())
+        .cloned()
+        .unwrap_or_default()
+}
+
+fn load(dir: PathBuf, layer: Layer, context: Option<String>, workspace: &toml::Table) -> Crate {
     let text = fs::read_to_string(dir.join("Cargo.toml")).expect("invariante: Cargo.toml legible");
     let manifest: toml::Table = text.parse().expect("invariante: Cargo.toml válido");
     let name = manifest["package"]["name"]
@@ -107,39 +219,60 @@ fn load(dir: PathBuf, layer: Layer, context: Option<String>) -> Crate {
         layer,
         context,
         src: dir.join("src"),
-        tests: dir.join("tests"),
+        tests: Some(dir.join("tests")),
+        legacy: false,
+        module_file: None,
+        skip: None,
         dir,
         manifest,
+        workspace: workspace.clone(),
     }
 }
 
-/// Capas de un crate legacy (un solo crate con las capas como módulos).
+/// legacy: directorio del kernel cuando no hay `kernel/`.
 ///
-/// - `src/{domain,application,infrastructure}` → la capa del mismo nombre.
-/// - `src/infrastructure/http` → Api: es el adaptador driving. Sus archivos
-///   también cuentan como Infrastructure, porque viven dentro de ese módulo.
-///
-/// Todas comparten el manifiesto del crate: lo que declara está disponible en
-/// cada capa, que es justo lo que HEX-1/HEX-2 tienen que ver.
-fn legacy_layers(dir: &Path, context: Option<String>) -> Vec<Crate> {
-    let whole = load(dir.to_path_buf(), Layer::Bootstrap, context);
-    let modules = [
-        ("domain", Layer::Domain),
-        ("application", Layer::Application),
-        ("infrastructure", Layer::Infrastructure),
-        ("infrastructure/http", Layer::Api),
-    ];
-    modules
-        .into_iter()
-        .filter(|(module, _)| whole.src.join(module).is_dir())
+/// Todo lo marcado `legacy:` en `tools/architecture/tests` existe para adoptar
+/// el harness en un proyecto con un crate por contexto. Cuando no quede ningún
+/// contexto legacy y el kernel esté en `kernel/`, se borra todo lo marcado,
+/// más `tests/legacy.rs` y `tests/fixtures/legacy/` (README del stack).
+pub const LEGACY_KERNEL_DIR: &str = "shared";
+
+/// legacy: módulos de capa de un crate legacy, en `src/` (directorio o archivo). `infrastructure/http` es el
+/// adaptador driving: cuenta como Api, y sus archivos también como
+/// Infrastructure porque viven dentro de ese módulo.
+const LEGACY_MODULES: &[(&str, Layer)] = &[
+    ("domain", Layer::Domain),
+    ("application", Layer::Application),
+    ("infrastructure", Layer::Infrastructure),
+    ("infrastructure/http", Layer::Api),
+];
+
+/// legacy: capas virtuales de un crate legacy (un crate por contexto, con las capas
+/// como módulos). Todas comparten el manifiesto: lo que declara está
+/// disponible en cada capa, que es justo lo que HEX-1 y HEX-2 tienen que ver.
+/// No tienen `tests/`: los tests del crate no pertenecen a una sola capa.
+fn legacy_layers(whole: &Crate) -> Vec<Crate> {
+    LEGACY_MODULES
+        .iter()
+        .filter(|(module, _)| {
+            whole.src.join(module).is_dir() || whole.src.join(format!("{module}.rs")).is_file()
+        })
         .map(|(module, layer)| Crate {
             name: whole.name.clone(),
-            layer,
+            layer: *layer,
             context: whole.context.clone(),
             dir: whole.dir.clone(),
             src: whole.src.join(module),
-            tests: whole.dir.join("tests/__sin_capa__"),
+            tests: None,
+            legacy: true,
+            module_file: Some(whole.src.join(format!("{module}.rs"))),
+            skip: LEGACY_MODULES
+                .iter()
+                .map(|(other, _)| *other)
+                .find(|other| other.starts_with(&format!("{module}/")))
+                .map(|other| whole.src.join(other)),
             manifest: whole.manifest.clone(),
+            workspace: whole.workspace.clone(),
         })
         .collect()
 }
@@ -153,19 +286,22 @@ fn legacy_layers(dir: &Path, context: Option<String>) -> Vec<Crate> {
 /// - `contexts/{ctx}/{domain|application|infrastructure|api}/` → capa del contexto
 /// - `apps/api/` → Api central · otros `apps/*` y `app/` → Bootstrap
 ///
-/// Adaptación de este repo (aún no migrado a RS-1):
-///
-/// - Sin `kernel/`, `shared/` es el kernel (así lo audita `docs/harness-adoption.md`).
-/// - Un contexto con `Cargo.toml` propio (`contexts/{ctx}/Cargo.toml`) es *legacy*:
-///   cada módulo de capa se clasifica como un crate virtual (ver `legacy_layers`).
-///
-/// `tools/` no se clasifica.
+/// Legacy (ver [`LEGACY_KERNEL_DIR`]): sin `kernel/`, el kernel es `shared/`, y un
+/// contexto con `Cargo.toml` propio (`contexts/{ctx}/Cargo.toml`) se clasifica
+/// por sus módulos de capa (ver `legacy_layers`). `tools/` no se clasifica.
 pub fn crates() -> Vec<Crate> {
-    let root = root();
+    crates_at(&root())
+}
+
+/// [`crates`] sobre un workspace cualquiera (los tests lo usan con fixtures).
+pub fn crates_at(root: &Path) -> Vec<Crate> {
+    let ws = workspace_dependencies_at(root);
+    let load = |dir: PathBuf, layer: Layer, context: Option<String>| load(dir, layer, context, &ws);
+    // legacy: sin `kernel/`, el kernel es `LEGACY_KERNEL_DIR`.
     let kernel = if root.join("kernel/Cargo.toml").exists() {
         root.join("kernel")
     } else {
-        root.join("shared")
+        root.join(LEGACY_KERNEL_DIR)
     };
     let mut crates = vec![load(kernel, Layer::Kernel, None)];
 
@@ -187,8 +323,10 @@ pub fn crates() -> Vec<Crate> {
             .expect("invariante: directorio con nombre")
             .to_string_lossy()
             .to_string();
+        // legacy: un crate por contexto, clasificado por sus módulos.
         if context_dir.join("Cargo.toml").exists() {
-            crates.extend(legacy_layers(&context_dir, Some(context)));
+            let whole = load(context_dir.clone(), Layer::Bootstrap, Some(context));
+            crates.extend(legacy_layers(&whole));
             continue;
         }
         for layer_dir in subdirs(&context_dir) {
@@ -223,6 +361,71 @@ pub fn crates() -> Vec<Crate> {
     }
 
     crates
+}
+
+/// Directorios de los miembros que declara `[workspace]` en `root`: expande
+/// los globs de `members` (solo `*` por segmento) y quita `exclude`. Incluye la
+/// raíz si además es un paquete.
+pub fn expand_members(root: &Path, workspace_manifest: &toml::Table) -> Vec<PathBuf> {
+    fn strings(table: Option<&toml::Value>) -> Vec<String> {
+        table
+            .and_then(|v| v.as_array())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+    let workspace = workspace_manifest.get("workspace");
+    let exclude: Vec<PathBuf> = strings(workspace.and_then(|w| w.get("exclude")))
+        .iter()
+        .map(|e| root.join(e))
+        .collect();
+    let mut found: Vec<PathBuf> = Vec::new();
+    for pattern in strings(workspace.and_then(|w| w.get("members"))) {
+        let mut dirs = vec![root.to_path_buf()];
+        for segment in pattern.split('/') {
+            dirs = dirs
+                .into_iter()
+                .flat_map(|dir| {
+                    if segment == "*" {
+                        subdirs(&dir).into_iter().filter(|d| d.is_dir()).collect()
+                    } else {
+                        vec![dir.join(segment)]
+                    }
+                })
+                .collect();
+        }
+        found.extend(
+            dirs.into_iter()
+                .filter(|d| d.join("Cargo.toml").exists() && !exclude.contains(d)),
+        );
+    }
+    if workspace_manifest.contains_key("package") {
+        found.push(root.to_path_buf());
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+/// Cada miembro del workspace con su manifiesto, según `[workspace] members`:
+/// también los contextos legacy y los crates que [`crates`] no clasifica.
+pub fn workspace_members() -> Vec<(PathBuf, toml::Table)> {
+    let root = root();
+    let text =
+        fs::read_to_string(root.join("Cargo.toml")).expect("invariante: Cargo.toml raíz legible");
+    let manifest: toml::Table = text.parse().expect("invariante: Cargo.toml raíz válido");
+    expand_members(&root, &manifest)
+        .into_iter()
+        .map(|dir| {
+            let text =
+                fs::read_to_string(dir.join("Cargo.toml")).expect("invariante: Cargo.toml legible");
+            let member = text.parse().expect("invariante: Cargo.toml válido");
+            (dir, member)
+        })
+        .collect()
 }
 
 pub fn rust_files(dir: &Path) -> Vec<PathBuf> {
@@ -266,39 +469,116 @@ fn material_required() -> bool {
     std::env::var(REQUIRE_MATERIAL).is_ok_and(|v| v == "1")
 }
 
-/// Línea base de violaciones conocidas: `tools/architecture/baseline.txt`.
+/// Línea base del trinquete: `tools/architecture/baseline.txt`.
 pub const BASELINE: &str = "baseline.txt";
 
-/// Ruta de una violación: lo que va antes del primer `:` del mensaje.
-fn location(violation: &str) -> &str {
+/// Clave de una violación en la línea base: lo que va antes del primer `:`.
+pub fn location(violation: &str) -> &str {
     violation.split(':').next().unwrap_or(violation).trim()
 }
 
-/// Rutas de la línea base registradas para `id`.
-fn baseline_for(id: &str) -> BTreeSet<String> {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(BASELINE);
-    let text = fs::read_to_string(&path).unwrap_or_default();
+/// Rutas registradas para `id` en el texto de una línea base. Formato de cada
+/// línea: `<test> <clave>`; `#` empieza un comentario de línea completa.
+/// Entradas de un test en la línea base: clave → violaciones admitidas.
+pub type Baseline = BTreeMap<String, usize>;
+
+/// Clave de una violación de dependencias: manifiesto, sección y paquete.
+pub fn dependency_key(dir: &Path, section: &str, dep: &str) -> String {
+    format!("{}/Cargo.toml#{section}.{dep}", dir.display())
+}
+
+pub fn parse_baseline(text: &str, id: &str) -> Baseline {
     text.lines()
         .map(str::trim)
         .filter(|l| !l.is_empty() && !l.starts_with('#'))
         .filter_map(|l| l.split_once(char::is_whitespace))
-        .filter(|(entry, _)| *entry == id)
-        .map(|(_, ruta)| ruta.trim().to_string())
+        .filter(|(test, _)| *test == id)
+        .map(|(_, rest)| {
+            let mut parts = rest.split_whitespace();
+            let key = parts.next().unwrap_or_default().to_string();
+            let count = parts.next().and_then(|n| n.parse().ok()).unwrap_or(1);
+            (key, count)
+        })
         .collect()
+}
+
+/// Informe del trinquete; vacío si cada violación está en `baseline` y cada
+/// entrada de `baseline` sigue violando. Cada línea empieza por `  - `, que es
+/// lo que el hook `PostToolUse` devuelve al agente.
+pub fn ratchet_report(id: &str, baseline: &Baseline, violations: &[String]) -> String {
+    let mut by_key: BTreeMap<&str, Vec<&String>> = BTreeMap::new();
+    for v in violations {
+        by_key.entry(location(v)).or_default().push(v);
+    }
+
+    let mut new = Vec::new();
+    let mut over = Vec::new();
+    for (key, found) in &by_key {
+        match baseline.get(*key) {
+            None => new.extend(found.iter().copied()),
+            Some(&allowed) if found.len() > allowed => over.push((*key, found, allowed)),
+            Some(_) => {}
+        }
+    }
+    let mut fixed = Vec::new();
+    let mut lower = Vec::new();
+    for (key, &allowed) in baseline {
+        match by_key.get(key.as_str()).map(Vec::len) {
+            None => fixed.push(key),
+            Some(n) if n < allowed => lower.push((key, n)),
+            Some(_) => {}
+        }
+    }
+
+    let mut lines = Vec::new();
+    if !new.is_empty() || !over.is_empty() {
+        lines.push(format!(
+            "  - violaciones nuevas: corregirlas; {BASELINE} no se agranda"
+        ));
+    }
+    for v in &new {
+        lines.push(format!("  - {v}"));
+    }
+    for (key, found, allowed) in &over {
+        lines.push(format!(
+            "  - {key}: {} violaciones y {BASELINE} admite {allowed}",
+            found.len()
+        ));
+        for v in found.iter() {
+            lines.push(format!("  - {v}"));
+        }
+    }
+    for key in &fixed {
+        lines.push(format!("  - borrar de {BASELINE}: {id} {key}"));
+    }
+    for (key, n) in &lower {
+        lines.push(format!("  - actualizar en {BASELINE}: {id} {key} {n}"));
+    }
+    if !new.is_empty() && !fixed.is_empty() {
+        lines.push(format!(
+            "  - ¿Se movió o renombró un archivo? {BASELINE} no sigue los movimientos: \
+             corregir en el lugar, borrar la entrada y después mover."
+        ));
+    }
+    lines.iter().map(|l| format!("{l}\n")).collect()
+}
+
+fn baseline_for(id: &str) -> Baseline {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(BASELINE);
+    parse_baseline(&fs::read_to_string(path).unwrap_or_default(), id)
 }
 
 /// Cierra un test de arquitectura con trinquete sobre la línea base.
 ///
-/// - `id`: identificador del test (el nombre de la función), primera columna
-///   de `baseline.txt`.
 /// - `material`: cada conjunto que recorrió la regla, `(qué, cuántos)`. Se
 ///   informa siempre (visible con `--nocapture`). Con `ARCH_REQUIRE_MATERIAL=1`,
 ///   un conjunto vacío es un fallo que nombra la regla y lo que faltó.
-/// - `violations`: lo que la regla encontró mal. Cada una empieza por su ruta.
+/// - `id`: el nombre de la función del test, primera columna de `baseline.txt`.
+/// - `violations`: lo que la regla encontró mal. Cada una empieza por su clave
+///   (la ruta, o `ruta/Cargo.toml#dep`) seguida de `:`.
 ///
-/// Falla si aparece una violación en una ruta que no está en la línea base, o
-/// si una entrada de la línea base ya no viola (hay que borrarla). Así la
-/// línea base solo puede achicarse.
+/// Trinquete: falla si aparece una violación cuya clave no está en la línea
+/// base, o si una entrada de la línea base ya no viola. Así solo se achica.
 pub fn assert_no_violations(
     id: &str,
     rule: &str,
@@ -323,38 +603,20 @@ pub fn assert_no_violations(
             .collect::<Vec<_>>()
             .join("\n")
     );
-
     let baseline = baseline_for(id);
-    let current: BTreeSet<String> = violations.iter().map(|v| location(v).to_string()).collect();
-    let new: Vec<&String> = violations
+    let tolerated: usize = baseline
         .iter()
-        .filter(|v| !baseline.contains(location(v)))
-        .collect();
-    let fixed: Vec<&String> = baseline.difference(&current).collect();
-    let tolerated = violations.len() - new.len();
+        .map(|(key, allowed)| {
+            violations
+                .iter()
+                .filter(|v| location(v) == key)
+                .count()
+                .min(*allowed)
+        })
+        .sum();
     if tolerated > 0 {
         eprintln!("{rule_id}: {tolerated} violaciones toleradas por {BASELINE}");
     }
-
-    let mut report = String::new();
-    if !new.is_empty() {
-        report.push_str(&format!(
-            "\nViolaciones nuevas (corregirlas; {BASELINE} no se agranda):\n{}\n",
-            new.iter()
-                .map(|v| format!("  - {v}"))
-                .collect::<Vec<_>>()
-                .join("\n")
-        ));
-    }
-    if !fixed.is_empty() {
-        report.push_str(&format!(
-            "\nYa no violan: borrar de {BASELINE}:\n{}\n",
-            fixed
-                .iter()
-                .map(|ruta| format!("  {id} {ruta}"))
-                .collect::<Vec<_>>()
-                .join("\n")
-        ));
-    }
+    let report = ratchet_report(id, &baseline, &violations);
     assert!(report.is_empty(), "\n{rule}\n{report}");
 }
