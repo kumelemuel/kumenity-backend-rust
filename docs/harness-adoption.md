@@ -16,6 +16,7 @@ Este archivo guarda el estado entre sesiones de la adopción de los principios c
 - Los IDs de hallazgo (`HEX-1.3`, `ERR-4.2`…) son estables: no se renumeran. Un hallazgo nuevo recibe el siguiente número libre de su regla.
 - Después de cada slice de refactor, volver a auditar con architecture-reviewer y actualizar la cabecera (fecha, commit, conteos).
 - Tests de caracterización en `app/tests/` (PR #18): son la red de seguridad del refactor y tienen que seguir pasando.
+- Cada rebanada se hace con `/craft-backend:adoption R<n> [notas]`. Las reglas propias de este proyecto, que la skill no trae, están en §5.1 ("Ritual de rebanada").
 
 ## Prioridades inmediatas
 
@@ -215,6 +216,10 @@ Datos verificados que condicionan el plan:
 
 - **Trinquete.** Cuando un PR mueve o renombra un archivo que figura en `baseline.txt`, en ese mismo PR la violación tiene que desaparecer. Si no, el archivo no se toca. Antes de abrir cada PR: `cargo test -p architecture`.
 - **Red de seguridad.** `app/tests/` no se modifica, salvo en los cambios de contrato listados en §5.5.
+- **Ritual de rebanada (`/craft-backend:adoption R<n>`).** Lo que este proyecto agrega a la skill. Antes estaba en `.claude/commands/slice.md`:
+  - commits en inglés, con Conventional Commits;
+  - si la rebanada lo indica en §5.3, se quitan los `#[allow(...)]` que apuntan a sus hallazgos;
+  - cada rebanada termina en un PR contra `main`, aunque la invocación no lo pida, con la fila de §5.8 en `Tokens: pendiente` hasta que el usuario pase el `/cost`.
 - **`account_lifecycle.rs` (decidido: adaptación mecánica).** Se permite cambiar imports, nombres, `.await`/`block_on` y reemplazar `code()` por un `matches!` sobre la variante equivalente. Ningún escenario ni aserto cambia de significado. El PR enumera cada adaptación.
 - **TDD.** El "rojo" de los tests de arquitectura es la entrada de la línea base. Al corregir la violación, el test falla con "Ya no violan: borrar", y el PR borra esa línea. Los tests que hoy afirman sobre `code()` se reemplazan por la versión que afirma sobre la variante: primero se escribe la nueva, en rojo, y después se borra la vieja (ERR-2.6).
 - ~~**Verificación manual mientras haya legacy.**~~ Desde S1, el test de contratos (HEX-4) actúa sobre legacy: una filtración de `crate::domain` en `commands/*/{command,response,error}.rs` o en `ports/inbound/` es una violación nueva en la misma rebanada que la introduce. Ya no hace falta el `grep` a mano en R11–R18.
@@ -831,6 +836,17 @@ Cada paquete nuevo ya figuraba en el hallazgo de la columna ID. La única excepc
 - Crate nuevo `infrastructure/system` con `SystemClockAdapter` y su test → **R21**, junto con `Clock`, si R21 cablea el reloj real. Si no, en R26, junto con `infrastructure/stderr`.
 - `infrastructure/stderr/src/fault_reporter.rs`: el reporte recorre la cadena `source()` del `Fault` (+64 líneas) → **R26**, que crea ese crate. Hay que copiarlo desde `v1.0.0-rc.1`, no desde `97a8f29`.
 - `failure.rs`, `fault.rs` e `id.rs` del template coinciden con los de `shared/src` (solo cambia la agrupación de `use` por `cargo fmt`). `future.rs` y `model.rs` siguen asignados a R23/R24 y R21.
+
+## 6. Fricciones con el harness
+
+Lo que el harness no cubrió o cubrió mal durante la adopción. Cada fricción se reporta al harness. Al resolverse, se anota la versión que la cierra.
+
+| Fecha | Rebanada | Fricción | Efecto en la adopción | Estado en el harness |
+|---|---|---|---|---|
+| 2026-11-22 | S1 | `tools/architecture/tests/legacy.rs:45` de `v1.0.0-rc.1` no pasa clippy con `-D warnings` en `nightly-2026-11-19` (`unnecessary_to_owned`). | La copia "tal cual" diverge del template en una línea (§5.10). | sin reportar |
+| 2026-11-22 | S1 | `CRAFT_BACKEND_BASELINE_INIT=1` solo se lee al abrir la sesión, y nada lo advierte al empezar una sincronización. | Hubo que cortar S1 a la mitad y reabrir con `claude --continue`. | sin reportar |
+| 2026-11-22 | S1 | La cabecera del template dice que la línea base "se llena una sola vez", pero un cambio de formato de clave obliga a re-llenarla. | Regla propia en §5.1 y análisis en §5.10. | sin reportar |
+| 2026-11-23 | — | `/craft-backend:adoption` abre el PR solo si se le pide, y no trae las convenciones del proyecto. | Se pasaron a §5.1 al retirar `/slice`. | no aplica (diseño) |
 
 ## Método
 
