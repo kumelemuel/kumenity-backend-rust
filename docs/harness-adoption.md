@@ -72,7 +72,7 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | HEX-2.2 | HEX-2 Núcleo sin framework | contexts/iam/src/domain/model/account/account_id.rs:3 | El dominio usa `uuid::Uuid`. | alta | El id llega de `kernel::IdGenerator`; `uuid` solo en infraestructura. | abierto |
 | HEX-2.3 | HEX-2 Núcleo sin framework | contexts/iam/src/domain/model/account/code_validation.rs:2 | El dominio usa `rand` para generar el código (líneas 29-33). | media | Generar el código con un puerto o capacidad y pasárselo a `Account::create`. | abierto |
 | HEX-2.4 | HEX-2 Núcleo sin framework | contexts/iam/src/domain/model/account/events/account_event.rs:1 | El dominio usa `chrono`. | media | El instante llega de `Clock`. | abierto |
-| HEX-2.5 | HEX-2 Núcleo sin framework | contexts/communities/Cargo.toml:7-9 | `uuid`, `axum` y `serde` están disponibles en `domain` y `application`. | alta | Separar crates por capa. | abierto |
+| HEX-2.5 | HEX-2 Núcleo sin framework | contexts/communities/Cargo.toml:7-10 | `uuid`, `axum`, `serde` y `http` (este último, visto en S1) están disponibles en `domain` y `application`. | alta | Separar crates por capa. | abierto |
 | HEX-2.6 | HEX-2 Núcleo sin framework | contexts/communities/src/domain/model/community/community_id.rs:2 | El dominio usa `uuid`. | media | `IdGenerator` + value object sobre `String`. | abierto |
 | HEX-4.1 | HEX-4 Casos de uso | iam/…/authenticate_account.rs:17; register_account.rs:18; verify_account.rs:14; identify_account.rs:16; communities/…/create_community.rs:21; list_public_communities.rs:14 | Las implementaciones no se llaman `{Verb}{Noun}Handler` (`AuthenticateAccount`, `RegisterAccount`…). | media | Renombrar a `AuthenticateAccountHandler` y demás, en `handler.rs`. | abierto |
 | HEX-4.2 | HEX-4 Casos de uso | contexts/communities/src/application/ports/inbound/create_community_use_case.rs:10 | `execute` recibe un segundo argumento, `VerifiedIdentity`, del dominio del kernel: el contrato expone un tipo de `domain` fuera del `Command`. | media | Campo `owner_id: String` en `CreateCommunityCommand`. | abierto |
@@ -91,7 +91,7 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | HEX-7.7 | HEX-7 Mapeo de persistencia | contexts/iam/src/domain/model/account/account_status.rs:74 | `from_str` define en el dominio el formato persistido `"registered:123123"`. | baja | El adaptador traduce de `String` a `AccountStatus`. | abierto |
 | HEX-7.8 | HEX-7 Servicio de dominio | contexts/communities/src/domain/services/membership_policy.rs:2 | `MembershipPolicy` es un enum de opciones (value object) archivado en `services/`. | baja | Moverlo a `model/community/`. | abierto |
 | HEX-7.9 | HEX-7 Comportamiento | contexts/communities/src/domain/model/community/community.rs:19-56 | Agregado anémico: `membership_policy` siempre es `None` y `MembershipPolicyChanged` (membership_policy_changed.rs:4) no se usa. | baja | Agregar el comportamiento con su evento, o retirar lo muerto. | abierto |
-| HEX-8.1 | HEX-8 Kernel sin dependencias | shared/Cargo.toml:7-8 | El kernel depende de `chrono` y `serde`. | alta | Kernel solo `std`. | abierto |
+| HEX-8.1 | HEX-8 Kernel sin dependencias | shared/Cargo.toml:7-8 | El kernel depende de `chrono` y `serde`. | alta | Kernel solo `std`. | abierto: desde S1, `chrono` sale en R21 y `serde` en R25 |
 | HEX-8.2 | HEX-8 Marcadores | shared/src/domain/domain_event.rs:5 | El marcador `DomainEvent` exige `DateTime<Utc>` de `chrono`. | media | Sin dependencias; el instante llega de `Clock`. | abierto |
 | HEX-8.3 | HEX-8 Kernel | shared/src/error.rs:9 | `ErrorLayout` y `SystemError` (línea 16), un error global por capas, viven en el kernel. | alta | `Fault` + `Failure<E>` (RS-2). | abierto |
 | HEX-8.4 | HEX-8 Marcadores de error | shared/src/domain/domain_error.rs:3; shared/src/infrastructure/infrastructure_error.rs:3 | Traits `DomainError` e `InfrastructureError`: Rust no los necesita (y aquí nadie los usa). | media | Eliminarlos. | resuelto (80c00e4) |
@@ -203,13 +203,13 @@ No cuentan en el inventario. Si se confirman, pasan a él con el siguiente ID li
 Las rebanadas se citan como **R1…R30**. Cada una es un PR que tiene que estar verde en CI. En ese mismo PR se actualiza el inventario (`resuelto (<commit>)`) y, al terminar, se vuelve a auditar con `craft-backend:architecture-reviewer`. El avance de cada rebanada se anota en §5.8.
 
 Datos verificados que condicionan el plan:
-- `hex_4_use_case_contracts_do_not_expose_domain_types` no actúa sobre los contextos legacy. `domain_crate_of` exige que application declare un crate de dominio aparte, y en legacy no existe. Hoy el test pasa sin revisar nada.
+- ~~`hex_4_use_case_contracts_do_not_expose_domain_types` no actúa sobre los contextos legacy.~~ Desde S1 (ai-harness `v1.0.0-rc.1`) sí actúa: en legacy, el dominio de application es `crate::domain`. Revisa 17 tipos de contrato y pasa en verde.
 - Un contexto legacy no puede depender de un crate `edge/*`. Todas las capas virtuales comparten el manifiesto, y `(Domain, Edge)` está prohibido. En `iam` aparecería una entrada nueva en `contexts/iam/Cargo.toml`. En `communities` seguiría viva la entrada de HEX-1.1.
 - `hex_2_core_depends_only_on_std_and_the_kernel` cuenta también las `[dev-dependencies]`. Después de la separación, los tests de application no pueden usar tokio.
 - Los tests de caracterización fijan `IAM_INVALID_ACCOUNT_ID(_FORMAT)` en `/communities/create`, los bodies `{code,message}` exactos y el 401 con cuerpo vacío. Además documentan como "CURRENT BEHAVIOR" el duplicado por mayúsculas (HEX-7.1).
 - `AccountFactory::reconstitute` y `AccountStatus::from_str` no se usan fuera de los tests: ningún adaptador persiste en texto.
 - Decidido por el usuario: `account_lifecycle.rs` admite **adaptación mecánica**.
-- `tools/architecture/baseline.txt` tiene 63 líneas: 8 de comentario y **55 entradas**. Coincide con la suma de §5.6. El "56" del encargo original era un error de conteo; ninguna entrada queda sin rebanada.
+- `tools/architecture/baseline.txt` tiene 63 líneas: 8 de comentario y **55 entradas**. Coincide con la suma de §5.6. El "56" del encargo original era un error de conteo; ninguna entrada queda sin rebanada. *(En R1. Después de R3 y R4 quedaron 36, y S1 las reescribe como 47 con el formato nuevo: ver §5.10.)*
 
 ### 5.1 Reglas transversales
 
@@ -217,7 +217,9 @@ Datos verificados que condicionan el plan:
 - **Red de seguridad.** `app/tests/` no se modifica, salvo en los cambios de contrato listados en §5.5.
 - **`account_lifecycle.rs` (decidido: adaptación mecánica).** Se permite cambiar imports, nombres, `.await`/`block_on` y reemplazar `code()` por un `matches!` sobre la variante equivalente. Ningún escenario ni aserto cambia de significado. El PR enumera cada adaptación.
 - **TDD.** El "rojo" de los tests de arquitectura es la entrada de la línea base. Al corregir la violación, el test falla con "Ya no violan: borrar", y el PR borra esa línea. Los tests que hoy afirman sobre `code()` se reemplazan por la versión que afirma sobre la variante: primero se escribe la nueva, en rojo, y después se borra la vieja (ERR-2.6).
-- **Verificación manual mientras haya legacy.** El test de contratos (HEX-4) no actúa sobre legacy. Por eso, en R11–R18, el PR comprueba con `grep "crate::domain"` en `commands/*/{command,response,error}.rs` y en `ports/inbound/` que el contrato no exponga tipos de dominio. Si algo se filtra, aparece como violación nueva en R27/R28, que no se puede llevar a la línea base.
+- ~~**Verificación manual mientras haya legacy.**~~ Desde S1, el test de contratos (HEX-4) actúa sobre legacy: una filtración de `crate::domain` en `commands/*/{command,response,error}.rs` o en `ports/inbound/` es una violación nueva en la misma rebanada que la introduce. Ya no hace falta el `grep` a mano en R11–R18.
+- **Una dependencia, una entrada.** Desde S1, las claves de los tests de dependencias son `ruta/Cargo.toml#sección.paquete`, con `n` = número de capas virtuales que la ven. La rebanada que quita un paquete de un `Cargo.toml` borra sus entradas en el mismo PR, aunque el plan asignara el cierre a otra rebanada.
+- **La línea base solo crece en una sincronización con el harness.** Esa sincronización va en un PR propio, sin código de producción, y con el análisis de la línea base vieja frente a la nueva: entradas que se mantienen, las que cambian de clave, las que desaparecen y las nuevas, con ID del inventario y rebanada (ver §5.10). **Nunca en una rebanada.** Si una entrada desaparece sin un cambio de formato que lo explique, el PR se detiene: puede ser un cierre en falso.
 
 ### 5.2 Errores y estructura: recomendación
 
@@ -567,13 +569,16 @@ En todas, el contrato HTTP se mantiene.
 **R21. Agregado inmutable y eventos.**
 - **IDs:**
   - HEX-7.3, HEX-7.4, HEX-8.9, HEX-8.2 y HEX-2.4;
+  - *(S1)* HEX-2.1 (parcial: `chrono` en `contexts/iam/Cargo.toml`) y HEX-8.1 (parcial: `chrono` en `shared/Cargo.toml`);
   - RS-2.2 (`account.rs` y `account_event.rs`).
 - **Cambios:**
   - `confirm(&self, …) -> Result<Self, …>`;
   - `AggregateRoot` como marcador;
   - `DomainEvent` sin `chrono`;
-  - el trait `Clock` en `shared/src/clock.rs`, solo `std`, que R5 dejó fuera porque el template no lo define. Entra aquí con su primer uso y un test que lo exija;
-  - eventos implementados o retirados, según D4.
+  - el trait `Clock` en `shared/src/clock.rs`, solo `std`, que R5 dejó fuera porque el template no lo definía. *(S1: ai-harness `v1.0.0-rc.1` ya lo trae en `kernel/src/clock.rs`, `fn now(&self) -> SystemTime`. Se copia tal cual, con el adaptador `SystemClockAdapter` de `infrastructure/system`; ver §5.10.)* Entra aquí con su primer uso y un test que lo exija;
+  - eventos implementados o retirados, según D4;
+  - *(S1)* `chrono` sale de `contexts/iam/Cargo.toml` y de `shared/Cargo.toml`: después de este cambio, ninguno de los dos lo usa.
+- **Línea base (S1): −3:** `hex_2_core` `contexts/iam/Cargo.toml#dependencies.chrono` y `shared/Cargo.toml#dependencies.chrono`, y `hex_8_kernel_depends` `shared/Cargo.toml#dependencies.chrono`.
 - **Rojo:**
   - `confirm_returns_the_active_account_and_leaves_the_original_untouched`;
   - con eventos: `create_records_registered`.
@@ -606,9 +611,9 @@ En todas, el contrato HTTP se mantiene.
 #### Fase 6 y 7: kernel y estructura
 
 **R25. `shared` sin dependencias.**
-- **IDs:** HEX-8.1. HEX-8.2 ya quedó resuelto en R21.
+- **IDs:** HEX-8.1 (el resto: `serde`; `chrono` sale en R21, desde S1). HEX-8.2 ya quedó resuelto en R21.
 - **Cambios:** `ApiErrorResponse` se copia temporalmente a cada `infrastructure/http`; R30 lo elimina.
-- **Línea base: −2.** Son `hex_8_kernel_depends shared/Cargo.toml` y `hex_2_core shared/Cargo.toml`. **Cierra `hex_8_kernel_depends_only_on_std`.**
+- **Línea base: −2.** *(S1: con las claves por dependencia, son `hex_8_kernel_depends` y `hex_2_core` de `shared/Cargo.toml#dependencies.serde`. Las de `chrono` las cierra R21.)* **Cierra `hex_8_kernel_depends_only_on_std`.**
 - **Tamaño:** S.
 
 **R26. `edge/http` e `infrastructure/stderr`.**
@@ -635,9 +640,9 @@ En todas, el contrato HTTP se mantiene.
   - HEX-8.6 (se borra `VerifiedIdentity`; el middleware de `app` inserta `AuthenticatedAccount`).
 - **Estructura:** `contexts/communities/{domain,application,infrastructure,api}`, con `CommunitiesApi`.
 - **Precondición del trinquete:** de `contexts/communities/src`, en la línea base solo quedan `requests/create.rs` y `responses/created.rs`. Se renombran en este mismo PR.
-- **Línea base: −4:** `hex_2_core` y `hex_2_frameworks` de `contexts/communities/Cargo.toml`, que desaparece, y los dos `hex_6`.
+- **Línea base: −7** *(S1; antes −4)*: las 4 `hex_2_core` de `contexts/communities/Cargo.toml` (`axum`, `http`, `serde`, `uuid`), la `hex_2_frameworks` (`axum`, n = 3), porque el manifiesto desaparece, y los dos `hex_6`.
 - **Rojo:** `communities-api/tests/create_community.rs`: `responds_401_without_authenticated_account`.
-- **Riesgo:** el test de contratos HEX-4 se activa en este PR, y cualquier filtración es nueva.
+- **Riesgo:** ~~el test de contratos HEX-4 se activa en este PR~~. Desde S1 ya actúa en legacy. El riesgo que queda es que un crate nuevo (`communities-application`) declare más dependencias de las que pide su capa.
 - **Contrato HTTP:** sin cambios.
 - **Tamaño:** L (sobre todo, archivos movidos).
 
@@ -651,7 +656,7 @@ En todas, el contrato HTTP se mantiene.
   - `app` compone `iam.protect(communities.protected())`;
   - lifecycle se muda a `contexts/iam/infrastructure/tests/`.
 - **Precondición:** de `contexts/iam/src`, en la línea base solo quedan los 7 `hex_6`.
-- **Línea base: −9:** `hex_2_core` y `hex_2_frameworks` de `contexts/iam/Cargo.toml`, y los 7 `hex_6`. **Cierra `hex_2_core…`, `hex_2_server_frameworks…` y `hex_6_transport…`.**
+- **Línea base: −14** *(S1; antes −9)*: las 6 `hex_2_core` de `contexts/iam/Cargo.toml` (`argon2`, `axum`, `jsonwebtoken`, `rand`, `serde`, `uuid`; `chrono` sale en R21), la `hex_2_frameworks` (`axum`, n = 3) y los 7 `hex_6`. **Cierra `hex_2_core…`, `hex_2_server_frameworks…` y `hex_6_transport…`.**
 - **Rojo:** `iam-api/tests/authenticate.rs`: `protect_rejects_missing_token_with_401` y `protect_inserts_authenticated_account`.
 - **Riesgo:** `unknown_route_without_token_returns_401`. Si `protect` deja de envolver el fallback, la respuesta pasa a 404 y es un cambio de contrato que el usuario decide.
 - **Tamaño:** L.
@@ -660,7 +665,7 @@ En todas, el contrato HTTP se mantiene.
 - **IDs:** RS-1.2.
 - **Cambios:**
   - `git mv shared kernel`;
-  - en `tools/architecture/tests/common/mod.rs` se borran `legacy_layers` y el fallback a `shared/`.
+  - en `tools/architecture/tests` se borra todo lo marcado `legacy:`, más `tests/legacy.rs` y `tests/fixtures/legacy/` *(S1: así lo indica el template desde `v1.0.0-rc.1`; antes eran solo `legacy_layers` y el fallback a `shared/`)*.
 - **Precondición:** no queda ninguna entrada de `shared/` (se cumple desde R25).
 - **Línea base:** vacía.
 - **Tamaño:** S.
@@ -709,22 +714,26 @@ R1 ─┬─ R2 ─────────────────────�
 
 ### 5.6 Cierre de cada test de arquitectura
 
-| Test | Entradas hoy | Queda en cero en |
-|---|---|---|
-| `err_1_domain_errors_do_not_implement_std_error` | 12 | R3: en cero (eb30039) |
-| `err_1_application_errors_do_not_implement_std_error` | 5 | R3: en cero (eb30039) |
-| `hex_1_dependencies_point_inward` | 1 | R16 |
-| `hex_5_outbound_ports_are_named_by_role` | 4 | R10 (R7 a R10) |
-| `hex_5_adapters_are_named_by_technology_and_concept` | 8 | R10 (R7 a R10) |
-| `hex_4_use_case_implementations_are_handlers` | 6 | R17 (R18, R11, R13 a R15, R17) |
-| `hex_8_kernel_traits_are_model_markers_or_listed_capabilities` | 4 | R19 (R4, R10, R19); R4: −2 (80c00e4), quedan 2 |
-| `hex_8_kernel_depends_only_on_std` | 1 | R25 |
-| `hex_2_core_depends_only_on_std_and_the_kernel` | 3 | R28 (R25, R27, R28) |
-| `hex_2_server_frameworks_only_at_the_edge` | 2 | R28 (R27, R28) |
-| `hex_6_transport_types_carry_the_transport_name` | 9 | R28 (R27, R28) |
-| `hex_4_use_case_contracts_do_not_expose_domain_types` | 0, pero no actúa en legacy | Verifica de verdad desde R27 (communities) y R28 (iam) |
+Desde S1 la columna cuenta entradas con el formato nuevo (una por dependencia en los `Cargo.toml`). Entre paréntesis va el total de violaciones que admiten, sumando las `n`.
 
-En total, las 55 entradas desaparecen entre R3 y R28. Después de R29, `baseline.txt` queda solo con la cabecera.
+| Test | Entradas hoy (S1) | Justo antes de S1 | Queda en cero en |
+|---|---|---|---|
+| `err_1_domain_errors_do_not_implement_std_error` | 0 | 0 | R3: en cero (eb30039) |
+| `err_1_application_errors_do_not_implement_std_error` | 0 | 0 | R3: en cero (eb30039) |
+| `hex_1_dependencies_point_inward` | 1 (4) | 1 | R16 |
+| `hex_5_outbound_ports_are_named_by_role` | 4 | 4 | R10 (R7 a R10) |
+| `hex_5_adapters_are_named_by_technology_and_concept` | 8 | 8 | R10 (R7 a R10) |
+| `hex_4_use_case_implementations_are_handlers` | 6 | 6 | R17 (R18, R11, R13 a R15, R17) |
+| `hex_8_kernel_traits_are_model_markers_or_listed_capabilities` | 2 | 2 | R19 (R4, R10, R19); R4: −2 (80c00e4), quedan 2 |
+| `hex_8_kernel_depends_only_on_std` | 2 | 1 | R25 (R21 −1 `chrono`, R25 −1 `serde`) |
+| `hex_2_core_depends_only_on_std_and_the_kernel` | 13 (24) | 3 | R28 (R21 −2 `chrono`, R25 −1, R27 −4, R28 −6) |
+| `hex_2_server_frameworks_only_at_the_edge` | 2 (6) | 2 | R28 (R27, R28) |
+| `hex_6_transport_types_carry_the_transport_name` | 9 | 9 | R28 (R27, R28) |
+| `hex_4_use_case_contracts_do_not_expose_domain_types` | 0 | 0 | Desde S1 actúa también en legacy (17 tipos de contrato) |
+
+En total quedan 47 entradas (65 violaciones), que desaparecen entre R7 y R28. Después de R29, `baseline.txt` queda solo con la cabecera.
+
+Suma por rebanada desde S1: R7 −3, R8 −3, R9 −3, R10 −4, R11 −1, R13 −1, R14 −1, R15 −1, R16 −1, R17 −1, R18 −1, R19 −1, **R21 −3**, R25 −2, **R27 −7** y **R28 −14**: 47. Las 36 de antes de S1 se repartían entre las mismas rebanadas, con R25 −2, R27 −4 y R28 −9, y sin R21.
 
 **Conciliación (R1).** El encargo hablaba de 56 entradas, pero `tools/architecture/baseline.txt` tiene 55 (63 líneas, de las que 8 son comentario). La columna "Entradas hoy" coincide test por test con `grep -v '^#' baseline.txt | cut -d' ' -f1 | sort | uniq -c`. No falta ninguna entrada: se corrige el conteo, no se asigna ninguna. La suma por rebanada también da 55: R3 −17, R4 −2, R7 −3, R8 −3, R9 −3, R10 −4, R11 −1, R13 −1, R14 −1, R15 −1, R16 −1, R17 −1, R18 −1, R19 −1, R25 −2, R27 −4 y R28 −9.
 
@@ -765,6 +774,7 @@ Una fila por rebanada fusionada. **Tokens** es el consumo de la sesión que hizo
 | R4 | #28 | `80c00e4` | `nightly-2026-11-19` | $0.80 (opus-5-5: 1.3k input, 10.5k output, 778.9k cache read, 59.8k cache write; 2m 34s API, 2m 40s wall) | sí (ver PR) | Línea base −2 (`hex_8_kernel_traits`: `domain_error.rs`, `infrastructure_error.rs`). 188 tests, fmt y clippy en verde localmente. |
 | R5 | #30 | `e76c162`, `29890cb`, `446726b` | `nightly-2026-11-19` | $3.06 (opus-5-5: 4.6k input, 27.6k output, 4.1m cache read, 220.0k cache write; 6m 32s API, 12h 21m wall, casi todo inactividad entre turnos) | sí (ver PR) | Línea base sin cambios. Copia de ai-harness `97a8f29`; `Clock` pasa a R21. 194 tests, fmt y clippy en verde localmente. |
 | R6 | #29 | `991e672` | `nightly-2026-11-19` | $1.37 (opus-5-5: 447 input, 16.6k output, 1.6m cache read, 98.0k cache write; 3m 17s API, 4m 26s wall) | sí (ver PR) | Línea base sin cambios. `Cargo.lock` solo pierde `anyhow`; features efectivas idénticas. 188 tests, fmt y clippy en verde localmente. Commit aparte `45fe532` con `/slice`. |
+| S1 | ver PR | ver PR | `nightly-2026-11-19` | ver PR | sí (ver PR) | Fuera del plan: `tools/architecture` desde ai-harness `v1.0.0-rc.1`. Re-línea base 36 → 47 entradas, solo por cambio de formato (§5.10). Sin código de producción. |
 
 ### 5.9 Puntos de replanificación
 
@@ -775,6 +785,52 @@ Hay tres: **P1** después de R10, **P2** después de R19 y **P3** después de R2
 3. Revisar las decisiones abiertas de §5.7 que bloquean las rebanadas siguientes: D1 (R13) y D2 (R16, si todavía no se hizo) en P1; D4 (R21, R22) en P2, y D5 (R30) en P3.
 4. Comparar tamaño y tokens reales de §5.8 con lo estimado, y partir las rebanadas que vienen si alguna quedó más grande de lo previsto.
 5. Reescribir en este documento lo que cambie del plan (secuencia, IDs, línea base) en un PR de solo documentación, antes de seguir.
+
+### 5.10 S1: re-línea base
+
+Rebanada fuera del plan. Sincroniza `tools/architecture` con `stacks/rust/template/tools/architecture` de ai-harness `v1.0.0-rc.1` (`3b5dc80`), sin tocar código de producción. Los archivos se copiaron tal cual: `cargo fmt` con el `rustfmt.toml` del proyecto solo reagrupa los `use` de 5 archivos. Única divergencia de contenido: en `tests/legacy.rs:45`, `contains(&"axum".to_string())` pasa a `iter().any(|d| d == "axum")`, porque el clippy de `nightly-2026-11-19` lo rechaza (`unnecessary_to_owned`) con `-D warnings`. Hay que reportarlo al template. `tests/common/mod.rs` es el del template, sin adaptación local. Su modo legacy oficial ya coincide con este repo: `LEGACY_KERNEL_DIR = "shared"`, y `iam` y `communities` pasan a legacy porque tienen `Cargo.toml` propio. Fuera de `tools/`, solo cambia el `Cargo.toml` raíz, que gana `publish = false` en `[workspace.package]`. Lo exige `publish.workspace = true` del template.
+
+Línea base vieja: 36 entradas. Nueva: 47 entradas (65 violaciones con las `n`). La nueva se llenó con `CRAFT_BACKEND_BASELINE_INIT=1` a partir del informe de los tests, con la línea base vaciada a la cabecera. La cabecera del template dice que la línea base "se llena una sola vez". Este segundo llenado es una excepción del proyecto, que §5.1 acota a las sincronizaciones con el harness: cambia el formato de las claves, no las violaciones que se toleran.
+
+**a) Se mantienen (29).** Todas las entradas de ruta de archivo, con la misma clave:
+- `hex_4_use_case_implementations_are_handlers`: 6;
+- `hex_5_adapters_are_named_by_technology_and_concept`: 8;
+- `hex_5_outbound_ports_are_named_by_role`: 4;
+- `hex_6_transport_types_carry_the_transport_name`: 9;
+- `hex_8_kernel_traits_are_model_markers_or_listed_capabilities`: 2 (`token_verifier.rs`, `error.rs`).
+
+**b) Cambian de clave por el formato nuevo (7 → 18).** La clave pasa de `ruta/Cargo.toml` a `ruta/Cargo.toml#sección.paquete`, y `n` cuenta las capas virtuales del contexto legacy que ven la dependencia: domain y application en `hex_2_core` (2); domain, application e infrastructure en `hex_2_frameworks` (3, porque Api puede usar axum), y las cuatro capas de communities en `hex_1` (4).
+
+| Test | Clave vieja | Claves nuevas | ID |
+|---|---|---|---|
+| `hex_1_dependencies_point_inward` | `contexts/communities/Cargo.toml` | `…#dependencies.iam` 4 | HEX-1.1 |
+| `hex_2_core_depends_only_on_std_and_the_kernel` | `contexts/communities/Cargo.toml` | `…#dependencies.axum` 2, `.http` 2, `.serde` 2, `.uuid` 2 | HEX-2.5 |
+| `hex_2_core_depends_only_on_std_and_the_kernel` | `contexts/iam/Cargo.toml` | `…#dependencies.argon2` 2, `.axum` 2, `.chrono` 2, `.jsonwebtoken` 2, `.rand` 2, `.serde` 2, `.uuid` 2 | HEX-2.1 |
+| `hex_2_core_depends_only_on_std_and_the_kernel` | `shared/Cargo.toml` | `…#dependencies.chrono`, `.serde` | HEX-8.1 |
+| `hex_2_server_frameworks_only_at_the_edge` | `contexts/communities/Cargo.toml` | `…#dependencies.axum` 3 | HEX-2.5 |
+| `hex_2_server_frameworks_only_at_the_edge` | `contexts/iam/Cargo.toml` | `…#dependencies.axum` 3 | HEX-2.1 |
+| `hex_8_kernel_depends_only_on_std` | `shared/Cargo.toml` | `…#dependencies.chrono`, `.serde` | HEX-8.1 |
+
+Cada paquete nuevo ya figuraba en el hallazgo de la columna ID. La única excepción es `http` en communities: HEX-2.5 nombra `uuid`, `axum` y `serde`, y `http` (que usa `infrastructure/http`) es el mismo hallazgo, con un paquete más. Se agrega a su fila.
+
+**c) Desaparecen sin un cambio de formato que lo explique: ninguna.** Las 7 claves viejas que ya no están corresponden, una por una, a las claves nuevas de b).
+
+**d) Entradas nuevas: ninguna.** Ninguna regla nueva del template encuentra violaciones en este repo. Los tests nuevos (`legacy.rs`, `ratchet.rs`, `hex_3_sees_the_legacy_kernel`, `hex_4_contracts_are_checked_in_legacy_contexts`) y los que ahora actúan en legacy (`hex_4_use_case_contracts_do_not_expose_domain_types`, con 17 tipos de contrato) pasan en verde.
+
+**Rebanadas que cambian:**
+- **R21:** copia `Clock` del template en lugar de escribirlo, y quita `chrono` de `contexts/iam/Cargo.toml` y de `shared/Cargo.toml`, que dejan de usarlo. Línea base: de 0 a −3.
+- **R25:** −2, pero ahora son las dos entradas de `serde` de `shared/Cargo.toml`.
+- **R27:** de −4 a −7. Deja de tener el riesgo de "HEX-4 se activa en este PR".
+- **R28:** de −9 a −14.
+- **R29:** borra todo lo marcado `legacy:` en `tools/architecture/tests`, más `tests/legacy.rs` y `tests/fixtures/legacy/`.
+- **R11–R18:** ya no necesitan el `grep "crate::domain"` a mano (§5.1).
+- Cualquier rebanada que quite un paquete de un `Cargo.toml` borra sus entradas en el mismo PR (§5.1).
+
+**Kernel del template desde `97a8f29` (no se copia aquí).** Commits `ec3d9ea` y `e1cfa7d`:
+- `kernel/src/clock.rs` (`trait Clock: Send + Sync { fn now(&self) -> SystemTime; }`) y `pub use clock::Clock` en `kernel/src/lib.rs` → **R21**, como ya preveía el plan.
+- Crate nuevo `infrastructure/system` con `SystemClockAdapter` y su test → **R21**, junto con `Clock`, si R21 cablea el reloj real. Si no, en R26, junto con `infrastructure/stderr`.
+- `infrastructure/stderr/src/fault_reporter.rs`: el reporte recorre la cadena `source()` del `Fault` (+64 líneas) → **R26**, que crea ese crate. Hay que copiarlo desde `v1.0.0-rc.1`, no desde `97a8f29`.
+- `failure.rs`, `fault.rs` e `id.rs` del template coinciden con los de `shared/src` (solo cambia la agrupación de `use` por `cargo fmt`). `future.rs` y `model.rs` siguen asignados a R23/R24 y R21.
 
 ## Método
 
