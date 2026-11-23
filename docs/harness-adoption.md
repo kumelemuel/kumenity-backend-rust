@@ -210,7 +210,7 @@ Datos verificados que condicionan el plan:
 - Los tests de caracterización fijan `IAM_INVALID_ACCOUNT_ID(_FORMAT)` en `/communities/create`, los bodies `{code,message}` exactos y el 401 con cuerpo vacío. Además documentan como "CURRENT BEHAVIOR" el duplicado por mayúsculas (HEX-7.1).
 - `AccountFactory::reconstitute` y `AccountStatus::from_str` no se usan fuera de los tests: ningún adaptador persiste en texto.
 - Decidido por el usuario: `account_lifecycle.rs` admite **adaptación mecánica**.
-- `tools/architecture/baseline.txt` tiene 63 líneas: 8 de comentario y **55 entradas**. Coincide con la suma de §5.6. El "56" del encargo original era un error de conteo; ninguna entrada queda sin rebanada. *(En R1. Después de R3 y R4 quedaron 36, y S1 las reescribe como 47 con el formato nuevo: ver §5.10.)*
+- `tools/architecture/baseline.txt` tiene 63 líneas: 8 de comentario y **55 entradas**. Coincide con la suma de §5.6. El "56" del encargo original era un error de conteo; ninguna entrada queda sin rebanada. *(En R1. Después de R3 y R4 quedaron 36, y S1 las reescribe como 47 con el formato nuevo. S2 (`v1.0.0-rc.2`) las conserva, idénticas: ver §5.10.)*
 
 ### 5.1 Reglas transversales
 
@@ -721,7 +721,9 @@ R1 ─┬─ R2 ─────────────────────�
 
 Desde S1 la columna cuenta entradas con el formato nuevo (una por dependencia en los `Cargo.toml`). Entre paréntesis va el total de violaciones que admiten, sumando las `n`.
 
-| Test | Entradas hoy (S1) | Justo antes de S1 | Queda en cero en |
+**S2 (`v1.0.0-rc.2`, 2026-11-23): sin cambios.** La línea base vuelta a llenar tiene las mismas 47 entradas, con las mismas claves y conteos (§5.10). Ninguna rebanada cambia de alcance: los cierres, los −n por rebanada y la columna "Queda en cero en" siguen como los dejó S1.
+
+| Test | Entradas hoy (S2 = S1) | Justo antes de S1 | Queda en cero en |
 |---|---|---|---|
 | `err_1_domain_errors_do_not_implement_std_error` | 0 | 0 | R3: en cero (eb30039) |
 | `err_1_application_errors_do_not_implement_std_error` | 0 | 0 | R3: en cero (eb30039) |
@@ -780,6 +782,7 @@ Una fila por rebanada fusionada. **Tokens** es el consumo de la sesión que hizo
 | R5 | #30 | `e76c162`, `29890cb`, `446726b` | `nightly-2026-11-19` | $3.06 (opus-5-5: 4.6k input, 27.6k output, 4.1m cache read, 220.0k cache write; 6m 32s API, 12h 21m wall, casi todo inactividad entre turnos) | sí (ver PR) | Línea base sin cambios. Copia de ai-harness `97a8f29`; `Clock` pasa a R21. 194 tests, fmt y clippy en verde localmente. |
 | R6 | #29 | `991e672` | `nightly-2026-11-19` | $1.37 (opus-5-5: 447 input, 16.6k output, 1.6m cache read, 98.0k cache write; 3m 17s API, 4m 26s wall) | sí (ver PR) | Línea base sin cambios. `Cargo.lock` solo pierde `anyhow`; features efectivas idénticas. 188 tests, fmt y clippy en verde localmente. Commit aparte `45fe532` con `/slice`. |
 | S1 | #31 | `79185ff`, `c8dbed3` | `nightly-2026-11-19` | $3.81 (opus-5-5: 5.6k input, 56.1k output, 6.1m cache read, 207.1k cache write; 10m 3s API, 23m 29s wall) | sí (ver PR) | Fuera del plan: `tools/architecture` desde ai-harness `v1.0.0-rc.1`. Re-línea base 36 → 47 entradas, solo por cambio de formato (§5.10). Sin código de producción. |
+| S2 | #33 | ver PR | `nightly-2026-11-19` | pendiente: dato de `/cost` | no: no toca código de producción | Fuera del plan: `tools/architecture` desde ai-harness `v1.0.0-rc.2`. Línea base 47 → 47, idéntica (§5.10). 233 tests, fmt y clippy en verde localmente. |
 
 ### 5.9 Puntos de replanificación
 
@@ -791,7 +794,34 @@ Hay tres: **P1** después de R10, **P2** después de R19 y **P3** después de R2
 4. Comparar tamaño y tokens reales de §5.8 con lo estimado, y partir las rebanadas que vienen si alguna quedó más grande de lo previsto.
 5. Reescribir en este documento lo que cambie del plan (secuencia, IDs, línea base) en un PR de solo documentación, antes de seguir.
 
-### 5.10 S1: re-línea base
+### 5.10 Sincronizaciones con el harness
+
+Una por PR propio, sin cambios de código (`/craft-backend:adoption sincronizar <tag>`). El análisis completo de `compare_baseline.py` va en el PR; aquí, el resumen.
+
+| Fecha | Tag | PR | Entradas antes → después | Se mantienen | Cambian de clave | Nuevas (IDs) |
+|---|---|---|---|---|---|---|
+| 2026-11-22 | `v1.0.0-rc.1` | #31 | 36 → 47 | 29 | 7 → 18 (formato `#sección.paquete`, `n` por capa virtual) | ninguna |
+| 2026-11-23 | `v1.0.0-rc.2` | #33 | 47 → 47 | 47 | ninguna | ninguna |
+
+#### S2: `v1.0.0-rc.2`
+
+Sincroniza `tools/architecture` con `stacks/rust/template/tools/architecture` de ai-harness `v1.0.0-rc.2` (`451fec9`), sin tocar código de producción. Entre `v1.0.0-rc.1` y `v1.0.0-rc.2` la plantilla cambia dos archivos:
+- `baseline.txt`: solo la cabecera. Ya no dice "se llena una sola vez": vuelve a llenarse al sincronizar con una versión que cambia las claves. Se conserva la línea propia del proyecto ("Los IDs de hallazgo… están en docs/harness-adoption.md").
+- `tests/legacy.rs:45`: `iter().any(|d| d == "axum")`, la misma corrección que S1 aplicó a mano. La divergencia de S1 desaparece.
+
+El resto de la copia queda idéntica, salvo los `use` que reagrupa `cargo fmt` con el `rustfmt.toml` del proyecto (`common/mod.rs`, `errors.rs`, `output.rs`, `ports.rs` y `ratchet.rs`, igual que en S1). Fuera de `tools/architecture/baseline.txt` el diff está vacío.
+
+El CHANGELOG de `v1.0.0-rc.2` no cambia ni las claves ni los conteos. Igual se volvió a llenar, para confirmarlo: con `CRAFT_BACKEND_BASELINE_INIT=1`, la línea base se vació hasta la cabecera, se corrió `cargo test -p architecture --no-fail-fast` y se escribió una entrada por cada violación reportada.
+
+Resultado de `compare_baseline.py` (salida 0):
+- **Se mantienen: 47.** Son todas, con la misma clave y la misma `n`.
+- **Cambian de clave: ninguna.**
+- **Desaparecen sin un cambio de formato que lo explique: ninguna.** Tampoco baja ningún conteo.
+- **Nuevas: ninguna.** Tampoco sube ningún conteo.
+
+**Rebanadas que cambian: ninguna.** §5.6 queda igual.
+
+#### S1: `v1.0.0-rc.1`
 
 Rebanada fuera del plan. Sincroniza `tools/architecture` con `stacks/rust/template/tools/architecture` de ai-harness `v1.0.0-rc.1` (`3b5dc80`), sin tocar código de producción. Los archivos se copiaron tal cual: `cargo fmt` con el `rustfmt.toml` del proyecto solo reagrupa los `use` de 5 archivos. Única divergencia de contenido: en `tests/legacy.rs:45`, `contains(&"axum".to_string())` pasa a `iter().any(|d| d == "axum")`, porque el clippy de `nightly-2026-11-19` lo rechaza (`unnecessary_to_owned`) con `-D warnings`. Hay que reportarlo al template. `tests/common/mod.rs` es el del template, sin adaptación local. Su modo legacy oficial ya coincide con este repo: `LEGACY_KERNEL_DIR = "shared"`, y `iam` y `communities` pasan a legacy porque tienen `Cargo.toml` propio. Fuera de `tools/`, solo cambia el `Cargo.toml` raíz, que gana `publish = false` en `[workspace.package]`. Lo exige `publish.workspace = true` del template.
 
@@ -843,10 +873,11 @@ Lo que el harness no cubrió o cubrió mal durante la adopción. Cada fricción 
 
 | Fecha | Rebanada | Fricción | Efecto en la adopción | Estado en el harness |
 |---|---|---|---|---|
-| 2026-11-22 | S1 | `tools/architecture/tests/legacy.rs:45` de `v1.0.0-rc.1` no pasa clippy con `-D warnings` en `nightly-2026-11-19` (`unnecessary_to_owned`). | La copia "tal cual" diverge del template en una línea (§5.10). | sin reportar |
-| 2026-11-22 | S1 | `CRAFT_BACKEND_BASELINE_INIT=1` solo se lee al abrir la sesión, y nada lo advierte al empezar una sincronización. | Hubo que cortar S1 a la mitad y reabrir con `claude --continue`. | sin reportar |
-| 2026-11-22 | S1 | La cabecera del template dice que la línea base "se llena una sola vez", pero un cambio de formato de clave obliga a re-llenarla. | Regla propia en §5.1 y análisis en §5.10. | sin reportar |
-| 2026-11-23 | — | `/craft-backend:adoption` abre el PR solo si se le pide, y no trae las convenciones del proyecto. | Se pasaron a §5.1 al retirar `/slice`. | no aplica (diseño) |
+| 2026-11-22 | S1 | `tools/architecture/tests/legacy.rs:45` de `v1.0.0-rc.1` no pasa clippy con `-D warnings` en `nightly-2026-11-19` (`unnecessary_to_owned`). | La copia "tal cual" diverge del template en una línea (§5.10). | Corregida en craft-backend 1.0.0-rc.2 (v1.0.0-rc.2, PR #17) |
+| 2026-11-22 | S1 | `CRAFT_BACKEND_BASELINE_INIT=1` solo se lee al abrir la sesión, y nada lo advierte al empezar una sincronización. | Hubo que cortar S1 a la mitad y reabrir con `claude --continue`. | Corregida en craft-backend 1.0.0-rc.2 (v1.0.0-rc.2, PR #17) |
+| 2026-11-22 | S1 | La cabecera del template dice que la línea base "se llena una sola vez", pero un cambio de formato de clave obliga a re-llenarla. El formato no cambió en `v1.0.0-rc.1`: cambió en 0.17.0 (`ruta/Cargo.toml` pasa a `ruta/Cargo.toml#sección.paquete`) y en 0.18.0 (en legacy, `n` cuenta las capas virtuales que ven la dependencia). S1 recibió los dos cambios juntos porque la copia anterior del proyecto era previa a 0.17.0. | Regla propia en §5.1 y análisis en §5.10. | Corregida en craft-backend 1.0.0-rc.2 (v1.0.0-rc.2, PR #17) |
+| 2026-11-23 | — | `/craft-backend:adoption` abre el PR solo si se le pide, y no trae las convenciones del proyecto. | Se pasaron a §5.1 al retirar `/slice`. | Corregida en craft-backend 1.0.0-rc.2 (v1.0.0-rc.2, PR #17) |
+| 2026-11-23 | S2 | El paso 4 de `sincronizar` pide escribir "una entrada por cada violación reportada", pero nada vuelca el informe al formato de `baseline.txt`. Además, `cargo test -p architecture` se corta en el primer binario que falla, y sin `--no-fail-fast` el informe queda incompleto. | Hubo que correrlo con `--no-fail-fast` y pasar el informe a entradas con un script propio, que también cuenta las `n` (§5.10). | sin reportar |
 
 ## Método
 
