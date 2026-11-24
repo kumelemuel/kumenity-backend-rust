@@ -2,7 +2,7 @@
 //!
 //! Una por puerto. Cada caso es una función que recibe la fábrica del
 //! adaptador, y la macro de cada batería genera un `#[test]` por caso. Los
-//! puertos todavía son síncronos: cuando pasen a `BoxFuture` (R23), cada caso
+//! puertos todavía son síncronos: cuando pasen a `BoxFuture` (R24), cada caso
 //! pasa a `async fn` y la macro recibe el `run` del caller, como en el template.
 
 pub mod community_repository;
