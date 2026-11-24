@@ -10,7 +10,85 @@ use crate::{
     application::ports::outbound::account_repository::AccountRepository,
     domain::model::account::account::Account,
 };
-use shared::Fault;
+use shared::{Fault, domain::value_object::ValueObject};
+use std::sync::{Mutex, MutexGuard};
+
+pub mod contracts;
+
+/// Doble de `AccountRepository`: guarda en memoria, o falla siempre.
+///
+/// Casi igual a `InMemoryAccountAdapter` mientras no haya persistencia real.
+/// No se fusionan: este es un doble de application; aquel, un adaptador de
+/// infraestructura (TDD-2).
+pub struct FakeAccountAdapter {
+    accounts: Mutex<Vec<Account>>,
+    failing: bool,
+}
+
+impl FakeAccountAdapter {
+    pub fn empty() -> Self {
+        Self {
+            accounts: Mutex::new(Vec::new()),
+            failing: false,
+        }
+    }
+
+    /// Con estas cuentas ya guardadas.
+    pub fn containing(accounts: impl IntoIterator<Item = Account>) -> Self {
+        Self {
+            accounts: Mutex::new(accounts.into_iter().collect()),
+            failing: false,
+        }
+    }
+
+    /// Simula una falla técnica no declarada (árbol B) en todas las
+    /// operaciones. Para que falle una llamada posterior a la primera, usar
+    /// `StubAccountAdapter`.
+    pub fn failing() -> Self {
+        Self {
+            accounts: Mutex::new(Vec::new()),
+            failing: true,
+        }
+    }
+
+    fn store(&self) -> Result<MutexGuard<'_, Vec<Account>>, Fault> {
+        if self.failing {
+            return Err(Fault::new("fake repository outage"));
+        }
+        Ok(self
+            .accounts
+            .lock()
+            .expect("invariante: mutex sin envenenar"))
+    }
+}
+
+impl AccountRepository for FakeAccountAdapter {
+    fn find_by_username(&self, username: &str) -> Result<Option<Account>, Fault> {
+        let accounts = self.store()?;
+        Ok(accounts
+            .iter()
+            .find(|account| account.username().value() == username)
+            .cloned())
+    }
+
+    fn find_by_email(&self, email: &str) -> Result<Option<Account>, Fault> {
+        let accounts = self.store()?;
+        Ok(accounts
+            .iter()
+            .find(|account| account.email().value() == email)
+            .cloned())
+    }
+
+    fn save(&self, account: &Account) -> Result<(), Fault> {
+        let mut accounts = self.store()?;
+        // Mismo id: reemplaza, como cualquier repositorio (contrato).
+        match accounts.iter_mut().find(|a| a.id() == account.id()) {
+            Some(existing) => *existing = account.clone(),
+            None => accounts.push(account.clone()),
+        }
+        Ok(())
+    }
+}
 
 /// Operación de `AccountRepository` que falla en un `StubAccountAdapter`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,5 +146,14 @@ impl AccountRepository for StubAccountAdapter {
 
     fn save(&self, _account: &Account) -> Result<(), Fault> {
         self.answer(AccountOperation::Save, ())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    crate::account_repository_contract! {
+        new_adapter: FakeAccountAdapter::empty(),
     }
 }

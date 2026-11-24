@@ -51,16 +51,16 @@ impl IdentifyAccountUseCase for IdentifyAccount {
 mod tests {
     use crate::{
         application::{
-            ports::{
-                inbound::identify_account_use_case::IdentifyAccountUseCase,
-                outbound::account_repository::test_utils::FakeAccountRepository,
-            },
+            ports::inbound::identify_account_use_case::IdentifyAccountUseCase,
             queries::identify_account::{
                 identify_account::IdentifyAccount, query::IdentifyAccountQuery,
             },
-            testing::{AccountOperation, StubAccountAdapter},
+            testing::{AccountOperation, FakeAccountAdapter, StubAccountAdapter},
         },
-        domain::errors::error_codes::IAM_ACCOUNT_NOT_FOUND,
+        domain::{
+            errors::error_codes::IAM_ACCOUNT_NOT_FOUND,
+            model::account::account_factory::AccountFactory,
+        },
     };
     use shared::error::SystemError;
     use std::sync::Arc;
@@ -73,9 +73,7 @@ mod tests {
 
     #[test]
     fn fails_with_unexpected_when_find_by_email_fails() {
-        let repo = Arc::new(StubAccountAdapter::failing_on(
-            AccountOperation::FindByEmail,
-        ));
+        let repo = Arc::new(FakeAccountAdapter::failing());
         let use_case = IdentifyAccount::new(repo);
 
         let result = use_case.execute(query());
@@ -103,7 +101,7 @@ mod tests {
 
     #[test]
     fn fails_when_account_not_found() {
-        let repo = Arc::new(FakeAccountRepository::success());
+        let repo = Arc::new(FakeAccountAdapter::empty());
 
         let use_case = IdentifyAccount::new(repo);
 
@@ -118,9 +116,9 @@ mod tests {
 
     #[test]
     fn identify_account_successfully() {
-        let repo = Arc::new(FakeAccountRepository::with_existing_email(
-            "dummy@example.com",
-        ));
+        let repo = Arc::new(FakeAccountAdapter::containing([
+            AccountFactory::dummy_account_with_status("registered:123123".to_string()),
+        ]));
 
         let use_case = IdentifyAccount::new(repo);
 

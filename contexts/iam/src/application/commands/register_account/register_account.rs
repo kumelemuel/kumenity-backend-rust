@@ -75,16 +75,16 @@ mod tests {
             },
             ports::{
                 inbound::register_account_use_case::RegisterAccountUseCase,
-                outbound::{
-                    account_repository::test_utils::FakeAccountRepository,
-                    password_hasher::test_utils::FakePasswordHasher,
-                },
+                outbound::password_hasher::test_utils::FakePasswordHasher,
             },
-            testing::{AccountOperation, StubAccountAdapter},
+            testing::{AccountOperation, FakeAccountAdapter, StubAccountAdapter},
         },
-        domain::errors::error_codes::{
-            IAM_ACCOUNT_EMAIL_ALREADY_EXISTS, IAM_ACCOUNT_USERNAME_ALREADY_EXISTS,
-            IAM_INVALID_EMAIL, IAM_INVALID_USERNAME,
+        domain::{
+            errors::error_codes::{
+                IAM_ACCOUNT_EMAIL_ALREADY_EXISTS, IAM_ACCOUNT_USERNAME_ALREADY_EXISTS,
+                IAM_INVALID_EMAIL, IAM_INVALID_USERNAME,
+            },
+            model::account::{account::Account, account_factory::AccountFactory},
         },
     };
     use shared::error::SystemError;
@@ -98,9 +98,22 @@ mod tests {
         }
     }
 
+    const HASH: &str =
+        "$2b$12$12345678901234567890123456789012345673434534534534346346346346346890123456789012";
+
+    fn registered(username: &str, email: &str) -> Account {
+        AccountFactory::create(
+            username.to_string(),
+            email.to_string(),
+            "password123456789",
+            HASH.to_string(),
+        )
+        .expect("invariante: cuenta de prueba válida")
+    }
+
     #[test]
     fn register_account_successfully() {
-        let repo = Arc::new(FakeAccountRepository::success());
+        let repo = Arc::new(FakeAccountAdapter::empty());
         let hasher = Arc::new(FakePasswordHasher);
 
         let use_case = RegisterAccount::new(repo, hasher);
@@ -112,7 +125,7 @@ mod tests {
 
     #[test]
     fn fails_when_username_is_invalid() {
-        let repo = Arc::new(FakeAccountRepository::success());
+        let repo = Arc::new(FakeAccountAdapter::empty());
         let hasher = Arc::new(FakePasswordHasher);
 
         let use_case = RegisterAccount::new(repo, hasher);
@@ -132,7 +145,7 @@ mod tests {
 
     #[test]
     fn fails_when_email_is_invalid() {
-        let repo = Arc::new(FakeAccountRepository::success());
+        let repo = Arc::new(FakeAccountAdapter::empty());
         let hasher = Arc::new(FakePasswordHasher);
 
         let use_case = RegisterAccount::new(repo, hasher);
@@ -152,9 +165,7 @@ mod tests {
 
     #[test]
     fn fails_with_unexpected_when_find_by_email_fails() {
-        let repo = Arc::new(StubAccountAdapter::failing_on(
-            AccountOperation::FindByEmail,
-        ));
+        let repo = Arc::new(FakeAccountAdapter::failing());
         let use_case = RegisterAccount::new(repo, Arc::new(FakePasswordHasher));
 
         let result = use_case.execute(valid_input());
@@ -182,10 +193,8 @@ mod tests {
 
     #[test]
     fn fails_with_unexpected_when_save_fails() {
-        let repo = Arc::new(FakeAccountRepository::fail());
-        let hasher = Arc::new(FakePasswordHasher);
-
-        let use_case = RegisterAccount::new(repo, hasher);
+        let repo = Arc::new(StubAccountAdapter::failing_on(AccountOperation::Save));
+        let use_case = RegisterAccount::new(repo, Arc::new(FakePasswordHasher));
 
         let result = use_case.execute(valid_input());
 
@@ -197,7 +206,10 @@ mod tests {
 
     #[test]
     fn fails_when_username_already_exists() {
-        let repo = Arc::new(FakeAccountRepository::with_existing_username("john_doe"));
+        let repo = Arc::new(FakeAccountAdapter::containing([registered(
+            "john_doe",
+            "other@example.com",
+        )]));
         let hasher = Arc::new(FakePasswordHasher);
 
         let use_case = RegisterAccount::new(repo, hasher);
@@ -211,9 +223,10 @@ mod tests {
 
     #[test]
     fn fails_when_email_already_exists() {
-        let repo = Arc::new(FakeAccountRepository::with_existing_email(
+        let repo = Arc::new(FakeAccountAdapter::containing([registered(
+            "other_user",
             "john@example.com",
-        ));
+        )]));
         let hasher = Arc::new(FakePasswordHasher);
 
         let use_case = RegisterAccount::new(repo, hasher);
