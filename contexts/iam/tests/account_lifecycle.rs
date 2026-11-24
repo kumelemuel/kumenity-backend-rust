@@ -12,9 +12,7 @@ use iam::{
             authenticate_account::{
                 authenticate_account::AuthenticateAccount, command::AuthenticateAccountCommand,
             },
-            register_account::{
-                command::RegisterAccountCommand, register_account::RegisterAccount,
-            },
+            register_account::{command::RegisterAccountCommand, handler::RegisterAccountHandler},
             verify_account::{command::VerifyAccountCommand, verify_account::VerifyAccount},
         },
         ports::{
@@ -49,7 +47,7 @@ const PASSWORD: &str = "s3cret-password";
 struct Iam {
     repository: Arc<InMemoryAccountAdapter>,
     jwt: Arc<JwtAccessTokenAdapter>,
-    register: RegisterAccount,
+    register: RegisterAccountHandler,
     verify: VerifyAccount,
     authenticate: AuthenticateAccount,
     identify: IdentifyAccount,
@@ -61,7 +59,7 @@ fn iam() -> Iam {
     let decoy_hash = hasher.hash("lifecycle-decoy").expect("decoy hash");
     let jwt = Arc::new(JwtAccessTokenAdapter::new("lifecycle-secret".into(), 3600));
     Iam {
-        register: RegisterAccount::new(repository.clone(), hasher.clone()),
+        register: RegisterAccountHandler::new(repository.clone(), hasher.clone()),
         verify: VerifyAccount::new(repository.clone()),
         authenticate: AuthenticateAccount::new(repository.clone(), hasher, jwt.clone(), decoy_hash),
         identify: IdentifyAccount::new(repository.clone()),
