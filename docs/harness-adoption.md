@@ -75,14 +75,14 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | HEX-2.4 | HEX-2 Núcleo sin framework | contexts/iam/src/domain/model/account/events/account_event.rs:1 | El dominio usa `chrono`. | media | El instante llega de `Clock`. | abierto |
 | HEX-2.5 | HEX-2 Núcleo sin framework | contexts/communities/Cargo.toml:7-10 | `uuid`, `axum`, `serde` y `http` (este último, visto en S1) están disponibles en `domain` y `application`. | alta | Separar crates por capa. | abierto |
 | HEX-2.6 | HEX-2 Núcleo sin framework | contexts/communities/src/domain/model/community/community_id.rs:2 | El dominio usa `uuid`. | media | `IdGenerator` + value object sobre `String`. | abierto |
-| HEX-4.1 | HEX-4 Casos de uso | iam/…/authenticate_account.rs:17; register_account.rs:18; verify_account.rs:14; identify_account.rs:16; communities/…/create_community.rs:21; list_public_communities.rs:14 | Las implementaciones no se llaman `{Verb}{Noun}Handler` (`AuthenticateAccount`, `RegisterAccount`…). | media | Renombrar a `AuthenticateAccountHandler` y demás, en `handler.rs`. | abierto |
+| HEX-4.1 | HEX-4 Casos de uso | iam/…/authenticate_account.rs:17; register_account.rs:18; verify_account.rs:14; identify_account.rs:16; communities/…/create_community.rs:21; list_public_communities.rs:14 | Las implementaciones no se llaman `{Verb}{Noun}Handler` (`AuthenticateAccount`, `RegisterAccount`…). | media | Renombrar a `AuthenticateAccountHandler` y demás, en `handler.rs`. | abierto: R18 (a603969) borró `list_public_communities.rs`; quedan los otros 5 |
 | HEX-4.2 | HEX-4 Casos de uso | contexts/communities/src/application/ports/inbound/create_community_use_case.rs:10 | `execute` recibe un segundo argumento, `VerifiedIdentity`, del dominio del kernel: el contrato expone un tipo de `domain` fuera del `Command`. | media | Campo `owner_id: String` en `CreateCommunityCommand`. | abierto |
-| HEX-4.3 | HEX-4 Casos de uso | contexts/communities/src/application/ports/inbound/list_public_communities_use_case.rs:6 | Le falta `Send + Sync`, recibe un `AuthContext` que no usa (línea 10) y no está cableado. | baja | Firma `execute(query)`, con `Send + Sync`, o eliminarlo. | abierto |
+| HEX-4.3 | HEX-4 Casos de uso | contexts/communities/src/application/ports/inbound/list_public_communities_use_case.rs:6 | Le falta `Send + Sync`, recibe un `AuthContext` que no usa (línea 10) y no está cableado. | baja | Firma `execute(query)`, con `Send + Sync`, o eliminarlo. | resuelto (a603969): eliminado (D3) |
 | HEX-4.4 | HEX-4 Casos de uso | contexts/iam/src/application/errors/authenticate_account.rs:6 | El `Error` del caso de uso vive en `errors/`, no junto al handler. | baja | `commands/authenticate_account/error.rs`. | abierto |
 | HEX-5.1 | HEX-5 Rol | iam/…/ports/outbound/account_repository.rs:6; password_hasher.rs:1; token_generator.rs:3; communities/…/community_repository.rs:6 | Sufijo `Port`, prohibido. En `PasswordHasher` y `TokenGenerator`, al quitarlo, no queda rol. | media | `AccountRepository`, `CommunityRepository`, `PasswordHashingService`, `AccessTokenService`. | abierto |
 | HEX-5.2 | HEX-5 Adaptadores | iam/…/in_memory/account_repository.rs:14; communities/…/in_memory/community_repository.rs:13; iam/…/argon2_password_hasher.rs:8; iam/…/jwt_service.rs:15 | Los adaptadores no siguen `{Tecnología}{Concepto}Adapter`: repiten el rol o terminan en `Service`. | media | `InMemoryAccountAdapter`, `InMemoryCommunityAdapter`, `Argon2PasswordHashingAdapter`, `JwtAccessTokenAdapter`. | abierto |
 | HEX-6.1 | HEX-6 Transporte | iam/…/requests/sign_up.rs:5, sign_in.rs:5, verify.rs:5, identify.rs:5; responses/signed_up.rs:5, signed_in.rs:5, identified.rs:5; communities/…/requests/create.rs:5, responses/created.rs:5 | Los DTOs HTTP no son `{Caso}HttpRequest`/`{Caso}HttpResponse`, y `CreateRequest` colisiona con el vocabulario de puerto saliente. | baja | `RegisterAccountHttpRequest`, `CreateCommunityHttpResponse` y demás. | abierto |
-| HEX-6.2 | HEX-6 Vocabulario | contexts/communities/src/application/queries/list_public_communities/response.rs:5 | `CommunityResult` usa el sufijo `Result`, reservado para control de flujo. | baja | `PublicCommunity` o `CommunitySummary`. | abierto |
+| HEX-6.2 | HEX-6 Vocabulario | contexts/communities/src/application/queries/list_public_communities/response.rs:5 | `CommunityResult` usa el sufijo `Result`, reservado para control de flujo. | baja | `PublicCommunity` o `CommunitySummary`. | resuelto (a603969): eliminado (D3) |
 | HEX-7.1 | HEX-7 Lógica en handler | contexts/iam/src/application/commands/register_account/register_account.rs:37 | La unicidad se consulta con el texto crudo (`cmd.email`, y `cmd.username` en la línea 43), no con el value object normalizado. Resultado: se registran duplicados por mayúsculas o espacios, como confirma el test `register_accepts_same_email_with_different_casing`. | alta | Construir `Email`/`Username` antes y buscar por el valor normalizado (como hace `CreateCommunity` con el slug). | abierto |
 | HEX-7.2 | HEX-7 Lógica en handler | contexts/iam/src/application/commands/authenticate_account/authenticate_account.rs:64 | `if !account.can_authenticate()` es un `if` de negocio en el handler. | media | `account.authenticate() -> Result<_, CannotAuthenticate>` en el agregado. | abierto |
 | HEX-7.3 | HEX-7 Inmutabilidad | contexts/iam/src/domain/model/account/account.rs:89-134 | El agregado es mutable (`&mut self`): `change_password`, `change_email`, `deactivate`, `confirm_registration`… | media | `fn confirm(&self, …) -> Result<Self, …>`, que devuelve el estado nuevo. | abierto |
@@ -97,7 +97,7 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | HEX-8.3 | HEX-8 Kernel | shared/src/error.rs:9 | `ErrorLayout` y `SystemError` (línea 16), un error global por capas, viven en el kernel. | alta | `Fault` + `Failure<E>` (RS-2). | abierto |
 | HEX-8.4 | HEX-8 Marcadores de error | shared/src/domain/domain_error.rs:3; shared/src/infrastructure/infrastructure_error.rs:3 | Traits `DomainError` e `InfrastructureError`: Rust no los necesita (y aquí nadie los usa). | media | Eliminarlos. | resuelto (80c00e4) |
 | HEX-8.5 | HEX-8 Sin puertos | shared/src/application/ports/outbound/token_verifier.rs:6 | Un puerto de negocio (`TokenVerifier`) y su `TokenError` (error.rs:2) están en el kernel; no es una capacidad de la lista. | alta | Moverlo a `iam` (ver HEX-1.5). | abierto |
-| HEX-8.6 | HEX-8 Sin modelos | shared/src/domain/model/verified_identity.rs:2; shared/src/application/auth_context.rs:2 | Tipos de identidad en el kernel. | media | `AuthenticatedAccount` en `edge/http`. | abierto |
+| HEX-8.6 | HEX-8 Sin modelos | shared/src/domain/model/verified_identity.rs:2; shared/src/application/auth_context.rs:2 | Tipos de identidad en el kernel. | media | `AuthenticatedAccount` en `edge/http`. | abierto: R18 (a603969) borró `AuthContext` (sin usos tras quitar `ListPublicCommunities`); queda `VerifiedIdentity` (R27) |
 | HEX-8.7 | HEX-8 Kernel | shared/src/application/common_application_error.rs:2 | `CommonApplicationError` está muerto y es un error compartido de aplicación. | baja | Eliminarlo. | resuelto (80c00e4) |
 | HEX-8.8 | HEX-8 Kernel | shared/src/infrastructure/http/api_error_response.rs:4 | Un tipo de transporte HTTP (con `serde`) en el kernel. | media | `edge/http` con `Problem`. | abierto |
 | HEX-8.9 | HEX-8 Marcadores | shared/src/domain/aggregate_root.rs:6-8 | `AggregateRoot` no es un marcador: impone `record_event(&mut self)`, `pull_events` y `version`, una API mutable. | baja | Marcador vacío; los eventos se manejan con `take_events(self)` en el agregado. | abierto |
@@ -113,7 +113,7 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | ERR-1.3 | ERR-1 Errores de application | iam/src/application/errors/account_repository.rs:14, authenticate_account.rs:24, token_generator.rs:14; communities/src/application/errors/community_creation.rs:20, community_repository.rs:14 | Las hojas y los errores de puerto implementan `std::error::Error`. | media | Quitar el `impl`. | resuelto (eb30039) |
 | ERR-1.4 | ERR-1 Fallo silenciado | contexts/iam/src/domain/model/account/account.rs:127-129 | `let _ = self.transition_status(…).map_err(…)` descarta el `Result` y responde `Ok`, aunque la transición falle. | media | Propagar con `?`, o `expect("invariante: Registered→Active siempre válida")`. | abierto |
 | ERR-1.5 | ERR-1 Conversión implícita | contexts/iam/src/domain/model/account/account_factory.rs:39-43 | En `reconstitute`, un dato persistido corrupto se convierte en error de negocio (400) con `?`. | media | En el adaptador, conversión a `Fault` a mano y con contexto. | abierto |
-| ERR-1.6 | ERR-1 Sin árbol A | contexts/communities/src/application/ports/inbound/list_public_communities_use_case.rs:11 | El caso de uso no tiene fallos de negocio, pero declara un tipo de error (`SystemError`). | baja | `Result<Response, Fault>`. | abierto |
+| ERR-1.6 | ERR-1 Sin árbol A | contexts/communities/src/application/ports/inbound/list_public_communities_use_case.rs:11 | El caso de uso no tiene fallos de negocio, pero declara un tipo de error (`SystemError`). | baja | `Result<Response, Fault>`. | resuelto (a603969): eliminado (D3) |
 | ERR-1.7 | ERR-1 Firma del puerto | iam/…/ports/outbound/account_repository.rs:7-9; password_hasher.rs:2-3; communities/…/community_repository.rs:7-10 | `find_*` devuelve `Option` sin `Result`, `hash` devuelve `String` y `verify`, `bool`: un adaptador real no puede reportar una falla técnica y tiene que entrar en pánico. | media | `Result<Option<T>, Fault>`, `Result<String, Fault>`. | abierto |
 | ERR-2.1 | ERR-2 Contrato por caso de uso | iam/…/ports/inbound/authenticate_account_use_case.rs:10, identify_account_use_case.rs:7, register_account_use_case.rs:10, verify_account_use_case.rs:5; communities/…/create_community_use_case.rs:11 | Ningún caso de uso tiene su `{Verb}{Noun}Error` cerrado: todos devuelven el global `SystemError`. | alta | `RegisterAccountError { Validation, Conflict }` y demás, junto al handler. | abierto |
 | ERR-2.2 | ERR-2 Sin envolver | shared/src/error.rs:17-19 | Los errores se envuelven (`Domain(Box<dyn ErrorLayout>)`), y el error de dominio llega tal cual al contrato (p. ej. `AccountError::EmailAlreadyExists.into()` en register_account.rs:38). | alta | Traducir a una hoja plana (`Conflict { resource }`). | abierto |
@@ -141,8 +141,8 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 
 | ID | Regla | archivo:línea | Violación | Sev. | Corrección | Estado |
 |---|---|---|---|---|---|---|
-| TDD-1.1 | TDD-1 Test que lo exija | contexts/communities/src/application/queries/list_public_communities/list_public_communities.rs:46-143 | Los tests del handler están comentados (desde `56e43e8`) y apuntan a tipos que ya no existen: el handler no tiene ningún test. | media | Rojo primero con un doble que implemente `get_public_list`, o eliminar el caso. | abierto |
-| TDD-1.2 | TDD-1 Test que lo exija | contexts/iam/src/infrastructure/persistence/in_memory/account_repository.rs:14; contexts/communities/src/infrastructure/persistence/in_memory/community_repository.rs:13 | Adaptadores en memoria sin tests propios; `find_by_id` de communities no se ejercita en ningún test. | media | Batería de contrato (TDD-2.1). | abierto |
+| TDD-1.1 | TDD-1 Test que lo exija | contexts/communities/src/application/queries/list_public_communities/list_public_communities.rs:46-143 | Los tests del handler están comentados (desde `56e43e8`) y apuntan a tipos que ya no existen: el handler no tiene ningún test. | media | Rojo primero con un doble que implemente `get_public_list`, o eliminar el caso. | resuelto (a603969): caso y tests comentados eliminados (D3) |
+| TDD-1.2 | TDD-1 Test que lo exija | contexts/iam/src/infrastructure/persistence/in_memory/account_repository.rs:14; contexts/communities/src/infrastructure/persistence/in_memory/community_repository.rs:13 | Adaptadores en memoria sin tests propios; `find_by_id` de communities no se ejercita en ningún test. | media | Batería de contrato (TDD-2.1). | abierto: R18 (a603969) borró `find_by_id`; falta la batería (R7, R8) |
 | TDD-1.3 | TDD-1 Test que lo exija | contexts/iam/src/infrastructure/security/password_hasher/argon2_password_hasher.rs:20; contexts/iam/src/infrastructure/services/jwt_service/jwt_service.rs:52 | Adaptadores cubiertos solo indirectamente (`account_lifecycle.rs`, tests HTTP). | baja | Test del adaptador contra su tecnología. | abierto |
 | TDD-1.4 | TDD-1 Test que lo exija | contexts/iam/src/domain/model/account/account_status.rs:74 | Los caminos de error de `from_str` (código no numérico, estado desconocido) no tienen test. | baja | Tests de dominio. | resuelto (4355c9f) |
 | TDD-1.5 | TDD-1 Orden | commits `030479b`, `9d4c54e`, `2ad183c`, `3a0e403`, `9f33df1`/`2d68755`, `022885c` | Commits `feat`/`feature` que cambian producción sin agregar ni modificar ningún test. | media | El test, antes o en el mismo commit. | abierto |
@@ -152,7 +152,7 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | TDD-2.2 | TDD-2 Nombre de dobles | iam/…/account_repository.rs:23, password_hasher.rs:10, token_generator.rs:14; communities/…/community_repository.rs:24 | Dobles sin el sufijo `Adapter` (`FakeAccountRepository`…). | baja | `{Prefijo}{Concepto}Adapter`. | abierto |
 | TDD-2.3 | TDD-2 Semántica del prefijo | iam/…/password_hasher.rs:10; token_generator.rs:14; account_repository.rs:23; communities/…/community_repository.rs:24 | `Fake` sin estado. `FakePasswordHasher` y `FakeTokenGenerator` devuelven respuestas fijas. Los repositorios se configuran por flags y `save` no guarda nada (account_repository.rs:98-106). | media | `FixedPasswordHashingAdapter`, `FixedAccessTokenAdapter`, `StubAccountAdapter`, o hacerlos `Fake` con estado real. | abierto |
 | TDD-2.4 | TDD-2 Doble fiel | contexts/iam/src/application/ports/outbound/password_hasher.rs:19-21 | `verify` compara texto plano contra el hash, y el repositorio devuelve una cuenta cuyo email no es el consultado (account_repository.rs:95). El test de éxito tiene que mandar el hash como contraseña (authenticate_account.rs:163). | media | Doble coherente + batería de contrato. | abierto |
-| TDD-2.5 | TDD-2 Doble completo | contexts/communities/src/application/ports/outbound/community_repository.rs:80 | El doble tiene `todo!()` en `get_public_list`, helpers muertos copiados de iam (líneas 59 y 68) y el campo `_activated` sin uso (línea 26). | baja | Implementar el método o quitarlo del puerto. | abierto |
+| TDD-2.5 | TDD-2 Doble completo | contexts/communities/src/application/ports/outbound/community_repository.rs:80 | El doble tiene `todo!()` en `get_public_list`, helpers muertos copiados de iam (líneas 59 y 68) y el campo `_activated` sin uso (línea 26). | baja | Implementar el método o quitarlo del puerto. | resuelto (a603969): `get_public_list`, los helpers muertos y `_activated` quitados |
 
 ### RS (rust-stack)
 
@@ -163,7 +163,7 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | RS-1.3 | RS-1 Herencia | Cargo.toml:1-11 | Sin `[workspace.package]` ni `[workspace.lints]`; versiones repetidas por crate (`uuid` en contexts/iam/Cargo.toml:7 y contexts/communities/Cargo.toml:7, `serde` en cuatro crates). | baja | Herencia del workspace. | resuelto (991e672) |
 | RS-1.4 | RS-1 Dependencias | app/Cargo.toml:18 | `anyhow` está declarado y no se usa: cargo avisa `unused dependency`. Hallado en R2, fuera de la auditoría. | baja | Quitarlo, junto con RS-1.3 (R6). | resuelto (991e672) |
 | RS-2.1 | RS-2 Árbol B = `Fault` | shared/src/error.rs:16 | No existen `Fault` ni `Failure<E>`; el árbol B viaja como `SystemError::Infrastructure`. | alta | `kernel::Fault` y `kernel::Failure`. | abierto: R5 (e76c162, 29890cb, 446726b) agrega `Fault` y `Failure<E>` y el puente `SystemError::Unexpected`; falta retirar `SystemError` (R19) |
-| RS-2.2 | RS-2 `panic!` solo invariantes | iam/…/account.rs:36,40,44; account_id.rs:13,17; account_status.rs:18,22; events/account_event.rs:10,14,18; communities/…/in_memory/community_repository.rs:27 | 11 `todo!()` en código de producción. El de `get_public_list` haría caer la petición si se cablea. | media | Implementar o eliminar los `impl` de trait vacíos. | abierto |
+| RS-2.2 | RS-2 `panic!` solo invariantes | iam/…/account.rs:36,40,44; account_id.rs:13,17; account_status.rs:18,22; events/account_event.rs:10,14,18; communities/…/in_memory/community_repository.rs:27 | 11 `todo!()` en código de producción. El de `get_public_list` haría caer la petición si se cablea. | media | Implementar o eliminar los `impl` de trait vacíos. | abierto: R18 (a603969) quitó el de `in_memory/community_repository.rs`; quedan los 10 de iam (R20, R21) |
 | RS-2.3 | RS-2 `unwrap` prohibido | iam/…/authenticate_account.rs:55; verify_account.rs:30; identify_account.rs:44; account_status.rs:79 (dos veces), 81; app/src/config/jwt.rs:15; app/src/main.rs:12,14 | `unwrap` en producción. En `account_status.rs` panica ante un dato persistido; en `jwt.rs`, ante un `JWT_EXPIRATION_TIME` no numérico. | media | `let Some(..) else`, `?` o `ConfigError`. | resuelto (0415e3e, 4355c9f, ebcd593, 9315004) |
 | RS-2.4 | RS-2 `expect("invariante: …")` | iam/…/argon2_password_hasher.rs:26,32; iam/…/in_memory/account_repository.rs:28,36,44; communities/…/in_memory/community_repository.rs:31,39,47 | Los mensajes no empiezan con "invariante:". Argon2 usa `expect` para una falla técnica (línea 26) y para un hash persistido corrupto (línea 32), que deberían ser `Fault`. | media | `Fault` en Argon2; "invariante: mutex sin envenenar" en los mutex. | abierto |
 | RS-2.5 | RS-2 Lints | Cargo.toml:1-11 | Sin `[workspace.lints]` con `unwrap_used = "deny"` ni `unsafe_code`. | media | Agregarlos. | resuelto (9315004) |
@@ -375,8 +375,8 @@ Una falla del puerto llega al handler todavía no migrado como `SystemError::Une
   - ERR-1.7, ERR-3.2 y ERR-3.3 (communities);
   - TDD-2.1, TDD-2.2 y TDD-2.3 (communities);
   - TDD-1.2 y RS-2.4 (communities);
-  - TDD-2.5 y RS-2.2 (`get_public_list`), ya cerrados por R18 (D3 decidida: eliminar). R7 borra además `find_by_id` del puerto, del doble y del adaptador, porque no lo usa nadie. La batería cubre solo lo que queda: `save` y `find_by_slug`.
-- **Precondición:** R18 hecha. Si no, `get_public_list` todavía tiene un llamador y su `todo!()` sigue en el adaptador.
+  - TDD-2.5 y RS-2.2 (`get_public_list`), ya cerrados por R18 (D3 decidida: eliminar). R18 (a603969) borró también `find_by_id` del puerto, del doble y del adaptador. La batería cubre solo lo que queda: `save` y `find_by_slug`.
+- **Precondición:** R18 hecha *(cumplida en a603969)*.
 - **Línea base: −3:**
   - `hex_5_outbound` y `hex_5_adapters` de `ports/outbound/community_repository.rs`;
   - `hex_5_adapters` de `in_memory/community_repository.rs`.
@@ -527,15 +527,27 @@ En todas, el contrato HTTP se mantiene.
 - **Caracterización:** `create_checks_slug_uniqueness_before_subject_format` fija el orden: primero el slug, después el owner.
 - **Tamaño:** M.
 
-**R18. Eliminar `ListPublicCommunities` (D3 decidida: eliminar).**
+**R18. Eliminar `ListPublicCommunities` (D3 decidida: eliminar).** *Hecha (ver §5.8).*
 - **IDs:** TDD-1.1, HEX-4.1 (list), HEX-4.3, ERR-1.6, HEX-6.2, TDD-2.5 y RS-2.2 (`get_public_list`).
-- **Cambios:** se borran el caso (`queries/list_public_communities/`), su puerto de entrada, `get_public_list` del puerto `CommunityRepositoryPort`, del doble y del adaptador en memoria (con su `todo!()`), y `AuthContext` (parte de HEX-8.6).
+- **Cambios:** se borran el caso (`queries/list_public_communities/`), su puerto de entrada, `get_public_list` (con su `todo!()`) y `find_by_id` del puerto `CommunityRepositoryPort`, del doble y del adaptador en memoria, los helpers del doble que solo servían a `find_by_id` (TDD-2.5), y `AuthContext` (parte de HEX-8.6). *(`find_by_id` estaba asignado a R7; D3 lo incluye y no tenía usos.)*
 - **Orden:** ya no depende de la fase 3. Se adelanta y va **antes de R7**, después de R1 (ver §5.4). Conserva el número para no renumerar las referencias.
 - **Línea base: −1** (`hex_4_handlers` de `list_public_communities.rs`). Ya no cierra `hex_4_use_case_implementations_are_handlers`: lo cierra la última de R11, R13 a R15 y R17.
 - **Tests:** sin rojo nuevo; el rojo es la línea de la línea base. Se borran los tests comentados (TDD-1.1).
 - **Caracterización:** `there_is_no_route_to_list_communities` no cambia.
 - **Contrato HTTP:** sin cambios.
 - **Tamaño:** S.
+- **Resultado:**
+  - Commit `a603969`. Se borraron `queries/list_public_communities/` entero (handler, query, response y el bloque de tests comentado), `queries/mod.rs` (quedaba vacío), el puerto `list_public_communities_use_case.rs`, y `get_public_list` y `find_by_id` de `CommunityRepositoryPort`, de `FakeCommunityRepository` y de `InMemoryCommunityRepository`.
+  - Antes de borrar se buscó cada nombre con `rg` en todo el workspace, tests incluidos. Ni `get_public_list` ni `find_by_id` tenían otro llamador, así que `find_by_id` se borra aquí y no en R7. `AuthContext` solo lo usaban el caso y su puerto: se borró `shared/src/application/auth_context.rs` y su `pub mod`. De HEX-8.6 queda `VerifiedIdentity` (R27).
+  - Al quitar `find_by_id` del doble, quedaron sin lectura `existing_id`, `with_existing_id` y `active_with_existing_username` (los helpers muertos de TDD-2.5), y `_activated` quedaba siempre en `false`. Se quitaron los cuatro: si no, clippy falla con `-D warnings`. El doble queda con `should_fail` y `existing_slug`; R7 lo reescribe.
+  - Ningún test de `app/tests/` ni de `account_lifecycle.rs` ejercitaba el caso: no estaba cableado. `there_is_no_route_to_list_communities` no cambió.
+  - El rojo fue el trinquete: `hex_4_use_case_implementations_are_handlers` falló con "borrar de baseline.txt" para `list_public_communities.rs`. Es la única entrada que desaparece (47 → 46). S1 no había agregado ninguna entrada sobre estos archivos: la de `list_public_communities.rs` venía de R1 con la misma clave (§5.10 a), y `community_repository.rs` (puerto y adaptador) conserva sus tres entradas `hex_5`, que siguen en R7.
+  - 233 tests, fmt y clippy en verde localmente.
+  - Revisión con `craft-backend:architecture-reviewer`: sin hallazgos en el diff, sin referencias rotas y sin trabajo de R7 adelantado. Lo que señaló de otras rebanadas ya figura en el inventario y no se corrigió aquí:
+    - `expect("mutex poisoned")` en `find_by_slug` y `save` del adaptador (RS-2.4, R7);
+    - `FakeCommunityRepository` sin estado: `save` no guarda (TDD-2.3, R7);
+    - `CommunityId::as_uuid` en `create_community.rs:55` (HEX-2.6, R22);
+    - `shared/src/application/mod.rs` queda solo con `ports` (`token_verifier`). Cuando R10 lo borre, `shared::application` queda vacío y hay que quitar el módulo (HEX-8.5, R10).
 
 **R19. Retirar `SystemError`.**
 - **IDs:** ERR-1.1, RS-2.1, ERR-2.2, HEX-8.3 y ERR-4.4 (resto).
@@ -730,7 +742,7 @@ Desde S1 la columna cuenta entradas con el formato nuevo (una por dependencia en
 | `hex_1_dependencies_point_inward` | 1 (4) | 1 | R16 |
 | `hex_5_outbound_ports_are_named_by_role` | 4 | 4 | R10 (R7 a R10) |
 | `hex_5_adapters_are_named_by_technology_and_concept` | 8 | 8 | R10 (R7 a R10) |
-| `hex_4_use_case_implementations_are_handlers` | 6 | 6 | R17 (R18, R11, R13 a R15, R17) |
+| `hex_4_use_case_implementations_are_handlers` | 5 | 6 | R17 (R18, R11, R13 a R15, R17); R18: −1 (a603969), quedan 5 |
 | `hex_8_kernel_traits_are_model_markers_or_listed_capabilities` | 2 | 2 | R19 (R4, R10, R19); R4: −2 (80c00e4), quedan 2 |
 | `hex_8_kernel_depends_only_on_std` | 2 | 1 | R25 (R21 −1 `chrono`, R25 −1 `serde`) |
 | `hex_2_core_depends_only_on_std_and_the_kernel` | 13 (24) | 3 | R28 (R21 −2 `chrono`, R25 −1, R27 −4, R28 −6) |
@@ -738,7 +750,7 @@ Desde S1 la columna cuenta entradas con el formato nuevo (una por dependencia en
 | `hex_6_transport_types_carry_the_transport_name` | 9 | 9 | R28 (R27, R28) |
 | `hex_4_use_case_contracts_do_not_expose_domain_types` | 0 | 0 | Desde S1 actúa también en legacy (17 tipos de contrato) |
 
-En total quedan 47 entradas (65 violaciones), que desaparecen entre R7 y R28. Después de R29, `baseline.txt` queda solo con la cabecera.
+En total quedan 46 entradas (64 violaciones) después de R18 (47 y 65 en S1), que desaparecen entre R7 y R28. Después de R29, `baseline.txt` queda solo con la cabecera.
 
 Suma por rebanada desde S1: R7 −3, R8 −3, R9 −3, R10 −4, R11 −1, R13 −1, R14 −1, R15 −1, R16 −1, R17 −1, R18 −1, R19 −1, **R21 −3**, R25 −2, **R27 −7** y **R28 −14**: 47. Las 36 de antes de S1 se repartían entre las mismas rebanadas, con R25 −2, R27 −4 y R28 −9, y sin R21.
 
@@ -783,6 +795,7 @@ Una fila por rebanada fusionada. **Tokens** es el consumo de la sesión que hizo
 | R6 | #29 | `991e672` | `nightly-2026-11-19` | $1.37 (opus-5-5: 447 input, 16.6k output, 1.6m cache read, 98.0k cache write; 3m 17s API, 4m 26s wall) | sí (ver PR) | Línea base sin cambios. `Cargo.lock` solo pierde `anyhow`; features efectivas idénticas. 188 tests, fmt y clippy en verde localmente. Commit aparte `45fe532` con `/slice`. |
 | S1 | #31 | `79185ff`, `c8dbed3` | `nightly-2026-11-19` | $3.81 (opus-5-5: 5.6k input, 56.1k output, 6.1m cache read, 207.1k cache write; 10m 3s API, 23m 29s wall) | sí (ver PR) | Fuera del plan: `tools/architecture` desde ai-harness `v1.0.0-rc.1`. Re-línea base 36 → 47 entradas, solo por cambio de formato (§5.10). Sin código de producción. |
 | S2 | #33 | ver PR | `nightly-2026-11-19` | pendiente: dato de `/cost` | no: no toca código de producción | Fuera del plan: `tools/architecture` desde ai-harness `v1.0.0-rc.2`. Línea base 47 → 47, idéntica (§5.10). 233 tests, fmt y clippy en verde localmente. |
+| R18 | #34 | `a603969` | `nightly-2026-11-19` | $1.80 (opus-5-5: 2.0k input, 20.9k output, 2.0m cache read, 131.8k cache write; 3m 54s API, 4m 46s wall) | sí (ver PR) | Línea base −1 (`hex_4_handlers` de `list_public_communities.rs`): 47 → 46. `find_by_id` y `AuthContext` se borran aquí (sin usos). 233 tests, fmt y clippy en verde localmente. Primera rebanada con `/craft-backend:adoption`. |
 
 ### 5.9 Puntos de replanificación
 

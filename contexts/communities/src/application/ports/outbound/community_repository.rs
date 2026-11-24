@@ -4,9 +4,6 @@ use crate::{
 };
 
 pub trait CommunityRepositoryPort: Send + Sync {
-    fn get_public_list(&self, query: Option<String>) -> Vec<Community>;
-    fn find_by_id(&self, id: &str) -> Option<Community>;
-
     fn find_by_slug(&self, slug: &str) -> Option<Community>;
     fn save(&self, community: &Community) -> Result<(), CommunityRepositoryError>;
 }
@@ -23,8 +20,6 @@ pub mod test_utils {
 
     pub struct FakeCommunityRepository {
         should_fail: bool,
-        _activated: bool,
-        existing_id: Option<String>,
         existing_slug: Option<String>,
     }
 
@@ -32,8 +27,6 @@ pub mod test_utils {
         pub fn success() -> Self {
             Self {
                 should_fail: false,
-                _activated: false,
-                existing_id: None,
                 existing_slug: None,
             }
         }
@@ -41,8 +34,6 @@ pub mod test_utils {
         pub fn fail() -> Self {
             Self {
                 should_fail: true,
-                _activated: false,
-                existing_id: None,
                 existing_slug: None,
             }
         }
@@ -50,43 +41,12 @@ pub mod test_utils {
         pub fn with_existing_slug(slug: &str) -> Self {
             Self {
                 should_fail: false,
-                _activated: false,
-                existing_id: None,
                 existing_slug: Some(slug.to_string()),
-            }
-        }
-
-        pub fn with_existing_id(id: &str) -> Self {
-            Self {
-                should_fail: false,
-                _activated: false,
-                existing_id: Some(id.to_string()),
-                existing_slug: None,
-            }
-        }
-
-        pub fn active_with_existing_username(username: &str) -> Self {
-            Self {
-                should_fail: false,
-                _activated: true,
-                existing_id: Some(username.to_string()),
-                existing_slug: None,
             }
         }
     }
 
     impl CommunityRepositoryPort for FakeCommunityRepository {
-        fn get_public_list(&self, _query: Option<String>) -> Vec<Community> {
-            todo!()
-        }
-
-        fn find_by_id(&self, id: &str) -> Option<Community> {
-            self.existing_id
-                .as_ref()
-                .filter(|c| c.as_str() == id)
-                .map(|_| Community::dummy_community())
-        }
-
         fn find_by_slug(&self, slug: &str) -> Option<Community> {
             self.existing_slug
                 .as_ref()
