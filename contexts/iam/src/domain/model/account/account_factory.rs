@@ -1,4 +1,5 @@
 use crate::domain::{
+    errors::AccountCreationError,
     model::account::{
         account::Account, account_id::AccountId, account_status::AccountStatus,
         code_validation::CodeValidation, email::Email, hashed_password::HashedPassword,
@@ -16,7 +17,7 @@ impl AccountFactory {
         email: String,
         raw_password: &str,
         hashed_password: String,
-    ) -> Result<Account, SystemError> {
+    ) -> Result<Account, AccountCreationError> {
         PasswordPolicy::validate(raw_password)?;
         let id = AccountId::generate();
         let username = Username::new(username)?;

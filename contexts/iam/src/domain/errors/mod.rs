@@ -1,4 +1,5 @@
 pub mod account;
+pub mod account_creation;
 pub mod account_id;
 pub mod account_status;
 pub mod code_validation;
@@ -9,6 +10,7 @@ pub mod password_policy;
 pub mod username;
 
 pub use account::AccountError;
+pub use account_creation::AccountCreationError;
 pub use account_id::AccountIdError;
 pub use account_status::AccountStatusError;
 pub use code_validation::CodeValidationError;

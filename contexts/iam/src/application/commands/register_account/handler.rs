@@ -11,7 +11,10 @@ use crate::{
             },
         },
     },
-    domain::{errors::AccountError, model::account::account_factory::AccountFactory},
+    domain::{
+        errors::{AccountCreationError, AccountError},
+        model::account::account_factory::AccountFactory,
+    },
 };
 use shared::{domain::value_object::ValueObject, error::SystemError};
 use std::sync::Arc;
@@ -56,7 +59,15 @@ impl RegisterAccountUseCase for RegisterAccountHandler {
             .hash(&cmd.password)
             .map_err(SystemError::Unexpected)?;
         let account =
-            AccountFactory::create(cmd.username, cmd.email, &cmd.password, hashed_password)?;
+            AccountFactory::create(cmd.username, cmd.email, &cmd.password, hashed_password)
+                .map_err(|error| -> SystemError {
+                    match error {
+                        AccountCreationError::Password(e) => e.into(),
+                        AccountCreationError::Username(e) => e.into(),
+                        AccountCreationError::Email(e) => e.into(),
+                        AccountCreationError::HashedPassword(e) => e.into(),
+                    }
+                })?;
 
         self.account_repository
             .save(&account)
