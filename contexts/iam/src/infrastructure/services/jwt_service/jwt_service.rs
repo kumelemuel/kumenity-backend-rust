@@ -1,15 +1,11 @@
 use crate::{
-    application::{
-        errors::token_generator::TokenGeneratorError,
-        ports::outbound::token_generator::TokenGeneratorPort,
+    application::ports::outbound::{
+        dtos::access_token_payloads::AccessTokenVerdict, token_generator::AccessTokenService,
     },
     infrastructure::services::jwt_service::claims::Claims,
 };
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
-use shared::{
-    application::ports::outbound::{error::TokenError, token_verifier::TokenVerifier},
-    domain::model::verified_identity::VerifiedIdentity,
-};
+use shared::Fault;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct JwtService {
@@ -26,54 +22,30 @@ impl JwtService {
     }
 }
 
-// impl JwtService {
-//     pub fn decode(&self, token: &str) -> Result<Claims, JwtError> {
-//         let mut validation = Validation::new(Algorithm::HS256);
-//         validation.validate_exp = true;
-//
-//         let data = decode::<Claims>(
-//             token,
-//             &DecodingKey::from_secret(self.secret.as_bytes()),
-//             &validation,
-//         )
-//         .map_err(|err| {
-//             use jsonwebtoken::errors::ErrorKind;
-//
-//             match err.kind() {
-//                 ErrorKind::ExpiredSignature => JwtError::Expired,
-//                 _ => JwtError::InvalidToken,
-//             }
-//         })?;
-//
-//         Ok(data.claims)
-//     }
-// }
-
-impl TokenGeneratorPort for JwtService {
-    fn generate(&self, user_id: &str) -> Result<String, TokenGeneratorError> {
+impl AccessTokenService for JwtService {
+    fn issue(&self, account_id: &str) -> Result<String, Fault> {
         let expiration = SystemTime::now()
             .checked_add(std::time::Duration::from_secs(self.ttl_seconds))
             .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
             .map(|d| d.as_secs() as usize)
-            .ok_or("Unable to calculate expiration time")
-            .map_err(|e| TokenGeneratorError(e.to_string()))?;
+            .ok_or_else(|| Fault::new("jwt: unable to calculate expiration time"))?;
 
         let claims = Claims {
-            sub: user_id.to_string(),
+            sub: account_id.to_string(),
             exp: expiration,
         };
 
-        encode(
+        Ok(encode(
             &Header::default(),
             &claims,
             &EncodingKey::from_secret(self.secret.as_bytes()),
-        )
-        .map_err(|e| TokenGeneratorError(e.to_string()))
+        )?)
     }
-}
 
-impl TokenVerifier for JwtService {
-    fn verify(&self, token: &str) -> Result<VerifiedIdentity, TokenError> {
+    // Mechanical translation of the old `TokenVerifier`: every token it
+    // rejected was an `Err`, and still is. The battery of the port turns the
+    // rejected tokens into `Invalid` verdicts (ERR-3.1).
+    fn verify(&self, token: &str) -> Result<AccessTokenVerdict, Fault> {
         let mut validation = Validation::new(Algorithm::HS256);
         validation.validate_exp = true;
 
@@ -81,17 +53,9 @@ impl TokenVerifier for JwtService {
             token,
             &DecodingKey::from_secret(self.secret.as_bytes()),
             &validation,
-        )
-        .map_err(|err| {
-            use jsonwebtoken::errors::ErrorKind;
+        )?;
 
-            match err.kind() {
-                ErrorKind::ExpiredSignature => TokenError::Expired,
-                _ => TokenError::InvalidToken,
-            }
-        })?;
-
-        Ok(VerifiedIdentity {
+        Ok(AccessTokenVerdict::Valid {
             account_id: data.claims.sub,
         })
     }

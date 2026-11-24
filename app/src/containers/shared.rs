@@ -1,10 +1,12 @@
-use iam::infrastructure::services::jwt_service::jwt_service::JwtService;
-use shared::application::ports::outbound::token_verifier::TokenVerifier;
+use iam::{
+    application::ports::outbound::token_generator::AccessTokenService,
+    infrastructure::services::jwt_service::jwt_service::JwtService,
+};
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct SharedContainer {
-    pub jwt_service: Arc<dyn TokenVerifier>,
+    pub jwt_service: Arc<dyn AccessTokenService>,
 }
 
 impl SharedContainer {

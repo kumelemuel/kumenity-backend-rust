@@ -26,7 +26,9 @@ use iam::{
             },
             outbound::{
                 account_repository::AccountRepository,
+                dtos::access_token_payloads::AccessTokenVerdict,
                 password_hashing_service::PasswordHashingService,
+                token_generator::AccessTokenService,
             },
         },
         queries::identify_account::{
@@ -40,9 +42,7 @@ use iam::{
         services::jwt_service::jwt_service::JwtService,
     },
 };
-use shared::{
-    application::ports::outbound::token_verifier::TokenVerifier, domain::value_object::ValueObject,
-};
+use shared::domain::value_object::ValueObject;
 use std::sync::Arc;
 
 const PASSWORD: &str = "s3cret-password";
@@ -133,7 +133,10 @@ fn verified_account_signs_in_with_a_token_whose_subject_is_the_account_id() {
     let token = iam.sign_in(PASSWORD).expect("sign in");
 
     assert_eq!(iam.status_of("ana"), "active");
-    assert_eq!(iam.jwt.verify(&token).unwrap().account_id, account_id);
+    assert_eq!(
+        iam.jwt.verify(&token).unwrap(),
+        AccessTokenVerdict::Valid { account_id }
+    );
 }
 
 #[test]

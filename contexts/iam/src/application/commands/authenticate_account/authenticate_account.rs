@@ -2,12 +2,14 @@ use crate::application::{
     commands::authenticate_account::{
         command::AuthenticateAccountCommand, response::AuthenticateAccountResponse,
     },
-    errors::authenticate_account::AuthenticateAccountError,
+    errors::{
+        authenticate_account::AuthenticateAccountError, token_generator::TokenGeneratorError,
+    },
     ports::{
         inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
         outbound::{
             account_repository::AccountRepository,
-            password_hashing_service::PasswordHashingService, token_generator::TokenGeneratorPort,
+            password_hashing_service::PasswordHashingService, token_generator::AccessTokenService,
         },
     },
 };
@@ -17,7 +19,7 @@ use std::sync::Arc;
 pub struct AuthenticateAccount {
     account_repository: Arc<dyn AccountRepository>,
     password_hasher: Arc<dyn PasswordHashingService>,
-    token_generator: Arc<dyn TokenGeneratorPort>,
+    token_generator: Arc<dyn AccessTokenService>,
     decoy_hash: String,
 }
 
@@ -25,7 +27,7 @@ impl AuthenticateAccount {
     pub fn new(
         account_repository: Arc<dyn AccountRepository>,
         password_hasher: Arc<dyn PasswordHashingService>,
-        token_generator: Arc<dyn TokenGeneratorPort>,
+        token_generator: Arc<dyn AccessTokenService>,
         decoy_hash: String,
     ) -> Self {
         Self {
@@ -71,9 +73,13 @@ impl AuthenticateAccountUseCase for AuthenticateAccount {
             return Err(AuthenticateAccountError::CannotAuthenticate.into());
         }
 
+        // The `Fault` is discarded on purpose, keeping today's
+        // `TokenGeneratorError`, until the commit that propagates it with its
+        // test (R10).
         let token = self
             .token_generator
-            .generate(&account.id().as_uuid().to_string())?;
+            .issue(&account.id().as_uuid().to_string())
+            .map_err(|_fault| TokenGeneratorError(String::new()))?;
 
         Ok(AuthenticateAccountResponse { token })
     }
