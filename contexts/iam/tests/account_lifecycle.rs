@@ -25,7 +25,8 @@ use iam::{
                 verify_account_use_case::VerifyAccountUseCase,
             },
             outbound::{
-                account_repository::AccountRepository,
+                access_token_service::AccessTokenService, account_repository::AccountRepository,
+                dtos::access_token_payloads::AccessTokenVerdict,
                 password_hashing_service::PasswordHashingService,
             },
         },
@@ -37,19 +38,17 @@ use iam::{
     infrastructure::{
         persistence::in_memory::in_memory_account::InMemoryAccountAdapter,
         security::argon2_password_hashing::Argon2PasswordHashingAdapter,
-        services::jwt_service::jwt_service::JwtService,
+        services::jwt_access_token::JwtAccessTokenAdapter,
     },
 };
-use shared::{
-    application::ports::outbound::token_verifier::TokenVerifier, domain::value_object::ValueObject,
-};
+use shared::domain::value_object::ValueObject;
 use std::sync::Arc;
 
 const PASSWORD: &str = "s3cret-password";
 
 struct Iam {
     repository: Arc<InMemoryAccountAdapter>,
-    jwt: Arc<JwtService>,
+    jwt: Arc<JwtAccessTokenAdapter>,
     register: RegisterAccount,
     verify: VerifyAccount,
     authenticate: AuthenticateAccount,
@@ -60,7 +59,7 @@ fn iam() -> Iam {
     let repository = Arc::new(InMemoryAccountAdapter::new());
     let hasher = Arc::new(Argon2PasswordHashingAdapter::new());
     let decoy_hash = hasher.hash("lifecycle-decoy").expect("decoy hash");
-    let jwt = Arc::new(JwtService::new("lifecycle-secret".into(), 3600));
+    let jwt = Arc::new(JwtAccessTokenAdapter::new("lifecycle-secret".into(), 3600));
     Iam {
         register: RegisterAccount::new(repository.clone(), hasher.clone()),
         verify: VerifyAccount::new(repository.clone()),
@@ -133,7 +132,10 @@ fn verified_account_signs_in_with_a_token_whose_subject_is_the_account_id() {
     let token = iam.sign_in(PASSWORD).expect("sign in");
 
     assert_eq!(iam.status_of("ana"), "active");
-    assert_eq!(iam.jwt.verify(&token).unwrap().account_id, account_id);
+    assert_eq!(
+        iam.jwt.verify(&token).unwrap(),
+        AccessTokenVerdict::Valid { account_id }
+    );
 }
 
 #[test]

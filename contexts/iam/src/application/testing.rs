@@ -8,12 +8,20 @@
 
 use crate::{
     application::ports::outbound::{
-        account_repository::AccountRepository, password_hashing_service::PasswordHashingService,
+        access_token_service::AccessTokenService, account_repository::AccountRepository,
+        dtos::access_token_payloads::AccessTokenVerdict,
+        password_hashing_service::PasswordHashingService,
     },
     domain::model::account::account::Account,
 };
 use shared::{Fault, domain::value_object::ValueObject};
-use std::sync::{Mutex, MutexGuard};
+use std::{
+    collections::HashMap,
+    sync::{
+        Mutex, MutexGuard,
+        atomic::{AtomicU64, Ordering},
+    },
+};
 
 pub mod contracts;
 
@@ -219,6 +227,105 @@ impl PasswordHashingService for SpyPasswordHashingAdapter {
     }
 }
 
+/// Operación de `AccessTokenService`, para hacer fallar solo esa en un
+/// `FakeAccessTokenAdapter`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AccessTokenOperation {
+    Issue,
+    Verify,
+}
+
+/// Un token emitido por `FakeAccessTokenAdapter`.
+struct IssuedToken {
+    account_id: String,
+    expired: bool,
+}
+
+/// Doble de `AccessTokenService`: solo valen los tokens vigentes que emitió
+/// esta instancia. Cada token es único entre todas las instancias, así que
+/// otra instancia hace de emisor con otra clave: no acepta los tokens de esta,
+/// ni los confunde con los suyos.
+///
+/// Fallas como en `FakeAccountAdapter`: `failing()` hace fallar todo;
+/// `failing_on(op)`, solo esa operación.
+#[derive(Default)]
+pub struct FakeAccessTokenAdapter {
+    issued: Mutex<HashMap<String, IssuedToken>>,
+    failing: Vec<AccessTokenOperation>,
+}
+
+impl FakeAccessTokenAdapter {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Simula una falla técnica no declarada (árbol B) en todas las
+    /// operaciones.
+    pub fn failing() -> Self {
+        Self {
+            failing: vec![AccessTokenOperation::Issue, AccessTokenOperation::Verify],
+            ..Self::default()
+        }
+    }
+
+    /// Además, `operation` responde un `Fault` (árbol B).
+    pub fn failing_on(mut self, operation: AccessTokenOperation) -> Self {
+        self.failing.push(operation);
+        self
+    }
+
+    /// Emite un token ya vencido para `account_id`, con la clave de esta
+    /// instancia.
+    pub fn issue_expired(&self, account_id: &str) -> String {
+        self.record(account_id, true)
+    }
+
+    fn record(&self, account_id: &str, expired: bool) -> String {
+        static NEXT_TOKEN: AtomicU64 = AtomicU64::new(0);
+        let token = format!(
+            "fake-access-token.{}",
+            NEXT_TOKEN.fetch_add(1, Ordering::Relaxed)
+        );
+        let mut issued = self.issued.lock().expect("invariante: mutex sin envenenar");
+        issued.insert(
+            token.clone(),
+            IssuedToken {
+                account_id: account_id.to_string(),
+                expired,
+            },
+        );
+        token
+    }
+
+    fn check(&self, operation: AccessTokenOperation) -> Result<(), Fault> {
+        if self.failing.contains(&operation) {
+            return Err(Fault::new("fake access token outage"));
+        }
+        Ok(())
+    }
+}
+
+impl AccessTokenService for FakeAccessTokenAdapter {
+    fn issue(&self, account_id: &str) -> Result<String, Fault> {
+        self.check(AccessTokenOperation::Issue)?;
+        Ok(self.record(account_id, false))
+    }
+
+    fn verify(&self, token: &str) -> Result<AccessTokenVerdict, Fault> {
+        self.check(AccessTokenOperation::Verify)?;
+        let issued = self.issued.lock().expect("invariante: mutex sin envenenar");
+        Ok(match issued.get(token) {
+            Some(IssuedToken {
+                account_id,
+                expired: false,
+            }) => AccessTokenVerdict::Valid {
+                account_id: account_id.clone(),
+            },
+            _ => AccessTokenVerdict::Invalid,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -228,6 +335,18 @@ mod tests {
 
         crate::account_repository_contract! {
             new_adapter: FakeAccountAdapter::empty(),
+        }
+    }
+
+    mod fake_access_token {
+        use super::*;
+
+        crate::access_token_service_contract! {
+            new_service: FakeAccessTokenAdapter::new(),
+            expired_token: |service: &FakeAccessTokenAdapter, account_id: &str| {
+                service.issue_expired(account_id)
+            },
+            another_issuer: FakeAccessTokenAdapter::new(),
         }
     }
 

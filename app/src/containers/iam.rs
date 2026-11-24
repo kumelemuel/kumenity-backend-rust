@@ -19,7 +19,7 @@ use iam::{
     infrastructure::{
         http::routes::IamRoutes, persistence::in_memory::in_memory_account::InMemoryAccountAdapter,
         security::argon2_password_hashing::Argon2PasswordHashingAdapter,
-        services::jwt_service::jwt_service::JwtService,
+        services::jwt_access_token::JwtAccessTokenAdapter,
     },
 };
 use shared::Fault;
@@ -39,7 +39,7 @@ pub struct IamContainer {
 impl IamContainer {
     /// Fails if the decoy hash cannot be generated: without it, sign-in would
     /// reveal which usernames exist (D6), so the server does not start.
-    pub fn initialize(jwt_service: Arc<JwtService>) -> Result<Self, Fault> {
+    pub fn initialize(jwt_service: Arc<JwtAccessTokenAdapter>) -> Result<Self, Fault> {
         let account_repository = Arc::new(InMemoryAccountAdapter::new());
         let password_hasher = Arc::new(Argon2PasswordHashingAdapter::new());
 
