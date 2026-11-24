@@ -65,6 +65,21 @@ pub fn corrupt_hash_is_a_fault<S: PasswordHashingService>(new_service: impl Fn()
     assert!(result.is_err(), "{result:?}");
 }
 
+/// Un hash del propio adaptador al que le falta la última sección (un dato
+/// persistido truncado) también es una falla técnica, aunque el formato se
+/// pueda leer: no es una contraseña incorrecta.
+pub fn truncated_hash_is_a_fault<S: PasswordHashingService>(new_service: impl Fn() -> S) {
+    let service = new_service();
+    let hashed = hash(&service, PASSWORD);
+    let (truncated, _) = hashed
+        .rsplit_once('$')
+        .expect("contrato: el hash tiene secciones separadas por `$`");
+
+    let result = service.verify(PASSWORD, truncated);
+
+    assert!(result.is_err(), "{truncated}: {result:?}");
+}
+
 /// Genera un `#[test]` por caso del contrato para un adaptador.
 #[macro_export]
 macro_rules! password_hashing_service_contract {
@@ -92,6 +107,11 @@ macro_rules! password_hashing_service_contract {
             #[test]
             fn corrupt_hash_is_a_fault() {
                 contract::corrupt_hash_is_a_fault(|| $new_service);
+            }
+
+            #[test]
+            fn truncated_hash_is_a_fault() {
+                contract::truncated_hash_is_a_fault(|| $new_service);
             }
         }
     };
