@@ -38,7 +38,7 @@ use iam::{
     infrastructure::{
         persistence::in_memory::in_memory_account::InMemoryAccountAdapter,
         security::argon2_password_hashing::Argon2PasswordHashingAdapter,
-        services::jwt_service::jwt_service::JwtService,
+        services::jwt_access_token::JwtAccessTokenAdapter,
     },
 };
 use shared::domain::value_object::ValueObject;
@@ -48,7 +48,7 @@ const PASSWORD: &str = "s3cret-password";
 
 struct Iam {
     repository: Arc<InMemoryAccountAdapter>,
-    jwt: Arc<JwtService>,
+    jwt: Arc<JwtAccessTokenAdapter>,
     register: RegisterAccount,
     verify: VerifyAccount,
     authenticate: AuthenticateAccount,
@@ -59,7 +59,7 @@ fn iam() -> Iam {
     let repository = Arc::new(InMemoryAccountAdapter::new());
     let hasher = Arc::new(Argon2PasswordHashingAdapter::new());
     let decoy_hash = hasher.hash("lifecycle-decoy").expect("decoy hash");
-    let jwt = Arc::new(JwtService::new("lifecycle-secret".into(), 3600));
+    let jwt = Arc::new(JwtAccessTokenAdapter::new("lifecycle-secret".into(), 3600));
     Iam {
         register: RegisterAccount::new(repository.clone(), hasher.clone()),
         verify: VerifyAccount::new(repository.clone()),

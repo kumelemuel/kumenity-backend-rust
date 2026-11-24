@@ -1,6 +1,6 @@
 use iam::{
     application::ports::outbound::access_token_service::AccessTokenService,
-    infrastructure::services::jwt_service::jwt_service::JwtService,
+    infrastructure::services::jwt_access_token::JwtAccessTokenAdapter,
 };
 use std::sync::Arc;
 
@@ -10,7 +10,7 @@ pub struct SharedContainer {
 }
 
 impl SharedContainer {
-    pub fn initialize(jwt_service: Arc<JwtService>) -> Self {
+    pub fn initialize(jwt_service: Arc<JwtAccessTokenAdapter>) -> Self {
         Self { jwt_service }
     }
 }
