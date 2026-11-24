@@ -12,7 +12,7 @@ use iam::{
             authenticate_account::{
                 authenticate_account::AuthenticateAccount, command::AuthenticateAccountCommand,
             },
-            register_account::{command::RegisterAccountCommand, handler::RegisterAccountHandler},
+            register_account::{RegisterAccountCommand, RegisterAccountHandler},
             verify_account::{command::VerifyAccountCommand, verify_account::VerifyAccount},
         },
         ports::{

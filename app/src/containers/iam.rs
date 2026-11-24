@@ -2,7 +2,7 @@ use iam::{
     application::{
         commands::{
             authenticate_account::authenticate_account::AuthenticateAccount,
-            register_account::handler::RegisterAccountHandler,
+            register_account::RegisterAccountHandler,
             verify_account::verify_account::VerifyAccount,
         },
         ports::{

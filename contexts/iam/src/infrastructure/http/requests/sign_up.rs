@@ -1,4 +1,4 @@
-use crate::application::commands::register_account::command::RegisterAccountCommand;
+use crate::application::commands::register_account::RegisterAccountCommand;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
