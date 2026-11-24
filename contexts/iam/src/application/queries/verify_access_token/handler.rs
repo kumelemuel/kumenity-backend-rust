@@ -28,12 +28,8 @@ impl VerifyAccessTokenUseCase for VerifyAccessTokenHandler {
         &self,
         query: VerifyAccessTokenQuery,
     ) -> Result<VerifyAccessTokenResponse, Failure<VerifyAccessTokenError>> {
-        // The `Fault` is discarded on purpose, keeping today's 401, until the
-        // commit that propagates it with its test (R10b).
-        let verdict = self
-            .access_tokens
-            .verify(&query.token)
-            .map_err(|_fault| Failure::expected(Unauthenticated))?;
+        // `?` propagates the `Fault` as tree B.
+        let verdict = self.access_tokens.verify(&query.token)?;
 
         // `Invalid` is a success of the port that this use case treats as an
         // error (ERR-3). The account id is not validated here: the contexts
@@ -50,7 +46,7 @@ impl VerifyAccessTokenUseCase for VerifyAccessTokenHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::application::testing::FakeAccessTokenAdapter;
+    use crate::application::testing::{AccessTokenOperation, FakeAccessTokenAdapter};
 
     const ACCOUNT_ID: &str = "6f1c1b2e-3d4a-4b5c-8d9e-0f1a2b3c4d5e";
 
@@ -109,5 +105,17 @@ mod tests {
             ),
             "{result:?}"
         );
+    }
+
+    #[test]
+    fn fails_with_unexpected_when_verify_fails() {
+        let access_tokens = Arc::new(FakeAccessTokenAdapter::new());
+        let token = access_tokens.issue(ACCOUNT_ID).expect("issue");
+        let failing =
+            Arc::new(FakeAccessTokenAdapter::new().failing_on(AccessTokenOperation::Verify));
+
+        let result = verify(failing, &token);
+
+        assert!(matches!(result, Err(Failure::Unexpected(_))), "{result:?}");
     }
 }
