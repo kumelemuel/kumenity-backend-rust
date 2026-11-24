@@ -6,7 +6,8 @@ use crate::{
         ports::{
             inbound::register_account_use_case::RegisterAccountUseCase,
             outbound::{
-                account_repository::AccountRepository, password_hasher::PasswordHashingService,
+                account_repository::AccountRepository,
+                password_hashing_service::PasswordHashingService,
             },
         },
     },
@@ -76,11 +77,11 @@ mod tests {
             commands::register_account::{
                 command::RegisterAccountCommand, register_account::RegisterAccount,
             },
-            ports::{
-                inbound::register_account_use_case::RegisterAccountUseCase,
-                outbound::password_hasher::test_utils::FakePasswordHasher,
+            ports::inbound::register_account_use_case::RegisterAccountUseCase,
+            testing::{
+                AccountOperation, FakeAccountAdapter, FixedPasswordHashingAdapter,
+                PasswordHashingOperation,
             },
-            testing::{AccountOperation, FakeAccountAdapter},
         },
         domain::{
             errors::error_codes::{
@@ -117,7 +118,7 @@ mod tests {
     #[test]
     fn register_account_successfully() {
         let repo = Arc::new(FakeAccountAdapter::empty());
-        let hasher = Arc::new(FakePasswordHasher);
+        let hasher = Arc::new(FixedPasswordHashingAdapter::new());
 
         let use_case = RegisterAccount::new(repo, hasher);
 
@@ -129,7 +130,7 @@ mod tests {
     #[test]
     fn fails_when_username_is_invalid() {
         let repo = Arc::new(FakeAccountAdapter::empty());
-        let hasher = Arc::new(FakePasswordHasher);
+        let hasher = Arc::new(FixedPasswordHashingAdapter::new());
 
         let use_case = RegisterAccount::new(repo, hasher);
 
@@ -149,7 +150,7 @@ mod tests {
     #[test]
     fn fails_when_email_is_invalid() {
         let repo = Arc::new(FakeAccountAdapter::empty());
-        let hasher = Arc::new(FakePasswordHasher);
+        let hasher = Arc::new(FixedPasswordHashingAdapter::new());
 
         let use_case = RegisterAccount::new(repo, hasher);
 
@@ -169,7 +170,7 @@ mod tests {
     #[test]
     fn fails_with_unexpected_when_find_by_email_fails() {
         let repo = Arc::new(FakeAccountAdapter::failing());
-        let use_case = RegisterAccount::new(repo, Arc::new(FakePasswordHasher));
+        let use_case = RegisterAccount::new(repo, Arc::new(FixedPasswordHashingAdapter::new()));
 
         let result = use_case.execute(valid_input());
 
@@ -183,7 +184,7 @@ mod tests {
     fn fails_with_unexpected_when_find_by_username_fails() {
         let repo =
             Arc::new(FakeAccountAdapter::empty().failing_on(AccountOperation::FindByUsername));
-        let use_case = RegisterAccount::new(repo, Arc::new(FakePasswordHasher));
+        let use_case = RegisterAccount::new(repo, Arc::new(FixedPasswordHashingAdapter::new()));
 
         let result = use_case.execute(valid_input());
 
@@ -196,7 +197,22 @@ mod tests {
     #[test]
     fn fails_with_unexpected_when_save_fails() {
         let repo = Arc::new(FakeAccountAdapter::empty().failing_on(AccountOperation::Save));
-        let use_case = RegisterAccount::new(repo, Arc::new(FakePasswordHasher));
+        let use_case = RegisterAccount::new(repo, Arc::new(FixedPasswordHashingAdapter::new()));
+
+        let result = use_case.execute(valid_input());
+
+        assert!(
+            matches!(result, Err(SystemError::Unexpected(_))),
+            "{result:?}"
+        );
+    }
+
+    #[test]
+    fn fails_with_unexpected_when_hash_fails() {
+        let repo = Arc::new(FakeAccountAdapter::empty());
+        let hasher =
+            Arc::new(FixedPasswordHashingAdapter::new().failing_on(PasswordHashingOperation::Hash));
+        let use_case = RegisterAccount::new(repo, hasher);
 
         let result = use_case.execute(valid_input());
 
@@ -212,7 +228,7 @@ mod tests {
             "john_doe",
             "other@example.com",
         )]));
-        let hasher = Arc::new(FakePasswordHasher);
+        let hasher = Arc::new(FixedPasswordHashingAdapter::new());
 
         let use_case = RegisterAccount::new(repo, hasher);
 
@@ -229,7 +245,7 @@ mod tests {
             "other_user",
             "john@example.com",
         )]));
-        let hasher = Arc::new(FakePasswordHasher);
+        let hasher = Arc::new(FixedPasswordHashingAdapter::new());
 
         let use_case = RegisterAccount::new(repo, hasher);
 

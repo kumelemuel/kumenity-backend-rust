@@ -12,7 +12,7 @@ use iam::{
                 register_account_use_case::RegisterAccountUseCase,
                 verify_account_use_case::VerifyAccountUseCase,
             },
-            outbound::password_hasher::PasswordHashingService,
+            outbound::password_hashing_service::PasswordHashingService,
         },
         queries::identify_account::identify_account::IdentifyAccount,
     },

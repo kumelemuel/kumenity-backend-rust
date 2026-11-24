@@ -25,7 +25,8 @@ use iam::{
                 verify_account_use_case::VerifyAccountUseCase,
             },
             outbound::{
-                account_repository::AccountRepository, password_hasher::PasswordHashingService,
+                account_repository::AccountRepository,
+                password_hashing_service::PasswordHashingService,
             },
         },
         queries::identify_account::{

@@ -1,4 +1,4 @@
-use crate::application::ports::outbound::password_hasher::PasswordHashingService;
+use crate::application::ports::outbound::password_hashing_service::PasswordHashingService;
 use argon2::{
     Argon2,
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
