@@ -55,7 +55,7 @@ mod tests {
             queries::identify_account::{
                 identify_account::IdentifyAccount, query::IdentifyAccountQuery,
             },
-            testing::{AccountOperation, FakeAccountAdapter, StubAccountAdapter},
+            testing::{AccountOperation, FakeAccountAdapter},
         },
         domain::{
             errors::error_codes::IAM_ACCOUNT_NOT_FOUND,
@@ -86,9 +86,8 @@ mod tests {
 
     #[test]
     fn fails_with_unexpected_when_find_by_username_fails() {
-        let repo = Arc::new(StubAccountAdapter::failing_on(
-            AccountOperation::FindByUsername,
-        ));
+        let repo =
+            Arc::new(FakeAccountAdapter::empty().failing_on(AccountOperation::FindByUsername));
         let use_case = IdentifyAccount::new(repo);
 
         let result = use_case.execute(query());

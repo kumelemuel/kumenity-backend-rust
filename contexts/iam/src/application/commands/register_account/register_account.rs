@@ -77,7 +77,7 @@ mod tests {
                 inbound::register_account_use_case::RegisterAccountUseCase,
                 outbound::password_hasher::test_utils::FakePasswordHasher,
             },
-            testing::{AccountOperation, FakeAccountAdapter, StubAccountAdapter},
+            testing::{AccountOperation, FakeAccountAdapter},
         },
         domain::{
             errors::error_codes::{
@@ -178,9 +178,8 @@ mod tests {
 
     #[test]
     fn fails_with_unexpected_when_find_by_username_fails() {
-        let repo = Arc::new(StubAccountAdapter::failing_on(
-            AccountOperation::FindByUsername,
-        ));
+        let repo =
+            Arc::new(FakeAccountAdapter::empty().failing_on(AccountOperation::FindByUsername));
         let use_case = RegisterAccount::new(repo, Arc::new(FakePasswordHasher));
 
         let result = use_case.execute(valid_input());
@@ -193,7 +192,7 @@ mod tests {
 
     #[test]
     fn fails_with_unexpected_when_save_fails() {
-        let repo = Arc::new(StubAccountAdapter::failing_on(AccountOperation::Save));
+        let repo = Arc::new(FakeAccountAdapter::empty().failing_on(AccountOperation::Save));
         let use_case = RegisterAccount::new(repo, Arc::new(FakePasswordHasher));
 
         let result = use_case.execute(valid_input());

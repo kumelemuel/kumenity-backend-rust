@@ -15,44 +15,64 @@ use std::sync::{Mutex, MutexGuard};
 
 pub mod contracts;
 
-/// Doble de `AccountRepository`: guarda en memoria, o falla siempre.
+/// Operación de `AccountRepository`, para hacer fallar solo esa en un
+/// `FakeAccountAdapter`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AccountOperation {
+    FindByUsername,
+    FindByEmail,
+    Save,
+}
+
+/// Doble de `AccountRepository`: guarda en memoria, o falla.
+///
+/// `failing()` hace fallar todas las operaciones, como el template. Para que
+/// un handler llegue a una llamada posterior a la primera y falle esa,
+/// `failing_on(op)`: las demás operaciones siguen el contrato (buscan por el
+/// valor pedido, `save` guarda).
 ///
 /// Casi igual a `InMemoryAccountAdapter` mientras no haya persistencia real.
 /// No se fusionan: este es un doble de application; aquel, un adaptador de
 /// infraestructura (TDD-2).
 pub struct FakeAccountAdapter {
     accounts: Mutex<Vec<Account>>,
-    failing: bool,
+    failing: Vec<AccountOperation>,
 }
 
 impl FakeAccountAdapter {
     pub fn empty() -> Self {
-        Self {
-            accounts: Mutex::new(Vec::new()),
-            failing: false,
-        }
+        Self::containing([])
     }
 
     /// Con estas cuentas ya guardadas.
     pub fn containing(accounts: impl IntoIterator<Item = Account>) -> Self {
         Self {
             accounts: Mutex::new(accounts.into_iter().collect()),
-            failing: false,
+            failing: Vec::new(),
         }
     }
 
     /// Simula una falla técnica no declarada (árbol B) en todas las
-    /// operaciones. Para que falle una llamada posterior a la primera, usar
-    /// `StubAccountAdapter`.
+    /// operaciones.
     pub fn failing() -> Self {
         Self {
-            accounts: Mutex::new(Vec::new()),
-            failing: true,
+            failing: vec![
+                AccountOperation::FindByUsername,
+                AccountOperation::FindByEmail,
+                AccountOperation::Save,
+            ],
+            ..Self::empty()
         }
     }
 
-    fn store(&self) -> Result<MutexGuard<'_, Vec<Account>>, Fault> {
-        if self.failing {
+    /// Además, `operation` responde un `Fault` (árbol B).
+    pub fn failing_on(mut self, operation: AccountOperation) -> Self {
+        self.failing.push(operation);
+        self
+    }
+
+    fn store(&self, operation: AccountOperation) -> Result<MutexGuard<'_, Vec<Account>>, Fault> {
+        if self.failing.contains(&operation) {
             return Err(Fault::new("fake repository outage"));
         }
         Ok(self
@@ -64,7 +84,7 @@ impl FakeAccountAdapter {
 
 impl AccountRepository for FakeAccountAdapter {
     fn find_by_username(&self, username: &str) -> Result<Option<Account>, Fault> {
-        let accounts = self.store()?;
+        let accounts = self.store(AccountOperation::FindByUsername)?;
         Ok(accounts
             .iter()
             .find(|account| account.username().value() == username)
@@ -72,7 +92,7 @@ impl AccountRepository for FakeAccountAdapter {
     }
 
     fn find_by_email(&self, email: &str) -> Result<Option<Account>, Fault> {
-        let accounts = self.store()?;
+        let accounts = self.store(AccountOperation::FindByEmail)?;
         Ok(accounts
             .iter()
             .find(|account| account.email().value() == email)
@@ -80,72 +100,13 @@ impl AccountRepository for FakeAccountAdapter {
     }
 
     fn save(&self, account: &Account) -> Result<(), Fault> {
-        let mut accounts = self.store()?;
+        let mut accounts = self.store(AccountOperation::Save)?;
         // Mismo id: reemplaza, como cualquier repositorio (contrato).
         match accounts.iter_mut().find(|a| a.id() == account.id()) {
             Some(existing) => *existing = account.clone(),
             None => accounts.push(account.clone()),
         }
         Ok(())
-    }
-}
-
-/// Operación de `AccountRepository` que falla en un `StubAccountAdapter`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AccountOperation {
-    FindByUsername,
-    FindByEmail,
-    Save,
-}
-
-/// Doble de `AccountRepository` con respuesta fija: solo la operación
-/// `failing_on` responde un `Fault`. Las búsquedas que no fallan devuelven la
-/// cuenta de `finding` (o `None`), sin importar el valor buscado, y `save` no
-/// guarda nada.
-///
-/// Sirve para que un handler llegue a una llamada posterior a la primera y
-/// esa sea la que falla. No pasa la batería de contrato: no tiene estado, a
-/// propósito (TDD-2, `Stub`).
-pub struct StubAccountAdapter {
-    found: Option<Account>,
-    failing_on: AccountOperation,
-}
-
-impl StubAccountAdapter {
-    pub fn failing_on(operation: AccountOperation) -> Self {
-        Self {
-            found: None,
-            failing_on: operation,
-        }
-    }
-
-    /// Las búsquedas que no fallan devuelven esta cuenta.
-    pub fn finding(self, account: Account) -> Self {
-        Self {
-            found: Some(account),
-            ..self
-        }
-    }
-
-    fn answer<T>(&self, operation: AccountOperation, ok: T) -> Result<T, Fault> {
-        if self.failing_on == operation {
-            return Err(Fault::new("stub repository outage"));
-        }
-        Ok(ok)
-    }
-}
-
-impl AccountRepository for StubAccountAdapter {
-    fn find_by_username(&self, _username: &str) -> Result<Option<Account>, Fault> {
-        self.answer(AccountOperation::FindByUsername, self.found.clone())
-    }
-
-    fn find_by_email(&self, _email: &str) -> Result<Option<Account>, Fault> {
-        self.answer(AccountOperation::FindByEmail, self.found.clone())
-    }
-
-    fn save(&self, _account: &Account) -> Result<(), Fault> {
-        self.answer(AccountOperation::Save, ())
     }
 }
 

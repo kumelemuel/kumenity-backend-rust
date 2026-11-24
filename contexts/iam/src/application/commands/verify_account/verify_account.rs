@@ -50,7 +50,7 @@ mod tests {
                 command::VerifyAccountCommand, verify_account::VerifyAccount,
             },
             ports::inbound::verify_account_use_case::VerifyAccountUseCase,
-            testing::{AccountOperation, FakeAccountAdapter, StubAccountAdapter},
+            testing::{AccountOperation, FakeAccountAdapter},
         },
         domain::{
             errors::error_codes::{IAM_ACCOUNT_INVALID_VERIFICATION, IAM_ACCOUNT_NOT_FOUND},
@@ -84,8 +84,8 @@ mod tests {
     #[test]
     fn fails_with_unexpected_when_save_fails() {
         let repo = Arc::new(
-            StubAccountAdapter::failing_on(AccountOperation::Save)
-                .finding(AccountFactory::dummy_account()),
+            FakeAccountAdapter::containing([AccountFactory::dummy_account()])
+                .failing_on(AccountOperation::Save),
         );
         let use_case = VerifyAccount::new(repo);
 
