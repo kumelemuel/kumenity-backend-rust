@@ -1,6 +1,9 @@
 use crate::config::error::ConfigError;
 use std::fmt;
 
+/// Minimum length of `JWT_SECRET`, as `.env.example` asks.
+const MIN_SECRET_BYTES: usize = 32;
+
 /// `Debug` está escrito a mano para no mostrar `secret` (ERR-4).
 pub struct JwtConfig {
     pub secret: String,
@@ -24,6 +27,10 @@ impl JwtConfig {
     /// Lee la configuración con `var`, que devuelve el valor de una variable.
     fn from_vars(var: impl Fn(&str) -> Option<String>) -> Result<Self, ConfigError> {
         let secret = var("JWT_SECRET").ok_or(ConfigError::Missing("JWT_SECRET"))?;
+        // An empty or short HS256 key lets anyone forge tokens (ERR-4).
+        if secret.len() < MIN_SECRET_BYTES {
+            return Err(ConfigError::Invalid("JWT_SECRET"));
+        }
         let expiration_time: u64 = var("JWT_EXPIRATION_TIME")
             .ok_or(ConfigError::Missing("JWT_EXPIRATION_TIME"))?
             .parse()
@@ -80,6 +87,36 @@ mod tests {
         let result = JwtConfig::from_vars(vars(&[("JWT_EXPIRATION_TIME", "60")]));
 
         assert!(matches!(result, Err(ConfigError::Missing("JWT_SECRET"))));
+    }
+
+    #[test]
+    fn fails_when_the_secret_is_empty() {
+        let result =
+            JwtConfig::from_vars(vars(&[("JWT_SECRET", ""), ("JWT_EXPIRATION_TIME", "60")]));
+
+        assert!(matches!(result, Err(ConfigError::Invalid("JWT_SECRET"))));
+    }
+
+    #[test]
+    fn fails_when_the_secret_is_shorter_than_32_bytes() {
+        let result = JwtConfig::from_vars(vars(&[
+            ("JWT_SECRET", &"x".repeat(31)),
+            ("JWT_EXPIRATION_TIME", "60"),
+        ]));
+
+        assert!(matches!(result, Err(ConfigError::Invalid("JWT_SECRET"))));
+    }
+
+    #[test]
+    fn accepts_a_secret_of_exactly_32_bytes() {
+        let secret = "x".repeat(32);
+        let config = JwtConfig::from_vars(vars(&[
+            ("JWT_SECRET", &secret),
+            ("JWT_EXPIRATION_TIME", "60"),
+        ]))
+        .expect("valid configuration");
+
+        assert_eq!(config.secret, secret);
     }
 
     #[test]
