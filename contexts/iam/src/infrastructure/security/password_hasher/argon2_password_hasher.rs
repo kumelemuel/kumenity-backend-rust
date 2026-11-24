@@ -1,9 +1,10 @@
-use crate::application::ports::outbound::password_hasher::PasswordHasherPort;
+use crate::application::ports::outbound::password_hasher::PasswordHashingService;
 use argon2::{
     Argon2,
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
 };
 use rand::rngs::OsRng;
+use shared::Fault;
 
 pub struct Argon2PasswordHasher {
     argon2: Argon2<'static>,
@@ -23,22 +24,24 @@ impl Argon2PasswordHasher {
     }
 }
 
-impl PasswordHasherPort for Argon2PasswordHasher {
-    fn hash(&self, raw_password: &str) -> String {
+impl PasswordHashingService for Argon2PasswordHasher {
+    fn hash(&self, raw_password: &str) -> Result<String, Fault> {
         let salt = SaltString::generate(&mut OsRng);
 
-        self.argon2
+        Ok(self
+            .argon2
             .hash_password(raw_password.as_bytes(), &salt)
             .expect("argon2 hashing must not fail")
-            .to_string()
+            .to_string())
     }
 
-    fn verify(&self, password: &str, hashed_password: &str) -> bool {
+    fn verify(&self, password: &str, hashed_password: &str) -> Result<bool, Fault> {
         let parsed_hash =
             PasswordHash::new(hashed_password).expect("stored password hash must be valid");
 
-        self.argon2
+        Ok(self
+            .argon2
             .verify_password(password.as_bytes(), &parsed_hash)
-            .is_ok()
+            .is_ok())
     }
 }

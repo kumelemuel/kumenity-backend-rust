@@ -34,6 +34,7 @@ pub async fn app() -> Router {
         },
     })
     .await
+    .expect("app builds")
 }
 
 pub async fn send(app: &Router, request: Request<Body>) -> TestResponse {

@@ -6,7 +6,7 @@ use crate::application::{
     ports::{
         inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
         outbound::{
-            account_repository::AccountRepository, password_hasher::PasswordHasherPort,
+            account_repository::AccountRepository, password_hasher::PasswordHashingService,
             token_generator::TokenGeneratorPort,
         },
     },
@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 pub struct AuthenticateAccount {
     account_repository: Arc<dyn AccountRepository>,
-    password_hasher: Arc<dyn PasswordHasherPort>,
+    password_hasher: Arc<dyn PasswordHashingService>,
     token_generator: Arc<dyn TokenGeneratorPort>,
     decoy_hash: String,
 }
@@ -24,7 +24,7 @@ pub struct AuthenticateAccount {
 impl AuthenticateAccount {
     pub fn new(
         account_repository: Arc<dyn AccountRepository>,
-        password_hasher: Arc<dyn PasswordHasherPort>,
+        password_hasher: Arc<dyn PasswordHashingService>,
         token_generator: Arc<dyn TokenGeneratorPort>,
         decoy_hash: String,
     ) -> Self {
@@ -48,11 +48,13 @@ impl AuthenticateAccountUseCase for AuthenticateAccount {
             .map_err(SystemError::Unexpected)?
         else {
             // Pay the same hashing cost as a wrong password, so the response
-            // time does not reveal whether the username exists. The outcome is
-            // discarded; `black_box` keeps the optimizer from dropping the call.
+            // time does not reveal whether the username exists. Only the
+            // outcome is discarded (`black_box` keeps the optimizer from
+            // dropping the call); a `Fault` propagates like the real one.
             std::hint::black_box(
                 self.password_hasher
-                    .verify(cmd.password.as_str(), &self.decoy_hash),
+                    .verify(cmd.password.as_str(), &self.decoy_hash)
+                    .map_err(SystemError::Unexpected)?,
             );
             return Err(AuthenticateAccountError::LoginFailed.into());
         };
@@ -60,6 +62,7 @@ impl AuthenticateAccountUseCase for AuthenticateAccount {
         if !self
             .password_hasher
             .verify(cmd.password.as_str(), account.password().value())
+            .map_err(SystemError::Unexpected)?
         {
             return Err(AuthenticateAccountError::LoginFailed.into());
         }
@@ -87,7 +90,7 @@ mod tests {
             ports::{
                 inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
                 outbound::{
-                    password_hasher::{PasswordHasherPort, test_utils::FakePasswordHasher},
+                    password_hasher::{PasswordHashingService, test_utils::FakePasswordHasher},
                     token_generator::test_utils::FakeTokenGenerator,
                 },
             },
@@ -95,7 +98,7 @@ mod tests {
         },
         domain::model::account::account_factory::AccountFactory,
     };
-    use shared::error::SystemError;
+    use shared::{Fault, error::SystemError};
     use std::sync::{Arc, Mutex};
 
     const DECOY_HASH: &str = "decoy-hash";
@@ -104,11 +107,11 @@ mod tests {
     /// `fails_with_login_failed_when_account_does_not_exist` proves the handler
     /// ignores the outcome of the decoy verification.
     #[derive(Default)]
-    struct SpyPasswordHasherPortAdapter {
+    struct SpyPasswordHashingAdapter {
         verify_calls: Mutex<Vec<(String, String)>>,
     }
 
-    impl SpyPasswordHasherPortAdapter {
+    impl SpyPasswordHashingAdapter {
         fn verify_calls(&self) -> Vec<(String, String)> {
             self.verify_calls
                 .lock()
@@ -117,24 +120,24 @@ mod tests {
         }
     }
 
-    impl PasswordHasherPort for SpyPasswordHasherPortAdapter {
-        fn hash(&self, _password: &str) -> String {
-            String::from("unused")
+    impl PasswordHashingService for SpyPasswordHashingAdapter {
+        fn hash(&self, _password: &str) -> Result<String, Fault> {
+            Ok(String::from("unused"))
         }
 
-        fn verify(&self, password: &str, hashed_password: &str) -> bool {
+        fn verify(&self, password: &str, hashed_password: &str) -> Result<bool, Fault> {
             self.verify_calls
                 .lock()
                 .expect("invariante: mutex sin envenenar")
                 .push((password.to_string(), hashed_password.to_string()));
-            true
+            Ok(true)
         }
     }
 
     #[test]
     fn verifies_against_the_decoy_hash_when_account_does_not_exist() {
         let repo = Arc::new(FakeAccountAdapter::empty());
-        let hasher = Arc::new(SpyPasswordHasherPortAdapter::default());
+        let hasher = Arc::new(SpyPasswordHashingAdapter::default());
         let token_generator = Arc::new(FakeTokenGenerator);
 
         let use_case = AuthenticateAccount::new(
@@ -158,7 +161,7 @@ mod tests {
     #[test]
     fn fails_with_login_failed_when_account_does_not_exist() {
         let repo = Arc::new(FakeAccountAdapter::empty());
-        let hasher = Arc::new(SpyPasswordHasherPortAdapter::default());
+        let hasher = Arc::new(SpyPasswordHashingAdapter::default());
         let token_generator = Arc::new(FakeTokenGenerator);
 
         let use_case =

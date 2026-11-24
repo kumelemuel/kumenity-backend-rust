@@ -12,7 +12,7 @@ use iam::{
                 register_account_use_case::RegisterAccountUseCase,
                 verify_account_use_case::VerifyAccountUseCase,
             },
-            outbound::password_hasher::PasswordHasherPort,
+            outbound::password_hasher::PasswordHashingService,
         },
         queries::identify_account::identify_account::IdentifyAccount,
     },
@@ -22,6 +22,7 @@ use iam::{
         services::jwt_service::jwt_service::JwtService,
     },
 };
+use shared::Fault;
 use std::{
     hash::{BuildHasher, Hasher, RandomState},
     sync::Arc,
@@ -36,7 +37,9 @@ pub struct IamContainer {
 }
 
 impl IamContainer {
-    pub fn initialize(jwt_service: Arc<JwtService>) -> Self {
+    /// Fails if the decoy hash cannot be generated: without it, sign-in would
+    /// reveal which usernames exist (D6), so the server does not start.
+    pub fn initialize(jwt_service: Arc<JwtService>) -> Result<Self, Fault> {
         let account_repository = Arc::new(InMemoryAccountAdapter::new());
         let password_hasher = Arc::new(Argon2PasswordHasher::new());
 
@@ -44,7 +47,7 @@ impl IamContainer {
             RegisterAccount::new(account_repository.clone(), password_hasher.clone());
         // Hashed once, with the same adapter and parameters as real
         // passwords, so verifying against it costs the same (D6).
-        let decoy_hash = password_hasher.hash(&random_decoy_password());
+        let decoy_hash = password_hasher.hash(&random_decoy_password())?;
         let authenticate_account = AuthenticateAccount::new(
             account_repository.clone(),
             password_hasher.clone(),
@@ -54,12 +57,12 @@ impl IamContainer {
         let verify_account = VerifyAccount::new(account_repository.clone());
         let identify_account = IdentifyAccount::new(account_repository.clone());
 
-        Self {
+        Ok(Self {
             register_account: Arc::new(register_account),
             authenticate_account: Arc::new(authenticate_account),
             verify_account: Arc::new(verify_account),
             identify_account: Arc::new(identify_account),
-        }
+        })
     }
 
     pub fn routes(&self) -> IamRoutes {

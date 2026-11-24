@@ -6,7 +6,7 @@ use crate::{
         ports::{
             inbound::register_account_use_case::RegisterAccountUseCase,
             outbound::{
-                account_repository::AccountRepository, password_hasher::PasswordHasherPort,
+                account_repository::AccountRepository, password_hasher::PasswordHashingService,
             },
         },
     },
@@ -17,13 +17,13 @@ use std::sync::Arc;
 
 pub struct RegisterAccount {
     account_repository: Arc<dyn AccountRepository>,
-    password_hasher: Arc<dyn PasswordHasherPort>,
+    password_hasher: Arc<dyn PasswordHashingService>,
 }
 
 impl RegisterAccount {
     pub fn new(
         account_repository: Arc<dyn AccountRepository>,
-        password_hasher: Arc<dyn PasswordHasherPort>,
+        password_hasher: Arc<dyn PasswordHashingService>,
     ) -> Self {
         Self {
             account_repository,
@@ -50,7 +50,10 @@ impl RegisterAccountUseCase for RegisterAccount {
             return Err(AccountError::UsernameAlreadyExists.into());
         }
 
-        let hashed_password = self.password_hasher.hash(&cmd.password);
+        let hashed_password = self
+            .password_hasher
+            .hash(&cmd.password)
+            .map_err(SystemError::Unexpected)?;
         let account =
             AccountFactory::create(cmd.username, cmd.email, &cmd.password, hashed_password)?;
 
