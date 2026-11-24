@@ -5,7 +5,7 @@ use axum::{
 };
 use http::{StatusCode, header::AUTHORIZATION};
 use iam::application::ports::outbound::{
-    dtos::access_token_payloads::AccessTokenVerdict, token_generator::AccessTokenService,
+    access_token_service::AccessTokenService, dtos::access_token_payloads::AccessTokenVerdict,
 };
 use shared::domain::model::verified_identity::VerifiedIdentity;
 use std::sync::Arc;

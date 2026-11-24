@@ -43,7 +43,6 @@ hex_4_use_case_implementations_are_handlers contexts/iam/src/application/command
 hex_4_use_case_implementations_are_handlers contexts/iam/src/application/commands/verify_account/verify_account.rs
 hex_4_use_case_implementations_are_handlers contexts/iam/src/application/queries/identify_account/identify_account.rs
 
-hex_5_adapters_are_named_by_technology_and_concept contexts/iam/src/application/ports/outbound/token_generator.rs
 hex_5_adapters_are_named_by_technology_and_concept contexts/iam/src/infrastructure/services/jwt_service/jwt_service.rs
 
 

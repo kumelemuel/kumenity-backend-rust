@@ -5,5 +5,6 @@
 //! puertos todavía son síncronos: cuando pasen a `BoxFuture` (R23), cada caso
 //! pasa a `async fn` y la macro recibe el `run` del caller, como en el template.
 
+pub mod access_token_service;
 pub mod account_repository;
 pub mod password_hashing_service;

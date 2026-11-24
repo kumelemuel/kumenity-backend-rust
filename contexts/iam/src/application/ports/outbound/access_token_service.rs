@@ -13,23 +13,3 @@ pub trait AccessTokenService: Send + Sync {
     fn issue(&self, account_id: &str) -> Result<String, Fault>;
     fn verify(&self, token: &str) -> Result<AccessTokenVerdict, Fault>;
 }
-
-#[cfg(test)]
-pub mod test_utils {
-    use crate::application::ports::outbound::{
-        dtos::access_token_payloads::AccessTokenVerdict, token_generator::AccessTokenService,
-    };
-    use shared::Fault;
-
-    pub struct FakeTokenGenerator;
-
-    impl AccessTokenService for FakeTokenGenerator {
-        fn issue(&self, _account_id: &str) -> Result<String, Fault> {
-            Ok(String::from("valid_token"))
-        }
-
-        fn verify(&self, _token: &str) -> Result<AccessTokenVerdict, Fault> {
-            Ok(AccessTokenVerdict::Invalid)
-        }
-    }
-}

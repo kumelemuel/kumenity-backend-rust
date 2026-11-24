@@ -8,8 +8,8 @@ use crate::application::{
     ports::{
         inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
         outbound::{
-            account_repository::AccountRepository,
-            password_hashing_service::PasswordHashingService, token_generator::AccessTokenService,
+            access_token_service::AccessTokenService, account_repository::AccountRepository,
+            password_hashing_service::PasswordHashingService,
         },
     },
 };
@@ -19,7 +19,7 @@ use std::sync::Arc;
 pub struct AuthenticateAccount {
     account_repository: Arc<dyn AccountRepository>,
     password_hasher: Arc<dyn PasswordHashingService>,
-    token_generator: Arc<dyn AccessTokenService>,
+    access_tokens: Arc<dyn AccessTokenService>,
     decoy_hash: String,
 }
 
@@ -27,13 +27,13 @@ impl AuthenticateAccount {
     pub fn new(
         account_repository: Arc<dyn AccountRepository>,
         password_hasher: Arc<dyn PasswordHashingService>,
-        token_generator: Arc<dyn AccessTokenService>,
+        access_tokens: Arc<dyn AccessTokenService>,
         decoy_hash: String,
     ) -> Self {
         Self {
             account_repository,
             password_hasher,
-            token_generator,
+            access_tokens,
             decoy_hash,
         }
     }
@@ -77,7 +77,7 @@ impl AuthenticateAccountUseCase for AuthenticateAccount {
         // `TokenGeneratorError`, until the commit that propagates it with its
         // test (R10).
         let token = self
-            .token_generator
+            .access_tokens
             .issue(&account.id().as_uuid().to_string())
             .map_err(|_fault| TokenGeneratorError(String::new()))?;
 
@@ -96,13 +96,14 @@ mod tests {
             ports::{
                 inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
                 outbound::{
+                    access_token_service::AccessTokenService,
+                    dtos::access_token_payloads::AccessTokenVerdict,
                     password_hashing_service::PasswordHashingService,
-                    token_generator::test_utils::FakeTokenGenerator,
                 },
             },
             testing::{
-                FakeAccountAdapter, FixedPasswordHashingAdapter, PasswordHashingOperation,
-                SpyPasswordHashingAdapter,
+                FakeAccessTokenAdapter, FakeAccountAdapter, FixedPasswordHashingAdapter,
+                PasswordHashingOperation, SpyPasswordHashingAdapter,
             },
         },
         domain::model::account::{
@@ -146,7 +147,7 @@ mod tests {
         let use_case = AuthenticateAccount::new(
             Arc::new(FakeAccountAdapter::empty()),
             hasher.clone(),
-            Arc::new(FakeTokenGenerator),
+            Arc::new(FakeAccessTokenAdapter::new()),
             decoy_hash.clone(),
         );
 
@@ -165,7 +166,7 @@ mod tests {
         let use_case = AuthenticateAccount::new(
             Arc::new(FakeAccountAdapter::empty()),
             Arc::new(SpyPasswordHashingAdapter::new()),
-            Arc::new(FakeTokenGenerator),
+            Arc::new(FakeAccessTokenAdapter::new()),
             hash_of("any_password"),
         );
 
@@ -181,7 +182,7 @@ mod tests {
         let use_case = AuthenticateAccount::new(
             Arc::new(FakeAccountAdapter::failing()),
             Arc::new(FixedPasswordHashingAdapter::new()),
-            Arc::new(FakeTokenGenerator),
+            Arc::new(FakeAccessTokenAdapter::new()),
             hash_of("decoy"),
         );
 
@@ -200,7 +201,7 @@ mod tests {
             Arc::new(
                 FixedPasswordHashingAdapter::new().failing_on(PasswordHashingOperation::Verify),
             ),
-            Arc::new(FakeTokenGenerator),
+            Arc::new(FakeAccessTokenAdapter::new()),
             hash_of("decoy"),
         );
 
@@ -219,7 +220,7 @@ mod tests {
             Arc::new(
                 FixedPasswordHashingAdapter::new().failing_on(PasswordHashingOperation::Verify),
             ),
-            Arc::new(FakeTokenGenerator),
+            Arc::new(FakeAccessTokenAdapter::new()),
             hash_of("decoy"),
         );
 
@@ -236,7 +237,7 @@ mod tests {
         let use_case = AuthenticateAccount::new(
             Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
             Arc::new(FixedPasswordHashingAdapter::new()),
-            Arc::new(FakeTokenGenerator),
+            Arc::new(FakeAccessTokenAdapter::new()),
             hash_of("decoy"),
         );
 
@@ -254,7 +255,7 @@ mod tests {
                 "registered:123123",
             )])),
             Arc::new(FixedPasswordHashingAdapter::new()),
-            Arc::new(FakeTokenGenerator),
+            Arc::new(FakeAccessTokenAdapter::new()),
             hash_of("decoy"),
         );
 
@@ -267,15 +268,22 @@ mod tests {
 
     #[test]
     fn authenticate_account_successfully_returns_token() {
+        let account = dummy_account("active");
+        let account_id = account.id().as_uuid().to_string();
+        let tokens = Arc::new(FakeAccessTokenAdapter::new());
         let use_case = AuthenticateAccount::new(
-            Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
+            Arc::new(FakeAccountAdapter::containing([account])),
             Arc::new(FixedPasswordHashingAdapter::new()),
-            Arc::new(FakeTokenGenerator),
+            tokens.clone(),
             hash_of("decoy"),
         );
 
         let result = use_case.execute(command("dummy", PASSWORD));
 
-        assert_eq!(result.expect("Expected token").token, "valid_token");
+        let token = result.expect("Expected token").token;
+        assert_eq!(
+            tokens.verify(&token).unwrap(),
+            AccessTokenVerdict::Valid { account_id }
+        );
     }
 }

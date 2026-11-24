@@ -1,5 +1,5 @@
 use iam::{
-    application::ports::outbound::token_generator::AccessTokenService,
+    application::ports::outbound::access_token_service::AccessTokenService,
     infrastructure::services::jwt_service::jwt_service::JwtService,
 };
 use std::sync::Arc;

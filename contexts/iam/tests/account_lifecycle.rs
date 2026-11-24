@@ -25,10 +25,9 @@ use iam::{
                 verify_account_use_case::VerifyAccountUseCase,
             },
             outbound::{
-                account_repository::AccountRepository,
+                access_token_service::AccessTokenService, account_repository::AccountRepository,
                 dtos::access_token_payloads::AccessTokenVerdict,
                 password_hashing_service::PasswordHashingService,
-                token_generator::AccessTokenService,
             },
         },
         queries::identify_account::{

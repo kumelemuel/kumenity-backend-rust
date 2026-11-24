@@ -1,6 +1,6 @@
 use crate::{
     application::ports::outbound::{
-        dtos::access_token_payloads::AccessTokenVerdict, token_generator::AccessTokenService,
+        access_token_service::AccessTokenService, dtos::access_token_payloads::AccessTokenVerdict,
     },
     infrastructure::services::jwt_service::claims::Claims,
 };
