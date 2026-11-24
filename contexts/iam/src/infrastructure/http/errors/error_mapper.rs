@@ -1,7 +1,5 @@
 use crate::{
-    application::errors::error_codes::{
-        IAM_CANNOT_AUTHENTICATE, IAM_LOGIN_FAILED, IAM_TOKEN_GENERATOR_ERROR,
-    },
+    application::errors::error_codes::{IAM_CANNOT_AUTHENTICATE, IAM_LOGIN_FAILED},
     domain::errors::error_codes::{
         IAM_ACCOUNT_EMAIL_ALREADY_EXISTS, IAM_ACCOUNT_INVALID_VERIFICATION, IAM_ACCOUNT_NOT_FOUND,
         IAM_ACCOUNT_USERNAME_ALREADY_EXISTS, IAM_INVALID_ACCOUNT_ID, IAM_INVALID_ACCOUNT_ID_FORMAT,
@@ -75,7 +73,6 @@ fn status_from_error_code(code: &str) -> StatusCode {
         | IAM_INVALID_USERNAME
         | IAM_PASSWORD_TOO_SHORT
         | IAM_ACCOUNT_INVALID_VERIFICATION => StatusCode::BAD_REQUEST,
-        IAM_TOKEN_GENERATOR_ERROR => StatusCode::INTERNAL_SERVER_ERROR,
         _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
@@ -153,14 +150,8 @@ mod tests {
     }
 
     #[test]
-    fn technical_and_unknown_errors_map_to_internal_server_error() {
-        for code in [IAM_TOKEN_GENERATOR_ERROR, "UNKNOWN"] {
-            assert_eq!(
-                status_for(code),
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "{code}"
-            );
-        }
+    fn unknown_errors_map_to_internal_server_error() {
+        assert_eq!(status_for("UNKNOWN"), StatusCode::INTERNAL_SERVER_ERROR);
     }
 
     /// Cuerpo de D7: lo único que ve el cliente ante un `Fault`.

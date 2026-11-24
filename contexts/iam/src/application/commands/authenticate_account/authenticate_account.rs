@@ -2,9 +2,7 @@ use crate::application::{
     commands::authenticate_account::{
         command::AuthenticateAccountCommand, response::AuthenticateAccountResponse,
     },
-    errors::{
-        authenticate_account::AuthenticateAccountError, token_generator::TokenGeneratorError,
-    },
+    errors::authenticate_account::AuthenticateAccountError,
     ports::{
         inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
         outbound::{
@@ -73,13 +71,10 @@ impl AuthenticateAccountUseCase for AuthenticateAccount {
             return Err(AuthenticateAccountError::CannotAuthenticate.into());
         }
 
-        // The `Fault` is discarded on purpose, keeping today's
-        // `TokenGeneratorError`, until the commit that propagates it with its
-        // test (R10).
         let token = self
             .access_tokens
             .issue(&account.id().as_uuid().to_string())
-            .map_err(|_fault| TokenGeneratorError(String::new()))?;
+            .map_err(SystemError::Unexpected)?;
 
         Ok(AuthenticateAccountResponse { token })
     }
@@ -102,8 +97,8 @@ mod tests {
                 },
             },
             testing::{
-                FakeAccessTokenAdapter, FakeAccountAdapter, FixedPasswordHashingAdapter,
-                PasswordHashingOperation, SpyPasswordHashingAdapter,
+                AccessTokenOperation, FakeAccessTokenAdapter, FakeAccountAdapter,
+                FixedPasswordHashingAdapter, PasswordHashingOperation, SpyPasswordHashingAdapter,
             },
         },
         domain::model::account::{
@@ -225,6 +220,23 @@ mod tests {
         );
 
         let result = use_case.execute(command("ghost", PASSWORD));
+
+        assert!(
+            matches!(result, Err(SystemError::Unexpected(_))),
+            "{result:?}"
+        );
+    }
+
+    #[test]
+    fn fails_with_unexpected_when_issue_fails() {
+        let use_case = AuthenticateAccount::new(
+            Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
+            Arc::new(FixedPasswordHashingAdapter::new()),
+            Arc::new(FakeAccessTokenAdapter::new().failing_on(AccessTokenOperation::Issue)),
+            hash_of("decoy"),
+        );
+
+        let result = use_case.execute(command("dummy", PASSWORD));
 
         assert!(
             matches!(result, Err(SystemError::Unexpected(_))),
