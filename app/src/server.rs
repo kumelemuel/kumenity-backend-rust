@@ -17,7 +17,7 @@ impl Server {
             .merge(iam_routes.protected())
             .merge(communities_routes.protected())
             .layer(middleware::from_fn_with_state(
-                container.shared.jwt_service.clone(),
+                container.iam.verify_access_token.clone(),
                 auth_middleware,
             ));
 

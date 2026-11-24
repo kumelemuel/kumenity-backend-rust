@@ -10,11 +10,15 @@ use iam::{
                 authenticate_account_use_case::AuthenticateAccountUseCase,
                 identify_account_use_case::IdentifyAccountUseCase,
                 register_account_use_case::RegisterAccountUseCase,
+                verify_access_token_use_case::VerifyAccessTokenUseCase,
                 verify_account_use_case::VerifyAccountUseCase,
             },
             outbound::password_hashing_service::PasswordHashingService,
         },
-        queries::identify_account::identify_account::IdentifyAccount,
+        queries::{
+            identify_account::identify_account::IdentifyAccount,
+            verify_access_token::VerifyAccessTokenHandler,
+        },
     },
     infrastructure::{
         http::routes::IamRoutes, persistence::in_memory::in_memory_account::InMemoryAccountAdapter,
@@ -34,12 +38,13 @@ pub struct IamContainer {
     pub authenticate_account: Arc<dyn AuthenticateAccountUseCase + Send + Sync>,
     pub verify_account: Arc<dyn VerifyAccountUseCase + Send + Sync>,
     pub identify_account: Arc<dyn IdentifyAccountUseCase + Send + Sync>,
+    pub verify_access_token: Arc<dyn VerifyAccessTokenUseCase>,
 }
 
 impl IamContainer {
     /// Fails if the decoy hash cannot be generated: without it, sign-in would
     /// reveal which usernames exist (D6), so the server does not start.
-    pub fn initialize(jwt_service: Arc<JwtAccessTokenAdapter>) -> Result<Self, Fault> {
+    pub fn initialize(access_tokens: Arc<JwtAccessTokenAdapter>) -> Result<Self, Fault> {
         let account_repository = Arc::new(InMemoryAccountAdapter::new());
         let password_hasher = Arc::new(Argon2PasswordHashingAdapter::new());
 
@@ -51,17 +56,19 @@ impl IamContainer {
         let authenticate_account = AuthenticateAccount::new(
             account_repository.clone(),
             password_hasher.clone(),
-            jwt_service,
+            access_tokens.clone(),
             decoy_hash,
         );
         let verify_account = VerifyAccount::new(account_repository.clone());
         let identify_account = IdentifyAccount::new(account_repository.clone());
+        let verify_access_token = VerifyAccessTokenHandler::new(access_tokens);
 
         Ok(Self {
             register_account: Arc::new(register_account),
             authenticate_account: Arc::new(authenticate_account),
             verify_account: Arc::new(verify_account),
             identify_account: Arc::new(identify_account),
+            verify_access_token: Arc::new(verify_access_token),
         })
     }
 
