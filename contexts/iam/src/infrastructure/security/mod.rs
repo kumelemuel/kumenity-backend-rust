@@ -1,1 +1,1 @@
-pub mod password_hasher;
+pub mod argon2_password_hashing;

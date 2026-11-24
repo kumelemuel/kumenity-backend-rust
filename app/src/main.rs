@@ -7,7 +7,10 @@ async fn main() {
         std::process::exit(1);
     });
 
-    let app = build_app(&config).await;
+    let app = build_app(&config).await.unwrap_or_else(|e| {
+        eprintln!("Startup error: {e}");
+        std::process::exit(1);
+    });
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await

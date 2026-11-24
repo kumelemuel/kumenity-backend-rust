@@ -6,3 +6,4 @@
 //! pasa a `async fn` y la macro recibe el `run` del caller, como en el template.
 
 pub mod account_repository;
+pub mod password_hashing_service;
