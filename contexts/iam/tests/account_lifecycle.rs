@@ -25,7 +25,7 @@ use iam::{
                 verify_account_use_case::VerifyAccountUseCase,
             },
             outbound::{
-                account_repository::AccountRepositoryPort, password_hasher::PasswordHasherPort,
+                account_repository::AccountRepository, password_hasher::PasswordHasherPort,
             },
         },
         queries::identify_account::{
@@ -87,6 +87,7 @@ impl Iam {
         match *self
             .repository
             .find_by_email(email)
+            .expect("repository answers")
             .expect("account was registered")
             .status()
         {
@@ -193,7 +194,11 @@ fn password_is_not_stored_in_plain_text() {
     let iam = iam();
     iam.register_ana();
 
-    let account = iam.repository.find_by_email("ana@example.com").unwrap();
+    let account = iam
+        .repository
+        .find_by_email("ana@example.com")
+        .unwrap()
+        .unwrap();
 
     assert_ne!(account.password().value(), PASSWORD);
 }

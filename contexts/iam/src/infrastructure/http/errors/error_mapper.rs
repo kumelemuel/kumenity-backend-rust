@@ -1,7 +1,6 @@
 use crate::{
     application::errors::error_codes::{
-        IAM_ACCOUNT_REPOSITORY_ERROR, IAM_CANNOT_AUTHENTICATE, IAM_LOGIN_FAILED,
-        IAM_TOKEN_GENERATOR_ERROR,
+        IAM_CANNOT_AUTHENTICATE, IAM_LOGIN_FAILED, IAM_TOKEN_GENERATOR_ERROR,
     },
     domain::errors::error_codes::{
         IAM_ACCOUNT_EMAIL_ALREADY_EXISTS, IAM_ACCOUNT_INVALID_VERIFICATION, IAM_ACCOUNT_NOT_FOUND,
@@ -76,9 +75,7 @@ fn status_from_error_code(code: &str) -> StatusCode {
         | IAM_INVALID_USERNAME
         | IAM_PASSWORD_TOO_SHORT
         | IAM_ACCOUNT_INVALID_VERIFICATION => StatusCode::BAD_REQUEST,
-        IAM_ACCOUNT_REPOSITORY_ERROR | IAM_TOKEN_GENERATOR_ERROR => {
-            StatusCode::INTERNAL_SERVER_ERROR
-        }
+        IAM_TOKEN_GENERATOR_ERROR => StatusCode::INTERNAL_SERVER_ERROR,
         _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
@@ -157,11 +154,7 @@ mod tests {
 
     #[test]
     fn technical_and_unknown_errors_map_to_internal_server_error() {
-        for code in [
-            IAM_ACCOUNT_REPOSITORY_ERROR,
-            IAM_TOKEN_GENERATOR_ERROR,
-            "UNKNOWN",
-        ] {
+        for code in [IAM_TOKEN_GENERATOR_ERROR, "UNKNOWN"] {
             assert_eq!(
                 status_for(code),
                 StatusCode::INTERNAL_SERVER_ERROR,

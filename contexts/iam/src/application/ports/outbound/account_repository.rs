@@ -1,24 +1,23 @@
-use crate::{
-    application::errors::account_repository::AccountRepositoryError,
-    domain::model::account::account::Account,
-};
+use crate::domain::model::account::account::Account;
+use shared::Fault;
 
-pub trait AccountRepositoryPort: Send + Sync {
-    fn find_by_username(&self, username: &str) -> Option<Account>;
+/// Persistencia de cuentas. No declara errores (ERR-3): cualquier falla técnica
+/// es `Fault` (árbol B). "No existe" no es un error: `find_*` devuelve `None`.
+pub trait AccountRepository: Send + Sync {
+    fn find_by_username(&self, username: &str) -> Result<Option<Account>, Fault>;
 
-    fn find_by_email(&self, email: &str) -> Option<Account>;
-    fn save(&self, user: &Account) -> Result<(), AccountRepositoryError>;
+    fn find_by_email(&self, email: &str) -> Result<Option<Account>, Fault>;
+
+    fn save(&self, account: &Account) -> Result<(), Fault>;
 }
 
 #[cfg(test)]
 pub mod test_utils {
     use crate::{
-        application::{
-            errors::account_repository::AccountRepositoryError,
-            ports::outbound::account_repository::AccountRepositoryPort,
-        },
+        application::ports::outbound::account_repository::AccountRepository,
         domain::model::account::{account::Account, account_factory::AccountFactory},
     };
+    use shared::Fault;
 
     pub struct FakeAccountRepository {
         should_fail: bool,
@@ -74,9 +73,10 @@ pub mod test_utils {
         }
     }
 
-    impl AccountRepositoryPort for FakeAccountRepository {
-        fn find_by_username(&self, username: &str) -> Option<Account> {
-            self.existing_username
+    impl AccountRepository for FakeAccountRepository {
+        fn find_by_username(&self, username: &str) -> Result<Option<Account>, Fault> {
+            Ok(self
+                .existing_username
                 .as_ref()
                 .filter(|u| u.as_str() == username)
                 .map(|_| {
@@ -85,21 +85,20 @@ pub mod test_utils {
                     } else {
                         AccountFactory::dummy_account_with_status("active".to_string())
                     }
-                })
+                }))
         }
 
-        fn find_by_email(&self, email: &str) -> Option<Account> {
-            self.existing_email
+        fn find_by_email(&self, email: &str) -> Result<Option<Account>, Fault> {
+            Ok(self
+                .existing_email
                 .as_ref()
                 .filter(|e| e.as_str() == email)
-                .map(|_| AccountFactory::dummy_account())
+                .map(|_| AccountFactory::dummy_account()))
         }
 
-        fn save(&self, _user: &Account) -> Result<(), AccountRepositoryError> {
+        fn save(&self, _user: &Account) -> Result<(), Fault> {
             if self.should_fail {
-                Err(AccountRepositoryError(
-                    "FakeAccountRepository error".to_string(),
-                ))
+                Err(Fault::new("FakeAccountRepository error"))
             } else {
                 Ok(())
             }

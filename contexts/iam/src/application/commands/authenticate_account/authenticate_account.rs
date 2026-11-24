@@ -6,7 +6,7 @@ use crate::application::{
     ports::{
         inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
         outbound::{
-            account_repository::AccountRepositoryPort, password_hasher::PasswordHasherPort,
+            account_repository::AccountRepository, password_hasher::PasswordHasherPort,
             token_generator::TokenGeneratorPort,
         },
     },
@@ -15,7 +15,7 @@ use shared::{domain::value_object::ValueObject, error::SystemError};
 use std::sync::Arc;
 
 pub struct AuthenticateAccount {
-    account_repository: Arc<dyn AccountRepositoryPort>,
+    account_repository: Arc<dyn AccountRepository>,
     password_hasher: Arc<dyn PasswordHasherPort>,
     token_generator: Arc<dyn TokenGeneratorPort>,
     decoy_hash: String,
@@ -23,7 +23,7 @@ pub struct AuthenticateAccount {
 
 impl AuthenticateAccount {
     pub fn new(
-        account_repository: Arc<dyn AccountRepositoryPort>,
+        account_repository: Arc<dyn AccountRepository>,
         password_hasher: Arc<dyn PasswordHasherPort>,
         token_generator: Arc<dyn TokenGeneratorPort>,
         decoy_hash: String,
@@ -45,6 +45,7 @@ impl AuthenticateAccountUseCase for AuthenticateAccount {
         let Some(account) = self
             .account_repository
             .find_by_username(cmd.username.as_str())
+            .map_err(SystemError::Unexpected)?
         else {
             // Pay the same hashing cost as a wrong password, so the response
             // time does not reveal whether the username exists. The outcome is
@@ -90,7 +91,9 @@ mod tests {
                 token_generator::test_utils::FakeTokenGenerator,
             },
         },
+        testing::{AccountOperation, StubAccountAdapter},
     };
+    use shared::error::SystemError;
     use std::sync::{Arc, Mutex};
 
     const DECOY_HASH: &str = "decoy-hash";
@@ -167,6 +170,29 @@ mod tests {
         let err = result.expect_err("Expected error");
 
         assert_eq!(err.code(), IAM_LOGIN_FAILED);
+    }
+
+    #[test]
+    fn fails_with_unexpected_when_find_by_username_fails() {
+        let repo = Arc::new(StubAccountAdapter::failing_on(
+            AccountOperation::FindByUsername,
+        ));
+        let use_case = AuthenticateAccount::new(
+            repo,
+            Arc::new(FakePasswordHasher),
+            Arc::new(FakeTokenGenerator),
+            DECOY_HASH.to_string(),
+        );
+
+        let result = use_case.execute(AuthenticateAccountCommand {
+            username: "dummy".to_string(),
+            password: "any_password".to_string(),
+        });
+
+        assert!(
+            matches!(result, Err(SystemError::Unexpected(_))),
+            "{result:?}"
+        );
     }
 
     #[test]

@@ -1,11 +1,8 @@
 use crate::{
-    application::{
-        errors::account_repository::AccountRepositoryError,
-        ports::outbound::account_repository::AccountRepositoryPort,
-    },
+    application::ports::outbound::account_repository::AccountRepository,
     domain::model::account::{account::Account, account_id::AccountId},
 };
-use shared::domain::value_object::ValueObject;
+use shared::{Fault, domain::value_object::ValueObject};
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -29,24 +26,24 @@ impl InMemoryAccountRepository {
     }
 }
 
-impl AccountRepositoryPort for InMemoryAccountRepository {
-    fn find_by_username(&self, username: &str) -> Option<Account> {
+impl AccountRepository for InMemoryAccountRepository {
+    fn find_by_username(&self, username: &str) -> Result<Option<Account>, Fault> {
         let accounts = self.accounts.lock().expect("mutex poisoned");
-        accounts
+        Ok(accounts
             .values()
             .find(|account| account.username().value() == username)
-            .cloned()
+            .cloned())
     }
 
-    fn find_by_email(&self, email: &str) -> Option<Account> {
+    fn find_by_email(&self, email: &str) -> Result<Option<Account>, Fault> {
         let accounts = self.accounts.lock().expect("mutex poisoned");
-        accounts
+        Ok(accounts
             .values()
             .find(|account| account.email().value() == email)
-            .cloned()
+            .cloned())
     }
 
-    fn save(&self, account: &Account) -> Result<(), AccountRepositoryError> {
+    fn save(&self, account: &Account) -> Result<(), Fault> {
         let mut accounts = self.accounts.lock().expect("mutex poisoned");
 
         accounts.insert(account.id().clone(), account.clone());
