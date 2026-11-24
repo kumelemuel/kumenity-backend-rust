@@ -70,10 +70,8 @@ mod tests {
                 command::CreateCommunityCommand, create_community::CreateCommunity,
             },
             errors::error_codes::COMMUNITIES_SLUG_ALREADY_EXISTS,
-            ports::{
-                inbound::create_community_use_case::CreateCommunityUseCase,
-                outbound::community_repository::test_utils::FakeCommunityRepository,
-            },
+            ports::inbound::create_community_use_case::CreateCommunityUseCase,
+            testing::FakeCommunityAdapter,
         },
         domain::errors::error_codes::{
             COMMUNITIES_INVALID_COMMUNITY_NAME, COMMUNITIES_INVALID_COMMUNITY_SLUG,
@@ -99,7 +97,7 @@ mod tests {
 
     #[test]
     fn create_community_successfully() {
-        let repo = Arc::new(FakeCommunityRepository::success());
+        let repo = Arc::new(FakeCommunityAdapter::empty());
 
         let use_case = CreateCommunity::new(repo);
 
@@ -110,7 +108,7 @@ mod tests {
 
     #[test]
     fn fails_when_name_is_invalid() {
-        let repo = Arc::new(FakeCommunityRepository::success());
+        let repo = Arc::new(FakeCommunityAdapter::empty());
 
         let use_case = CreateCommunity::new(repo);
 
@@ -129,7 +127,7 @@ mod tests {
 
     #[test]
     fn fails_when_slug_is_invalid() {
-        let repo = Arc::new(FakeCommunityRepository::success());
+        let repo = Arc::new(FakeCommunityAdapter::empty());
 
         let use_case = CreateCommunity::new(repo);
 
@@ -148,7 +146,7 @@ mod tests {
 
     #[test]
     fn fails_with_unexpected_when_repository_fails() {
-        let repo = Arc::new(FakeCommunityRepository::fail());
+        let repo = Arc::new(FakeCommunityAdapter::failing());
 
         let use_case = CreateCommunity::new(repo);
 
@@ -162,11 +160,13 @@ mod tests {
 
     #[test]
     fn fails_when_slug_already_exists() {
-        let repo = Arc::new(FakeCommunityRepository::with_existing_slug(
-            "community-test",
-        ));
+        let repo = Arc::new(FakeCommunityAdapter::empty());
 
         let use_case = CreateCommunity::new(repo);
+
+        use_case
+            .execute(valid_input(), valid_auth_context())
+            .expect("the first community with this slug is created");
 
         let result = use_case.execute(valid_input(), valid_auth_context());
 
