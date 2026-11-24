@@ -1,7 +1,9 @@
 use crate::application::ports::outbound::{
     access_token_service::AccessTokenService, dtos::access_token_payloads::AccessTokenVerdict,
 };
-use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use jsonwebtoken::{
+    Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode, errors::ErrorKind,
+};
 use serde::{Deserialize, Serialize};
 use shared::Fault;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -9,8 +11,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 /// `AccessTokenService` with JWTs signed with HS256: `sub` is the account id
 /// and `exp` the expiry, both required.
 ///
-/// The only `Fault` is in `issue`, when the expiry cannot be computed (a
-/// lifetime that overflows the clock).
+/// `Fault` is only for technical failures: an expiry that overflows the
+/// clock in `issue`, a key or validation that cannot check a token in
+/// `verify`.
 pub struct JwtAccessTokenAdapter {
     encoding_key: EncodingKey,
     decoding_key: DecodingKey,
@@ -57,24 +60,39 @@ impl AccessTokenService for JwtAccessTokenAdapter {
         )?)
     }
 
-    /// Any token `decode` rejects is `Invalid` (ERR-3.1): malformed, with
-    /// another signature, expired or without `sub`. The reason is not told
-    /// apart, because nobody branches on it.
+    /// A token `decode` rejects is `Invalid` (ERR-3.1): malformed, with
+    /// another signature or algorithm, expired, not yet valid or without its
+    /// claims. The reason is not told apart, because nobody branches on it.
     ///
-    /// It never answers `Fault`: with HS256 and a shared secret, every error
-    /// `decode` can give is about the token. The key errors of
-    /// `jsonwebtoken` (`InvalidKeyFormat`, `InvalidRsaKey`…) only exist for
-    /// RSA and EC keys.
+    /// Any other error is about the key or the validation, not the token: a
+    /// `Fault`, so a misconfiguration is a 500 and not a 401 for everyone.
     fn verify(&self, token: &str) -> Result<AccessTokenVerdict, Fault> {
-        Ok(
-            match decode::<Claims>(token, &self.decoding_key, &self.validation) {
-                Ok(data) => AccessTokenVerdict::Valid {
-                    account_id: data.claims.sub,
-                },
-                Err(_) => AccessTokenVerdict::Invalid,
-            },
-        )
+        match decode::<Claims>(token, &self.decoding_key, &self.validation) {
+            Ok(data) => Ok(AccessTokenVerdict::Valid {
+                account_id: data.claims.sub,
+            }),
+            Err(error) if is_about_the_token(error.kind()) => Ok(AccessTokenVerdict::Invalid),
+            Err(error) => Err(error.into()),
+        }
     }
+}
+
+fn is_about_the_token(kind: &ErrorKind) -> bool {
+    matches!(
+        kind,
+        ErrorKind::InvalidToken
+            | ErrorKind::InvalidSignature
+            | ErrorKind::InvalidAlgorithm
+            | ErrorKind::ExpiredSignature
+            | ErrorKind::ImmatureSignature
+            | ErrorKind::MissingRequiredClaim(_)
+            | ErrorKind::InvalidIssuer
+            | ErrorKind::InvalidAudience
+            | ErrorKind::InvalidSubject
+            | ErrorKind::Base64(_)
+            | ErrorKind::Json(_)
+            | ErrorKind::Utf8(_)
+    )
 }
 
 #[cfg(test)]
@@ -103,6 +121,17 @@ mod tests {
         let service = JwtAccessTokenAdapter::new(SECRET.into(), u64::MAX);
 
         let result = service.issue("alice");
+
+        assert!(result.is_err(), "{result:?}");
+    }
+
+    #[test]
+    fn a_misconfigured_validation_is_a_fault_not_an_invalid_verdict() {
+        let mut service = JwtAccessTokenAdapter::new(SECRET.into(), 3600);
+        let token = service.issue("alice").expect("issue");
+        service.validation.algorithms.clear();
+
+        let result = service.verify(&token);
 
         assert!(result.is_err(), "{result:?}");
     }
