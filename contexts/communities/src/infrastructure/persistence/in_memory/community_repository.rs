@@ -1,10 +1,8 @@
 use crate::{
-    application::{
-        errors::community_repository::CommunityRepositoryError,
-        ports::outbound::community_repository::CommunityRepositoryPort,
-    },
+    application::ports::outbound::community_repository::CommunityRepository,
     domain::model::community::{community::Community, community_id::CommunityId},
 };
+use shared::Fault;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -28,16 +26,16 @@ impl InMemoryCommunityRepository {
     }
 }
 
-impl CommunityRepositoryPort for InMemoryCommunityRepository {
-    fn find_by_slug(&self, slug: &str) -> Option<Community> {
+impl CommunityRepository for InMemoryCommunityRepository {
+    fn find_by_slug(&self, slug: &str) -> Result<Option<Community>, Fault> {
         let communities = self.communities.lock().expect("mutex poisoned");
-        communities
+        Ok(communities
             .values()
             .find(|community| community.slug().as_str() == slug)
-            .cloned()
+            .cloned())
     }
 
-    fn save(&self, community: &Community) -> Result<(), CommunityRepositoryError> {
+    fn save(&self, community: &Community) -> Result<(), Fault> {
         let mut communities = self.communities.lock().expect("mutex poisoned");
 
         communities.insert(community.id().clone(), community.clone());

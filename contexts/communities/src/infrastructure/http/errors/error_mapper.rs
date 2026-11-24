@@ -1,7 +1,5 @@
 use crate::{
-    application::errors::error_codes::{
-        COMMUNITIES_REPOSITORY_ERROR, COMMUNITIES_SLUG_ALREADY_EXISTS,
-    },
+    application::errors::error_codes::COMMUNITIES_SLUG_ALREADY_EXISTS,
     domain::errors::error_codes::{
         COMMUNITIES_INVALID_COMMUNITY_NAME, COMMUNITIES_INVALID_COMMUNITY_SLUG,
     },
@@ -64,7 +62,6 @@ fn status_from_error_code(code: &str) -> StatusCode {
         | COMMUNITIES_INVALID_COMMUNITY_SLUG
         | IAM_INVALID_ACCOUNT_ID
         | IAM_INVALID_ACCOUNT_ID_FORMAT => StatusCode::BAD_REQUEST,
-        COMMUNITIES_REPOSITORY_ERROR => StatusCode::INTERNAL_SERVER_ERROR,
         _ => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
@@ -123,14 +120,8 @@ mod tests {
     }
 
     #[test]
-    fn technical_and_unknown_errors_map_to_internal_server_error() {
-        for code in [COMMUNITIES_REPOSITORY_ERROR, "UNKNOWN"] {
-            assert_eq!(
-                status_for(code),
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "{code}"
-            );
-        }
+    fn unknown_errors_map_to_internal_server_error() {
+        assert_eq!(status_for("UNKNOWN"), StatusCode::INTERNAL_SERVER_ERROR);
     }
 
     /// Cuerpo de D7: lo único que ve el cliente ante un `Fault`.
