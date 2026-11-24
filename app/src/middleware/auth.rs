@@ -9,9 +9,9 @@ use iam::{
         ports::inbound::verify_access_token_use_case::VerifyAccessTokenUseCase,
         queries::verify_access_token::{VerifyAccessTokenError, VerifyAccessTokenQuery},
     },
-    infrastructure::http::errors::error_mapper::map_application_error,
+    infrastructure::http::unexpected::unexpected,
 };
-use shared::{Failure, domain::model::verified_identity::VerifiedIdentity, error::SystemError};
+use shared::{Failure, domain::model::verified_identity::VerifiedIdentity};
 use std::sync::Arc;
 
 pub async fn auth_middleware(
@@ -41,9 +41,9 @@ pub async fn auth_middleware(
         Err(Failure::Expected(VerifyAccessTokenError::Unauthenticated(_))) => {
             StatusCode::UNAUTHORIZED.into_response()
         }
-        // Tree B: not a 401. The iam mapper answers the 500 of D7 and
-        // records the `Fault` (on stderr until R26).
-        Err(Failure::Unexpected(fault)) => map_application_error(SystemError::Unexpected(fault)),
+        // Tree B: not a 401. `unexpected` answers the 500 of D7 and records
+        // the `Fault` (on stderr until R26).
+        Err(Failure::Unexpected(fault)) => unexpected(&fault),
     }
 }
 
