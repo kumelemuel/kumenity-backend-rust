@@ -76,12 +76,14 @@ pub fn tampered_token_is_an_invalid_verdict<S: AccessTokenService>(new_service: 
     );
 }
 
-/// Un token que emitió otro servicio (otra clave) no es válido aquí.
+/// Un token que emitió otro servicio (otra clave) no es válido aquí, aunque
+/// este también haya emitido tokens: no lo confunde con uno propio.
 pub fn token_from_another_issuer_is_an_invalid_verdict<S: AccessTokenService>(
     new_service: impl Fn() -> S,
     another_issuer: impl Fn() -> S,
 ) {
     let service = new_service();
+    issue(&service, BOB);
     let token = issue(&another_issuer(), ALICE);
 
     let result = service.verify(&token);

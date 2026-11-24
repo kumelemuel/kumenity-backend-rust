@@ -17,7 +17,10 @@ use crate::{
 use shared::{Fault, domain::value_object::ValueObject};
 use std::{
     collections::HashMap,
-    sync::{Mutex, MutexGuard},
+    sync::{
+        Mutex, MutexGuard,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 
 pub mod contracts;
@@ -238,36 +241,22 @@ struct IssuedToken {
     expired: bool,
 }
 
-/// Doble de `AccessTokenService`: solo es válido un token vigente que él
-/// emitió. Cada instancia firma con su propia clave (`with_key`), así que no
-/// acepta los tokens de otra.
+/// Doble de `AccessTokenService`: solo valen los tokens vigentes que emitió
+/// esta instancia. Cada token es único entre todas las instancias, así que
+/// otra instancia hace de emisor con otra clave: no acepta los tokens de esta,
+/// ni los confunde con los suyos.
 ///
 /// Fallas como en `FakeAccountAdapter`: `failing()` hace fallar todo;
 /// `failing_on(op)`, solo esa operación.
+#[derive(Default)]
 pub struct FakeAccessTokenAdapter {
-    key: String,
     issued: Mutex<HashMap<String, IssuedToken>>,
     failing: Vec<AccessTokenOperation>,
-}
-
-impl Default for FakeAccessTokenAdapter {
-    fn default() -> Self {
-        Self::with_key("fake-access-token-key")
-    }
 }
 
 impl FakeAccessTokenAdapter {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Un emisor con otra clave: sus tokens no valen en las demás instancias.
-    pub fn with_key(key: &str) -> Self {
-        Self {
-            key: key.to_string(),
-            issued: Mutex::new(HashMap::new()),
-            failing: Vec::new(),
-        }
     }
 
     /// Simula una falla técnica no declarada (árbol B) en todas las
@@ -292,8 +281,12 @@ impl FakeAccessTokenAdapter {
     }
 
     fn record(&self, account_id: &str, expired: bool) -> String {
+        static NEXT_TOKEN: AtomicU64 = AtomicU64::new(0);
+        let token = format!(
+            "fake-access-token.{}",
+            NEXT_TOKEN.fetch_add(1, Ordering::Relaxed)
+        );
         let mut issued = self.issued.lock().expect("invariante: mutex sin envenenar");
-        let token = format!("{}.{}", self.key, issued.len());
         issued.insert(
             token.clone(),
             IssuedToken {
@@ -353,7 +346,7 @@ mod tests {
             expired_token: |service: &FakeAccessTokenAdapter, account_id: &str| {
                 service.issue_expired(account_id)
             },
-            another_issuer: FakeAccessTokenAdapter::with_key("another-key"),
+            another_issuer: FakeAccessTokenAdapter::new(),
         }
     }
 
