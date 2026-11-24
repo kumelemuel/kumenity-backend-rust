@@ -18,7 +18,7 @@ use iam::{
     },
     infrastructure::{
         http::routes::IamRoutes, persistence::in_memory::in_memory_account::InMemoryAccountAdapter,
-        security::password_hasher::argon2_password_hasher::Argon2PasswordHasher,
+        security::argon2_password_hashing::Argon2PasswordHashingAdapter,
         services::jwt_service::jwt_service::JwtService,
     },
 };
@@ -41,7 +41,7 @@ impl IamContainer {
     /// reveal which usernames exist (D6), so the server does not start.
     pub fn initialize(jwt_service: Arc<JwtService>) -> Result<Self, Fault> {
         let account_repository = Arc::new(InMemoryAccountAdapter::new());
-        let password_hasher = Arc::new(Argon2PasswordHasher::new());
+        let password_hasher = Arc::new(Argon2PasswordHashingAdapter::new());
 
         let register_account =
             RegisterAccount::new(account_repository.clone(), password_hasher.clone());
