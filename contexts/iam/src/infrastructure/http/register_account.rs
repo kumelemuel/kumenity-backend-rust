@@ -134,4 +134,66 @@ mod tests {
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
         assert_eq!(body_of(response), D7_BODY);
     }
+
+    fn assert_body(response: Response, status: StatusCode, code: &str, message: &str) {
+        assert_eq!(response.status(), status);
+        assert_eq!(
+            body_of(response),
+            format!(r#"{{"code":"{code}","message":"{message}"}}"#)
+        );
+    }
+
+    #[test]
+    fn a_password_validation_returns_400_iam_password_too_short() {
+        assert_body(
+            respond(|| Failure::expected(Validation { field: "password" })),
+            StatusCode::BAD_REQUEST,
+            "IAM_PASSWORD_TOO_SHORT",
+            "Password must be at least 8 characters long.",
+        );
+    }
+
+    #[test]
+    fn a_username_validation_returns_400_iam_invalid_username() {
+        assert_body(
+            respond(|| Failure::expected(Validation { field: "username" })),
+            StatusCode::BAD_REQUEST,
+            "IAM_INVALID_USERNAME",
+            "Please enter a valid username.",
+        );
+    }
+
+    #[test]
+    fn an_email_validation_returns_400_iam_invalid_email() {
+        assert_body(
+            respond(|| Failure::expected(Validation { field: "email" })),
+            StatusCode::BAD_REQUEST,
+            "IAM_INVALID_EMAIL",
+            "Please enter a valid email address.",
+        );
+    }
+
+    #[test]
+    fn an_email_conflict_returns_409_iam_account_email_already_exists() {
+        assert_body(
+            respond(|| Failure::expected(Conflict { resource: "email" })),
+            StatusCode::CONFLICT,
+            "IAM_ACCOUNT_EMAIL_ALREADY_EXISTS",
+            "This email is already in use.",
+        );
+    }
+
+    #[test]
+    fn a_username_conflict_returns_409_iam_account_username_already_exists() {
+        assert_body(
+            respond(|| {
+                Failure::expected(Conflict {
+                    resource: "username",
+                })
+            }),
+            StatusCode::CONFLICT,
+            "IAM_ACCOUNT_USERNAME_ALREADY_EXISTS",
+            "This username is already in use.",
+        );
+    }
 }
