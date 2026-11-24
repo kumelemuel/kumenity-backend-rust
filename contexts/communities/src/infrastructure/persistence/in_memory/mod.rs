@@ -1,1 +1,1 @@
-pub mod community_repository;
+pub mod in_memory_community;

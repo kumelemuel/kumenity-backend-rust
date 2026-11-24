@@ -6,7 +6,7 @@ use crate::{
         errors::community_creation::CommunityCreationError,
         ports::{
             inbound::create_community_use_case::CreateCommunityUseCase,
-            outbound::community_repository::CommunityRepositoryPort,
+            outbound::community_repository::CommunityRepository,
         },
     },
     domain::model::community::{
@@ -19,11 +19,11 @@ use shared::{domain::model::verified_identity::VerifiedIdentity, error::SystemEr
 use std::sync::Arc;
 
 pub struct CreateCommunity {
-    community_repository: Arc<dyn CommunityRepositoryPort>,
+    community_repository: Arc<dyn CommunityRepository>,
 }
 
 impl CreateCommunity {
-    pub fn new(community_repository: Arc<dyn CommunityRepositoryPort>) -> Self {
+    pub fn new(community_repository: Arc<dyn CommunityRepository>) -> Self {
         Self {
             community_repository,
         }
@@ -39,7 +39,8 @@ impl CreateCommunityUseCase for CreateCommunity {
         let slug = CommunitySlug::new(data.slug)?;
         let existing_slug = self
             .community_repository
-            .find_by_slug(slug.clone().as_str());
+            .find_by_slug(slug.clone().as_str())
+            .map_err(SystemError::Unexpected)?;
         if existing_slug.is_some() {
             return Err(CommunityCreationError::SlugAlreadyExists.into());
         }
@@ -49,7 +50,9 @@ impl CreateCommunityUseCase for CreateCommunity {
 
         let community = Community::create(id, account_id, slug, name, data.is_public);
 
-        self.community_repository.save(&community)?;
+        self.community_repository
+            .save(&community)
+            .map_err(SystemError::Unexpected)?;
 
         Ok(CreateCommunityResponse {
             id: community.id().as_uuid().to_string(),
@@ -66,18 +69,22 @@ mod tests {
             commands::create_community::{
                 command::CreateCommunityCommand, create_community::CreateCommunity,
             },
-            errors::error_codes::{COMMUNITIES_REPOSITORY_ERROR, COMMUNITIES_SLUG_ALREADY_EXISTS},
+            errors::error_codes::COMMUNITIES_SLUG_ALREADY_EXISTS,
             ports::{
                 inbound::create_community_use_case::CreateCommunityUseCase,
-                outbound::community_repository::test_utils::FakeCommunityRepository,
+                outbound::community_repository::CommunityRepository,
             },
+            testing::FakeCommunityAdapter,
         },
-        domain::errors::error_codes::{
-            COMMUNITIES_INVALID_COMMUNITY_NAME, COMMUNITIES_INVALID_COMMUNITY_SLUG,
+        domain::{
+            errors::error_codes::{
+                COMMUNITIES_INVALID_COMMUNITY_NAME, COMMUNITIES_INVALID_COMMUNITY_SLUG,
+            },
+            model::community::community::Community,
         },
     };
     use iam::domain::model::account::account_id::AccountId;
-    use shared::domain::model::verified_identity::VerifiedIdentity;
+    use shared::{Fault, domain::model::verified_identity::VerifiedIdentity, error::SystemError};
     use std::sync::Arc;
 
     fn valid_auth_context() -> VerifiedIdentity {
@@ -96,7 +103,7 @@ mod tests {
 
     #[test]
     fn create_community_successfully() {
-        let repo = Arc::new(FakeCommunityRepository::success());
+        let repo = Arc::new(FakeCommunityAdapter::empty());
 
         let use_case = CreateCommunity::new(repo);
 
@@ -107,7 +114,7 @@ mod tests {
 
     #[test]
     fn fails_when_name_is_invalid() {
-        let repo = Arc::new(FakeCommunityRepository::success());
+        let repo = Arc::new(FakeCommunityAdapter::empty());
 
         let use_case = CreateCommunity::new(repo);
 
@@ -126,7 +133,7 @@ mod tests {
 
     #[test]
     fn fails_when_slug_is_invalid() {
-        let repo = Arc::new(FakeCommunityRepository::success());
+        let repo = Arc::new(FakeCommunityAdapter::empty());
 
         let use_case = CreateCommunity::new(repo);
 
@@ -144,25 +151,54 @@ mod tests {
     }
 
     #[test]
-    fn fails_when_repository_fails() {
-        let repo = Arc::new(FakeCommunityRepository::fail());
+    fn fails_with_unexpected_when_repository_fails() {
+        let repo = Arc::new(FakeCommunityAdapter::failing());
 
         let use_case = CreateCommunity::new(repo);
 
         let result = use_case.execute(valid_input(), valid_auth_context());
 
-        let err = result.expect_err("Expected error");
+        assert!(
+            matches!(result, Err(SystemError::Unexpected(_))),
+            "{result:?}"
+        );
+    }
 
-        assert_eq!(err.code(), COMMUNITIES_REPOSITORY_ERROR);
+    /// `find_by_slug` responde bien y solo `save` falla: así el test llega a
+    /// `save`, que `FakeCommunityAdapter::failing()` nunca alcanza.
+    struct StubCommunityAdapter;
+
+    impl CommunityRepository for StubCommunityAdapter {
+        fn find_by_slug(&self, _slug: &str) -> Result<Option<Community>, Fault> {
+            Ok(None)
+        }
+
+        fn save(&self, _community: &Community) -> Result<(), Fault> {
+            Err(Fault::new("stub save outage"))
+        }
+    }
+
+    #[test]
+    fn fails_with_unexpected_when_save_fails() {
+        let use_case = CreateCommunity::new(Arc::new(StubCommunityAdapter));
+
+        let result = use_case.execute(valid_input(), valid_auth_context());
+
+        assert!(
+            matches!(result, Err(SystemError::Unexpected(_))),
+            "{result:?}"
+        );
     }
 
     #[test]
     fn fails_when_slug_already_exists() {
-        let repo = Arc::new(FakeCommunityRepository::with_existing_slug(
-            "community-test",
-        ));
+        let repo = Arc::new(FakeCommunityAdapter::empty());
 
         let use_case = CreateCommunity::new(repo);
+
+        use_case
+            .execute(valid_input(), valid_auth_context())
+            .expect("the first community with this slug is created");
 
         let result = use_case.execute(valid_input(), valid_auth_context());
 

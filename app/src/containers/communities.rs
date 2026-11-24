@@ -5,7 +5,7 @@ use communities::{
     },
     infrastructure::{
         http::routes::CommunitiesRoutes,
-        persistence::in_memory::community_repository::InMemoryCommunityRepository,
+        persistence::in_memory::in_memory_community::InMemoryCommunityAdapter,
     },
 };
 use std::sync::Arc;
@@ -17,7 +17,7 @@ pub struct CommunitiesContainer {
 
 impl CommunitiesContainer {
     pub fn initialize() -> Self {
-        let community_repository = Arc::new(InMemoryCommunityRepository::new());
+        let community_repository = Arc::new(InMemoryCommunityAdapter::new());
 
         let create_community = CreateCommunity::new(community_repository.clone());
 

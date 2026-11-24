@@ -54,30 +54,3 @@ impl Community {
         &self.membership_policy
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    impl Community {
-        pub fn dummy_community() -> Community {
-            Community::create(
-                CommunityId::generate(),
-                AccountId::generate(),
-                CommunitySlug::new("rust-community".to_string()).unwrap(),
-                CommunityName::new("Rust Community".to_string()).unwrap(),
-                true,
-            )
-        }
-
-        pub fn dummy_private_community() -> Community {
-            Community::create(
-                CommunityId::generate(),
-                AccountId::generate(),
-                CommunitySlug::new("rust-community".to_string()).unwrap(),
-                CommunityName::new("Rust Community".to_string()).unwrap(),
-                false,
-            )
-        }
-    }
-}
