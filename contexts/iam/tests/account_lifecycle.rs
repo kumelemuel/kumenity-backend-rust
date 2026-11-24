@@ -34,7 +34,7 @@ use iam::{
     },
     domain::model::account::account_status::AccountStatus,
     infrastructure::{
-        persistence::in_memory::account_repository::InMemoryAccountRepository,
+        persistence::in_memory::in_memory_account::InMemoryAccountAdapter,
         security::password_hasher::argon2_password_hasher::Argon2PasswordHasher,
         services::jwt_service::jwt_service::JwtService,
     },
@@ -47,7 +47,7 @@ use std::sync::Arc;
 const PASSWORD: &str = "s3cret-password";
 
 struct Iam {
-    repository: Arc<InMemoryAccountRepository>,
+    repository: Arc<InMemoryAccountAdapter>,
     jwt: Arc<JwtService>,
     register: RegisterAccount,
     verify: VerifyAccount,
@@ -56,7 +56,7 @@ struct Iam {
 }
 
 fn iam() -> Iam {
-    let repository = Arc::new(InMemoryAccountRepository::new());
+    let repository = Arc::new(InMemoryAccountAdapter::new());
     let hasher = Arc::new(Argon2PasswordHasher::new());
     let decoy_hash = hasher.hash("lifecycle-decoy");
     let jwt = Arc::new(JwtService::new("lifecycle-secret".into(), 3600));
