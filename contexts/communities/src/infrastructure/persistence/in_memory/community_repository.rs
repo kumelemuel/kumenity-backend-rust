@@ -29,18 +29,6 @@ impl InMemoryCommunityRepository {
 }
 
 impl CommunityRepositoryPort for InMemoryCommunityRepository {
-    fn get_public_list(&self, _query: Option<String>) -> Vec<Community> {
-        todo!()
-    }
-
-    fn find_by_id(&self, id: &str) -> Option<Community> {
-        let communities = self.communities.lock().expect("mutex poisoned");
-        communities
-            .values()
-            .find(|community| community.id().as_uuid().to_string() == id)
-            .cloned()
-    }
-
     fn find_by_slug(&self, slug: &str) -> Option<Community> {
         let communities = self.communities.lock().expect("mutex poisoned");
         communities
