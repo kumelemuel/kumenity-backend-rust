@@ -70,15 +70,21 @@ mod tests {
                 command::CreateCommunityCommand, create_community::CreateCommunity,
             },
             errors::error_codes::COMMUNITIES_SLUG_ALREADY_EXISTS,
-            ports::inbound::create_community_use_case::CreateCommunityUseCase,
+            ports::{
+                inbound::create_community_use_case::CreateCommunityUseCase,
+                outbound::community_repository::CommunityRepository,
+            },
             testing::FakeCommunityAdapter,
         },
-        domain::errors::error_codes::{
-            COMMUNITIES_INVALID_COMMUNITY_NAME, COMMUNITIES_INVALID_COMMUNITY_SLUG,
+        domain::{
+            errors::error_codes::{
+                COMMUNITIES_INVALID_COMMUNITY_NAME, COMMUNITIES_INVALID_COMMUNITY_SLUG,
+            },
+            model::community::community::Community,
         },
     };
     use iam::domain::model::account::account_id::AccountId;
-    use shared::{domain::model::verified_identity::VerifiedIdentity, error::SystemError};
+    use shared::{Fault, domain::model::verified_identity::VerifiedIdentity, error::SystemError};
     use std::sync::Arc;
 
     fn valid_auth_context() -> VerifiedIdentity {
@@ -149,6 +155,32 @@ mod tests {
         let repo = Arc::new(FakeCommunityAdapter::failing());
 
         let use_case = CreateCommunity::new(repo);
+
+        let result = use_case.execute(valid_input(), valid_auth_context());
+
+        assert!(
+            matches!(result, Err(SystemError::Unexpected(_))),
+            "{result:?}"
+        );
+    }
+
+    /// `find_by_slug` responde bien y solo `save` falla: así el test llega a
+    /// `save`, que `FakeCommunityAdapter::failing()` nunca alcanza.
+    struct StubCommunityAdapter;
+
+    impl CommunityRepository for StubCommunityAdapter {
+        fn find_by_slug(&self, _slug: &str) -> Result<Option<Community>, Fault> {
+            Ok(None)
+        }
+
+        fn save(&self, _community: &Community) -> Result<(), Fault> {
+            Err(Fault::new("stub save outage"))
+        }
+    }
+
+    #[test]
+    fn fails_with_unexpected_when_save_fails() {
+        let use_case = CreateCommunity::new(Arc::new(StubCommunityAdapter));
 
         let result = use_case.execute(valid_input(), valid_auth_context());
 
