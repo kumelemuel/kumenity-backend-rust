@@ -25,7 +25,7 @@ use iam::{
                 verify_account_use_case::VerifyAccountUseCase,
             },
             outbound::{
-                account_repository::AccountRepositoryPort, password_hasher::PasswordHasherPort,
+                account_repository::AccountRepository, password_hasher::PasswordHasherPort,
             },
         },
         queries::identify_account::{
@@ -34,7 +34,7 @@ use iam::{
     },
     domain::model::account::account_status::AccountStatus,
     infrastructure::{
-        persistence::in_memory::account_repository::InMemoryAccountRepository,
+        persistence::in_memory::in_memory_account::InMemoryAccountAdapter,
         security::password_hasher::argon2_password_hasher::Argon2PasswordHasher,
         services::jwt_service::jwt_service::JwtService,
     },
@@ -47,7 +47,7 @@ use std::sync::Arc;
 const PASSWORD: &str = "s3cret-password";
 
 struct Iam {
-    repository: Arc<InMemoryAccountRepository>,
+    repository: Arc<InMemoryAccountAdapter>,
     jwt: Arc<JwtService>,
     register: RegisterAccount,
     verify: VerifyAccount,
@@ -56,7 +56,7 @@ struct Iam {
 }
 
 fn iam() -> Iam {
-    let repository = Arc::new(InMemoryAccountRepository::new());
+    let repository = Arc::new(InMemoryAccountAdapter::new());
     let hasher = Arc::new(Argon2PasswordHasher::new());
     let decoy_hash = hasher.hash("lifecycle-decoy");
     let jwt = Arc::new(JwtService::new("lifecycle-secret".into(), 3600));
@@ -87,6 +87,7 @@ impl Iam {
         match *self
             .repository
             .find_by_email(email)
+            .expect("repository answers")
             .expect("account was registered")
             .status()
         {
@@ -193,7 +194,11 @@ fn password_is_not_stored_in_plain_text() {
     let iam = iam();
     iam.register_ana();
 
-    let account = iam.repository.find_by_email("ana@example.com").unwrap();
+    let account = iam
+        .repository
+        .find_by_email("ana@example.com")
+        .unwrap()
+        .unwrap();
 
     assert_ne!(account.password().value(), PASSWORD);
 }

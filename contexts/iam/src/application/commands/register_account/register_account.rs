@@ -6,7 +6,7 @@ use crate::{
         ports::{
             inbound::register_account_use_case::RegisterAccountUseCase,
             outbound::{
-                account_repository::AccountRepositoryPort, password_hasher::PasswordHasherPort,
+                account_repository::AccountRepository, password_hasher::PasswordHasherPort,
             },
         },
     },
@@ -16,13 +16,13 @@ use shared::{domain::value_object::ValueObject, error::SystemError};
 use std::sync::Arc;
 
 pub struct RegisterAccount {
-    account_repository: Arc<dyn AccountRepositoryPort>,
+    account_repository: Arc<dyn AccountRepository>,
     password_hasher: Arc<dyn PasswordHasherPort>,
 }
 
 impl RegisterAccount {
     pub fn new(
-        account_repository: Arc<dyn AccountRepositoryPort>,
+        account_repository: Arc<dyn AccountRepository>,
         password_hasher: Arc<dyn PasswordHasherPort>,
     ) -> Self {
         Self {
@@ -34,14 +34,18 @@ impl RegisterAccount {
 
 impl RegisterAccountUseCase for RegisterAccount {
     fn execute(&self, cmd: RegisterAccountCommand) -> Result<RegisterAccountResponse, SystemError> {
-        let existing_email = self.account_repository.find_by_email(cmd.email.as_str());
+        let existing_email = self
+            .account_repository
+            .find_by_email(cmd.email.as_str())
+            .map_err(SystemError::Unexpected)?;
         if existing_email.is_some() {
             return Err(AccountError::EmailAlreadyExists.into());
         }
 
         let existing_username = self
             .account_repository
-            .find_by_username(cmd.username.as_str());
+            .find_by_username(cmd.username.as_str())
+            .map_err(SystemError::Unexpected)?;
         if existing_username.is_some() {
             return Err(AccountError::UsernameAlreadyExists.into());
         }
@@ -50,7 +54,9 @@ impl RegisterAccountUseCase for RegisterAccount {
         let account =
             AccountFactory::create(cmd.username, cmd.email, &cmd.password, hashed_password)?;
 
-        self.account_repository.save(&account)?;
+        self.account_repository
+            .save(&account)
+            .map_err(SystemError::Unexpected)?;
 
         Ok(RegisterAccountResponse {
             id: account.id().as_uuid().to_string(),
@@ -67,20 +73,21 @@ mod tests {
             commands::register_account::{
                 command::RegisterAccountCommand, register_account::RegisterAccount,
             },
-            errors::error_codes::IAM_ACCOUNT_REPOSITORY_ERROR,
             ports::{
                 inbound::register_account_use_case::RegisterAccountUseCase,
-                outbound::{
-                    account_repository::test_utils::FakeAccountRepository,
-                    password_hasher::test_utils::FakePasswordHasher,
-                },
+                outbound::password_hasher::test_utils::FakePasswordHasher,
             },
+            testing::{AccountOperation, FakeAccountAdapter},
         },
-        domain::errors::error_codes::{
-            IAM_ACCOUNT_EMAIL_ALREADY_EXISTS, IAM_ACCOUNT_USERNAME_ALREADY_EXISTS,
-            IAM_INVALID_EMAIL, IAM_INVALID_USERNAME,
+        domain::{
+            errors::error_codes::{
+                IAM_ACCOUNT_EMAIL_ALREADY_EXISTS, IAM_ACCOUNT_USERNAME_ALREADY_EXISTS,
+                IAM_INVALID_EMAIL, IAM_INVALID_USERNAME,
+            },
+            model::account::{account::Account, account_factory::AccountFactory},
         },
     };
+    use shared::error::SystemError;
     use std::sync::Arc;
 
     fn valid_input() -> RegisterAccountCommand {
@@ -91,9 +98,22 @@ mod tests {
         }
     }
 
+    const HASH: &str =
+        "$2b$12$12345678901234567890123456789012345673434534534534346346346346346890123456789012";
+
+    fn registered(username: &str, email: &str) -> Account {
+        AccountFactory::create(
+            username.to_string(),
+            email.to_string(),
+            "password123456789",
+            HASH.to_string(),
+        )
+        .expect("invariante: cuenta de prueba válida")
+    }
+
     #[test]
     fn register_account_successfully() {
-        let repo = Arc::new(FakeAccountRepository::success());
+        let repo = Arc::new(FakeAccountAdapter::empty());
         let hasher = Arc::new(FakePasswordHasher);
 
         let use_case = RegisterAccount::new(repo, hasher);
@@ -105,7 +125,7 @@ mod tests {
 
     #[test]
     fn fails_when_username_is_invalid() {
-        let repo = Arc::new(FakeAccountRepository::success());
+        let repo = Arc::new(FakeAccountAdapter::empty());
         let hasher = Arc::new(FakePasswordHasher);
 
         let use_case = RegisterAccount::new(repo, hasher);
@@ -125,7 +145,7 @@ mod tests {
 
     #[test]
     fn fails_when_email_is_invalid() {
-        let repo = Arc::new(FakeAccountRepository::success());
+        let repo = Arc::new(FakeAccountAdapter::empty());
         let hasher = Arc::new(FakePasswordHasher);
 
         let use_case = RegisterAccount::new(repo, hasher);
@@ -144,22 +164,51 @@ mod tests {
     }
 
     #[test]
-    fn fails_when_repository_fails() {
-        let repo = Arc::new(FakeAccountRepository::fail());
-        let hasher = Arc::new(FakePasswordHasher);
-
-        let use_case = RegisterAccount::new(repo, hasher);
+    fn fails_with_unexpected_when_find_by_email_fails() {
+        let repo = Arc::new(FakeAccountAdapter::failing());
+        let use_case = RegisterAccount::new(repo, Arc::new(FakePasswordHasher));
 
         let result = use_case.execute(valid_input());
 
-        let err = result.expect_err("Expected error");
+        assert!(
+            matches!(result, Err(SystemError::Unexpected(_))),
+            "{result:?}"
+        );
+    }
 
-        assert_eq!(err.code(), IAM_ACCOUNT_REPOSITORY_ERROR);
+    #[test]
+    fn fails_with_unexpected_when_find_by_username_fails() {
+        let repo =
+            Arc::new(FakeAccountAdapter::empty().failing_on(AccountOperation::FindByUsername));
+        let use_case = RegisterAccount::new(repo, Arc::new(FakePasswordHasher));
+
+        let result = use_case.execute(valid_input());
+
+        assert!(
+            matches!(result, Err(SystemError::Unexpected(_))),
+            "{result:?}"
+        );
+    }
+
+    #[test]
+    fn fails_with_unexpected_when_save_fails() {
+        let repo = Arc::new(FakeAccountAdapter::empty().failing_on(AccountOperation::Save));
+        let use_case = RegisterAccount::new(repo, Arc::new(FakePasswordHasher));
+
+        let result = use_case.execute(valid_input());
+
+        assert!(
+            matches!(result, Err(SystemError::Unexpected(_))),
+            "{result:?}"
+        );
     }
 
     #[test]
     fn fails_when_username_already_exists() {
-        let repo = Arc::new(FakeAccountRepository::with_existing_username("john_doe"));
+        let repo = Arc::new(FakeAccountAdapter::containing([registered(
+            "john_doe",
+            "other@example.com",
+        )]));
         let hasher = Arc::new(FakePasswordHasher);
 
         let use_case = RegisterAccount::new(repo, hasher);
@@ -173,9 +222,10 @@ mod tests {
 
     #[test]
     fn fails_when_email_already_exists() {
-        let repo = Arc::new(FakeAccountRepository::with_existing_email(
+        let repo = Arc::new(FakeAccountAdapter::containing([registered(
+            "other_user",
             "john@example.com",
-        ));
+        )]));
         let hasher = Arc::new(FakePasswordHasher);
 
         let use_case = RegisterAccount::new(repo, hasher);

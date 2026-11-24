@@ -3,6 +3,10 @@ name = "iam"
 version.workspace = true
 edition.workspace = true
 
+[features]
+# Dobles y baterías de contrato de `application::testing` para otros crates.
+testing = []
+
 [dependencies]
 argon2.workspace = true
 axum.workspace = true

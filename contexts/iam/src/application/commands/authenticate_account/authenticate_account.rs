@@ -6,7 +6,7 @@ use crate::application::{
     ports::{
         inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
         outbound::{
-            account_repository::AccountRepositoryPort, password_hasher::PasswordHasherPort,
+            account_repository::AccountRepository, password_hasher::PasswordHasherPort,
             token_generator::TokenGeneratorPort,
         },
     },
@@ -15,7 +15,7 @@ use shared::{domain::value_object::ValueObject, error::SystemError};
 use std::sync::Arc;
 
 pub struct AuthenticateAccount {
-    account_repository: Arc<dyn AccountRepositoryPort>,
+    account_repository: Arc<dyn AccountRepository>,
     password_hasher: Arc<dyn PasswordHasherPort>,
     token_generator: Arc<dyn TokenGeneratorPort>,
     decoy_hash: String,
@@ -23,7 +23,7 @@ pub struct AuthenticateAccount {
 
 impl AuthenticateAccount {
     pub fn new(
-        account_repository: Arc<dyn AccountRepositoryPort>,
+        account_repository: Arc<dyn AccountRepository>,
         password_hasher: Arc<dyn PasswordHasherPort>,
         token_generator: Arc<dyn TokenGeneratorPort>,
         decoy_hash: String,
@@ -45,6 +45,7 @@ impl AuthenticateAccountUseCase for AuthenticateAccount {
         let Some(account) = self
             .account_repository
             .find_by_username(cmd.username.as_str())
+            .map_err(SystemError::Unexpected)?
         else {
             // Pay the same hashing cost as a wrong password, so the response
             // time does not reveal whether the username exists. The outcome is
@@ -77,20 +78,24 @@ impl AuthenticateAccountUseCase for AuthenticateAccount {
 
 #[cfg(test)]
 mod tests {
-    use crate::application::{
-        commands::authenticate_account::{
-            authenticate_account::AuthenticateAccount, command::AuthenticateAccountCommand,
-        },
-        errors::error_codes::{IAM_CANNOT_AUTHENTICATE, IAM_LOGIN_FAILED},
-        ports::{
-            inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
-            outbound::{
-                account_repository::test_utils::FakeAccountRepository,
-                password_hasher::{PasswordHasherPort, test_utils::FakePasswordHasher},
-                token_generator::test_utils::FakeTokenGenerator,
+    use crate::{
+        application::{
+            commands::authenticate_account::{
+                authenticate_account::AuthenticateAccount, command::AuthenticateAccountCommand,
             },
+            errors::error_codes::{IAM_CANNOT_AUTHENTICATE, IAM_LOGIN_FAILED},
+            ports::{
+                inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
+                outbound::{
+                    password_hasher::{PasswordHasherPort, test_utils::FakePasswordHasher},
+                    token_generator::test_utils::FakeTokenGenerator,
+                },
+            },
+            testing::FakeAccountAdapter,
         },
+        domain::model::account::account_factory::AccountFactory,
     };
+    use shared::error::SystemError;
     use std::sync::{Arc, Mutex};
 
     const DECOY_HASH: &str = "decoy-hash";
@@ -128,7 +133,7 @@ mod tests {
 
     #[test]
     fn verifies_against_the_decoy_hash_when_account_does_not_exist() {
-        let repo = Arc::new(FakeAccountRepository::success());
+        let repo = Arc::new(FakeAccountAdapter::empty());
         let hasher = Arc::new(SpyPasswordHasherPortAdapter::default());
         let token_generator = Arc::new(FakeTokenGenerator);
 
@@ -152,7 +157,7 @@ mod tests {
 
     #[test]
     fn fails_with_login_failed_when_account_does_not_exist() {
-        let repo = Arc::new(FakeAccountRepository::success());
+        let repo = Arc::new(FakeAccountAdapter::empty());
         let hasher = Arc::new(SpyPasswordHasherPortAdapter::default());
         let token_generator = Arc::new(FakeTokenGenerator);
 
@@ -170,8 +175,31 @@ mod tests {
     }
 
     #[test]
+    fn fails_with_unexpected_when_find_by_username_fails() {
+        let repo = Arc::new(FakeAccountAdapter::failing());
+        let use_case = AuthenticateAccount::new(
+            repo,
+            Arc::new(FakePasswordHasher),
+            Arc::new(FakeTokenGenerator),
+            DECOY_HASH.to_string(),
+        );
+
+        let result = use_case.execute(AuthenticateAccountCommand {
+            username: "dummy".to_string(),
+            password: "any_password".to_string(),
+        });
+
+        assert!(
+            matches!(result, Err(SystemError::Unexpected(_))),
+            "{result:?}"
+        );
+    }
+
+    #[test]
     fn fails_with_incorrect_password() {
-        let repo = Arc::new(FakeAccountRepository::with_existing_username("dummy"));
+        let repo = Arc::new(FakeAccountAdapter::containing([
+            AccountFactory::dummy_account_with_status("registered:123123".to_string()),
+        ]));
         let hasher = Arc::new(FakePasswordHasher);
         let token_generator = Arc::new(FakeTokenGenerator);
 
@@ -190,7 +218,9 @@ mod tests {
 
     #[test]
     fn fails_when_account_cannot_authenticate() {
-        let repo = Arc::new(FakeAccountRepository::with_existing_username("dummy"));
+        let repo = Arc::new(FakeAccountAdapter::containing([
+            AccountFactory::dummy_account_with_status("registered:123123".to_string()),
+        ]));
         let hasher = Arc::new(FakePasswordHasher);
         let token_generator = Arc::new(FakeTokenGenerator);
 
@@ -209,9 +239,9 @@ mod tests {
 
     #[test]
     fn authenticate_account_successfully_returns_token() {
-        let repo = Arc::new(FakeAccountRepository::active_with_existing_username(
-            "dummy",
-        ));
+        let repo = Arc::new(FakeAccountAdapter::containing([
+            AccountFactory::dummy_account_with_status("active".to_string()),
+        ]));
         let hasher = Arc::new(FakePasswordHasher);
         let token_generator = Arc::new(FakeTokenGenerator);
 

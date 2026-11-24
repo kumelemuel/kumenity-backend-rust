@@ -17,8 +17,7 @@ use iam::{
         queries::identify_account::identify_account::IdentifyAccount,
     },
     infrastructure::{
-        http::routes::IamRoutes,
-        persistence::in_memory::account_repository::InMemoryAccountRepository,
+        http::routes::IamRoutes, persistence::in_memory::in_memory_account::InMemoryAccountAdapter,
         security::password_hasher::argon2_password_hasher::Argon2PasswordHasher,
         services::jwt_service::jwt_service::JwtService,
     },
@@ -38,7 +37,7 @@ pub struct IamContainer {
 
 impl IamContainer {
     pub fn initialize(jwt_service: Arc<JwtService>) -> Self {
-        let account_repository = Arc::new(InMemoryAccountRepository::new());
+        let account_repository = Arc::new(InMemoryAccountAdapter::new());
         let password_hasher = Arc::new(Argon2PasswordHasher::new());
 
         let register_account =
