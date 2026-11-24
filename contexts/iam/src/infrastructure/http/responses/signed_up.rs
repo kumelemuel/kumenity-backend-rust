@@ -1,4 +1,4 @@
-use crate::application::commands::register_account::response::RegisterAccountResponse;
+use crate::application::commands::register_account::RegisterAccountResponse;
 use serde::Serialize;
 
 #[derive(Serialize)]

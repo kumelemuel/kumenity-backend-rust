@@ -2,7 +2,7 @@ use iam::{
     application::{
         commands::{
             authenticate_account::authenticate_account::AuthenticateAccount,
-            register_account::register_account::RegisterAccount,
+            register_account::RegisterAccountHandler,
             verify_account::verify_account::VerifyAccount,
         },
         ports::{
@@ -49,7 +49,7 @@ impl IamContainer {
         let password_hasher = Arc::new(Argon2PasswordHashingAdapter::new());
 
         let register_account =
-            RegisterAccount::new(account_repository.clone(), password_hasher.clone());
+            RegisterAccountHandler::new(account_repository.clone(), password_hasher.clone());
         // Hashed once, with the same adapter and parameters as real
         // passwords, so verifying against it costs the same (D6).
         let decoy_hash = password_hasher.hash(&random_decoy_password())?;

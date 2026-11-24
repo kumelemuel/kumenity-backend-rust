@@ -1,4 +1,5 @@
 use crate::domain::{
+    errors::AccountCreationError,
     model::account::{
         account::Account, account_id::AccountId, account_status::AccountStatus,
         code_validation::CodeValidation, email::Email, hashed_password::HashedPassword,
@@ -16,7 +17,7 @@ impl AccountFactory {
         email: String,
         raw_password: &str,
         hashed_password: String,
-    ) -> Result<Account, SystemError> {
+    ) -> Result<Account, AccountCreationError> {
         PasswordPolicy::validate(raw_password)?;
         let id = AccountId::generate();
         let username = Username::new(username)?;
@@ -49,6 +50,83 @@ impl AccountFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::errors::{
+        EmailError, HashedPasswordError, UsernameError, password_policy::PasswordPolicyError,
+    };
+
+    const VALID_HASH: &str = "$argon2id$v=19$m=65536,t=2,p=1$hashhashhashhashhashhashhashhashhash";
+
+    fn create(
+        username: &str,
+        email: &str,
+        password: &str,
+        hash: &str,
+    ) -> Result<Account, AccountCreationError> {
+        AccountFactory::create(username.into(), email.into(), password, hash.into())
+    }
+
+    #[test]
+    fn create_rejects_short_password_with_password_variant() {
+        let result = create("john_doe", "john@example.com", "1234567", VALID_HASH);
+
+        assert_eq!(
+            result.err(),
+            Some(AccountCreationError::Password(
+                PasswordPolicyError::TooShort
+            ))
+        );
+    }
+
+    #[test]
+    fn create_rejects_invalid_username_with_username_variant() {
+        let result = create("ab", "john@example.com", "password123", VALID_HASH);
+
+        assert_eq!(
+            result.err(),
+            Some(AccountCreationError::Username(UsernameError::Invalid))
+        );
+    }
+
+    #[test]
+    fn create_rejects_invalid_email_with_email_variant() {
+        let result = create("john_doe", "not-an-email", "password123", VALID_HASH);
+
+        assert_eq!(
+            result.err(),
+            Some(AccountCreationError::Email(EmailError::Invalid))
+        );
+    }
+
+    #[test]
+    fn create_rejects_malformed_hash_with_hashed_password_variant() {
+        let result = create("john_doe", "john@example.com", "password123", "short");
+
+        assert_eq!(
+            result.err(),
+            Some(AccountCreationError::HashedPassword(
+                HashedPasswordError::Invalid
+            ))
+        );
+    }
+
+    /// Order fixed by `register_validates_password_before_username_and_email`.
+    #[test]
+    fn create_checks_password_then_username_then_email() {
+        assert_eq!(
+            create("ab", "not-an-email", "short", "short").err(),
+            Some(AccountCreationError::Password(
+                PasswordPolicyError::TooShort
+            ))
+        );
+        assert_eq!(
+            create("ab", "not-an-email", "password123", "short").err(),
+            Some(AccountCreationError::Username(UsernameError::Invalid))
+        );
+        assert_eq!(
+            create("john_doe", "not-an-email", "password123", "short").err(),
+            Some(AccountCreationError::Email(EmailError::Invalid))
+        );
+    }
 
     impl AccountFactory {
         pub(crate) fn dummy_account() -> Account {

@@ -1,5 +1,9 @@
-pub mod command;
-// HEX-4.1: el handler pasa a `handler.rs` (docs/harness-adoption.md)
-#[allow(clippy::module_inception)]
-pub mod register_account;
-pub mod response;
+mod command;
+mod error;
+mod handler;
+mod response;
+
+pub use command::RegisterAccountCommand;
+pub use error::RegisterAccountError;
+pub use handler::RegisterAccountHandler;
+pub use response::RegisterAccountResponse;
