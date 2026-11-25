@@ -8,3 +8,4 @@ pub mod routes;
 #[cfg(test)]
 mod testing;
 pub mod unexpected;
+pub mod verify_account;

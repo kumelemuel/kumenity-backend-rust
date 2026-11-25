@@ -13,7 +13,7 @@ use iam::{
                 authenticate_account::AuthenticateAccount, command::AuthenticateAccountCommand,
             },
             register_account::{RegisterAccountCommand, RegisterAccountHandler},
-            verify_account::{VerifyAccountCommand, VerifyAccountHandler},
+            verify_account::{VerifyAccountCommand, VerifyAccountError, VerifyAccountHandler},
         },
         ports::{
             inbound::{
@@ -39,7 +39,7 @@ use iam::{
         services::jwt_access_token::JwtAccessTokenAdapter,
     },
 };
-use shared::domain::value_object::ValueObject;
+use shared::{Failure, domain::value_object::ValueObject};
 use std::sync::Arc;
 
 const PASSWORD: &str = "s3cret-password";
@@ -94,7 +94,7 @@ impl Iam {
         }
     }
 
-    fn verify_with(&self, code: u32) -> Result<(), shared::error::SystemError> {
+    fn verify_with(&self, code: u32) -> Result<(), Failure<VerifyAccountError>> {
         self.verify.execute(VerifyAccountCommand {
             email: "ana@example.com".into(),
             code,
@@ -155,7 +155,13 @@ fn verifying_twice_fails_with_invalid_verification() {
 
     let error = iam.verify_with(code).unwrap_err();
 
-    assert_eq!(error.code(), "IAM_ACCOUNT_INVALID_VERIFICATION");
+    assert!(
+        matches!(
+            error,
+            Failure::Expected(VerifyAccountError::InvalidVerification(_))
+        ),
+        "{error:?}"
+    );
     assert_eq!(iam.status_of("ana"), "active");
 }
 
@@ -168,7 +174,13 @@ fn wrong_code_keeps_account_registered_and_unable_to_sign_in() {
 
     let error = iam.verify_with(wrong).unwrap_err();
 
-    assert_eq!(error.code(), "IAM_ACCOUNT_INVALID_VERIFICATION");
+    assert!(
+        matches!(
+            error,
+            Failure::Expected(VerifyAccountError::InvalidVerification(_))
+        ),
+        "{error:?}"
+    );
     assert_eq!(iam.status_of("ana"), "registered");
     assert_eq!(
         iam.sign_in(PASSWORD).unwrap_err().code(),

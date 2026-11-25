@@ -18,3 +18,12 @@ pub const IAM_ACCOUNT_EMAIL_ALREADY_EXISTS: &str = "IAM_ACCOUNT_EMAIL_ALREADY_EX
 pub const IAM_ACCOUNT_EMAIL_ALREADY_EXISTS_MESSAGE: &str = "This email is already in use.";
 pub const IAM_ACCOUNT_USERNAME_ALREADY_EXISTS: &str = "IAM_ACCOUNT_USERNAME_ALREADY_EXISTS";
 pub const IAM_ACCOUNT_USERNAME_ALREADY_EXISTS_MESSAGE: &str = "This username is already in use.";
+
+// `POST /auth/verify` (VerifyAccount).
+pub const IAM_ACCOUNT_NOT_FOUND: &str = "IAM_ACCOUNT_NOT_FOUND";
+pub const IAM_ACCOUNT_NOT_FOUND_MESSAGE: &str =
+    "No account was found with the provided information.";
+pub const IAM_INVALID_CODE_VALIDATION: &str = "IAM_INVALID_CODE_VALIDATION";
+pub const IAM_INVALID_CODE_VALIDATION_MESSAGE: &str = "The verification code is invalid.";
+pub const IAM_ACCOUNT_INVALID_VERIFICATION: &str = "IAM_ACCOUNT_INVALID_VERIFICATION";
+pub const IAM_ACCOUNT_INVALID_VERIFICATION_MESSAGE: &str = "Verification process is invalid.";

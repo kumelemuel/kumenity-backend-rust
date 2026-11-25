@@ -1,19 +1,15 @@
 use crate::{
     application::{
-        commands::{
-            authenticate_account::command::AuthenticateAccountCommand,
-            verify_account::VerifyAccountCommand,
-        },
+        commands::authenticate_account::command::AuthenticateAccountCommand,
         ports::inbound::{
             authenticate_account_use_case::AuthenticateAccountUseCase,
             identify_account_use_case::IdentifyAccountUseCase,
-            verify_account_use_case::VerifyAccountUseCase,
         },
         queries::identify_account::query::IdentifyAccountQuery,
     },
     infrastructure::http::{
         errors::error_mapper::map_application_error,
-        requests::{identify::IdentifyRequest, sign_in::SignInRequest, verify::VerifyRequest},
+        requests::{identify::IdentifyRequest, sign_in::SignInRequest},
         responses::{identified::IdentifiedResponse, signed_in::SignedInResponse},
     },
 };
@@ -26,16 +22,6 @@ pub async fn authenticate(
 ) -> impl IntoResponse {
     match use_case.execute(AuthenticateAccountCommand::from(request)) {
         Ok(result) => (StatusCode::OK, Json(SignedInResponse::from(result))).into_response(),
-        Err(err) => map_application_error(err),
-    }
-}
-
-pub async fn verify(
-    State(use_case): State<Arc<dyn VerifyAccountUseCase>>,
-    Json(request): Json<VerifyRequest>,
-) -> impl IntoResponse {
-    match use_case.execute(VerifyAccountCommand::from(request)) {
-        Ok(result) => (StatusCode::OK, Json(result)).into_response(),
         Err(err) => map_application_error(err),
     }
 }
