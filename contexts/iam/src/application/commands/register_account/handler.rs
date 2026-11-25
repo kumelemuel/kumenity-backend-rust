@@ -370,6 +370,27 @@ mod tests {
         assert!(matches!(result, Err(Failure::Unexpected(_))), "{result:?}");
     }
 
+    /// The policy runs before the hash: a rejected password never reaches the
+    /// hasher, so a hasher that would fail is not called.
+    #[test]
+    fn rejects_the_password_before_hashing_it() {
+        let hasher =
+            Arc::new(FixedPasswordHashingAdapter::new().failing_on(PasswordHashingOperation::Hash));
+        let use_case = RegisterAccountHandler::new(Arc::new(FakeAccountAdapter::empty()), hasher);
+
+        let result = use_case.execute(with("john_doe", "john@example.com", "1234567"));
+
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(RegisterAccountError::Validation(
+                    Validation { field: "password" }
+                )))
+            ),
+            "{result:?}"
+        );
+    }
+
     /// Answers a hash that is not a `HashedPassword`. It breaks the
     /// `PasswordHashingService` contract on purpose, so it does not run the
     /// battery: it stands for an adapter with a bug.
