@@ -204,11 +204,478 @@ fn hex_4_api_depends_on_use_cases_never_on_handlers() {
     );
 }
 
+/// `CreateCommunity` → `create_community`.
+///
+/// Agrupa las siglas: `VerifyHTTPToken` → `verify_http_token`. Corta antes de
+/// una mayúscula que sigue a una minúscula, y antes de la última de una sigla
+/// si la sigue una minúscula.
+fn snake_case(name: &str) -> String {
+    let chars: Vec<char> = name.chars().collect();
+    let mut out = String::new();
+    for (i, &c) in chars.iter().enumerate() {
+        if c.is_uppercase() && i > 0 {
+            let prev = chars[i - 1];
+            let next_lower = chars.get(i + 1).is_some_and(|n| n.is_lowercase());
+            if prev.is_lowercase() || (prev.is_uppercase() && next_lower) {
+                out.push('_');
+            }
+        }
+        out.extend(c.to_lowercase());
+    }
+    out
+}
+
+/// Violaciones de la firma de `execute` de un `{Verb}{Noun}UseCase`:
+/// `(línea, mensaje)`. Un solo argumento además de `&self`,
+/// `{Verb}{Noun}Command` o `{Verb}{Noun}Query`, y
+/// `Result<{Verb}{Noun}Response, Failure<{Verb}{Noun}Error>>` (o `Fault`, si el
+/// caso de uso no tiene árbol A), directo o dentro de un `BoxFuture`.
+///
+/// Límites: compara el último segmento de cada tipo, así que un alias de tipo
+/// (`type CreateCommunityResult = Result<…>`) es una violación (se escribe la
+/// firma explícita), y un homónimo definido en otro módulo pasa si existe el
+/// del caso de uso.
+fn use_case_signature_violations(t: &syn::ItemTrait) -> Vec<(usize, String)> {
+    let name = t.ident.to_string();
+    let Some(stem) = name.strip_suffix("UseCase").filter(|s| !s.is_empty()) else {
+        return Vec::new();
+    };
+    let mut violations = Vec::new();
+    for item in &t.items {
+        let syn::TraitItem::Fn(f) = item else {
+            continue;
+        };
+        if f.sig.ident != "execute" {
+            continue;
+        }
+        let line = f.sig.ident.span().start().line;
+        let args: Vec<&syn::PatType> = f
+            .sig
+            .inputs
+            .iter()
+            .filter_map(|a| match a {
+                syn::FnArg::Typed(t) => Some(t),
+                syn::FnArg::Receiver(_) => None,
+            })
+            .collect();
+        let inputs = [format!("{stem}Command"), format!("{stem}Query")];
+        match args.as_slice() {
+            [arg] => {
+                let ty = type_name(&arg.ty);
+                if !inputs.contains(&ty) {
+                    violations.push((
+                        line,
+                        format!(
+                            "`{name}::execute` recibe `{ty}`: recibe `{}` o `{}`, por valor",
+                            inputs[0], inputs[1]
+                        ),
+                    ));
+                }
+            }
+            other => violations.push((
+                line,
+                format!(
+                    "`{name}::execute` recibe {} argumentos además de `&self`: uno solo, `{}` o `{}`",
+                    other.len(),
+                    inputs[0],
+                    inputs[1]
+                ),
+            )),
+        }
+        let response = format!("{stem}Response");
+        let error = format!("{stem}Error");
+        let syn::ReturnType::Type(_, output) = &f.sig.output else {
+            violations.push((line, format!("`{name}::execute` no devuelve nada: devuelve `Result<{response}, Failure<{error}>>`")));
+            continue;
+        };
+        let Some((ok, err)) = result_args(output) else {
+            violations.push((line, format!("`{name}::execute` no devuelve un `Result`: devuelve `Result<{response}, Failure<{error}>>`")));
+            continue;
+        };
+        let ok = type_name(ok);
+        if ok != response {
+            violations.push((
+                line,
+                format!("`{name}::execute` responde `{ok}`: responde `{response}`"),
+            ));
+        }
+        let err_name = type_name(err);
+        let failure_of = generic_arg(err).map(type_name);
+        let valid = err_name == "Fault"
+            || (err_name == "Failure" && failure_of.as_deref() == Some(error.as_str()));
+        if !valid {
+            let shown = failure_of.map_or(err_name.clone(), |inner| format!("{err_name}<{inner}>"));
+            violations.push((
+                line,
+                format!(
+                    "`{name}::execute` falla con `{shown}`: con `Failure<{error}>`, o con `Fault` si \
+                     el caso de uso no tiene errores de negocio (ERR-1, ERR-2)"
+                ),
+            ));
+        }
+    }
+    violations
+}
+
+/// Último segmento de un tipo de ruta (`a::b::C<…>` → `C`), con `&` si es una
+/// referencia.
+fn type_name(ty: &syn::Type) -> String {
+    match ty {
+        syn::Type::Path(p) => p
+            .path
+            .segments
+            .last()
+            .map(|s| s.ident.to_string())
+            .unwrap_or_default(),
+        syn::Type::Reference(r) => format!("&{}", type_name(&r.elem)),
+        _ => "un tipo que no es una ruta".into(),
+    }
+}
+
+/// Primer argumento genérico de tipo de `C<T, …>`.
+fn generic_arg(ty: &syn::Type) -> Option<&syn::Type> {
+    generic_args(ty).into_iter().next()
+}
+
+fn generic_args(ty: &syn::Type) -> Vec<&syn::Type> {
+    let syn::Type::Path(p) = ty else {
+        return Vec::new();
+    };
+    let Some(syn::PathArguments::AngleBracketed(args)) =
+        p.path.segments.last().map(|s| &s.arguments)
+    else {
+        return Vec::new();
+    };
+    args.args
+        .iter()
+        .filter_map(|a| match a {
+            syn::GenericArgument::Type(t) => Some(t),
+            _ => None,
+        })
+        .collect()
+}
+
+/// `(T, E)` del primer `Result<T, E>`, directo o dentro de un genérico
+/// (`BoxFuture<'_, Result<…>>`).
+fn result_args(ty: &syn::Type) -> Option<(&syn::Type, &syn::Type)> {
+    if type_name(ty) == "Result"
+        && let [ok, err] = generic_args(ty).as_slice()
+    {
+        return Some((ok, err));
+    }
+    generic_args(ty).into_iter().find_map(result_args)
+}
+
+mod signatures {
+    use super::*;
+
+    fn violations(code: &str) -> Vec<String> {
+        let t: syn::ItemTrait = syn::parse_str(code).expect("invariante: trait de prueba válido");
+        use_case_signature_violations(&t)
+            .into_iter()
+            .map(|(_, v)| v)
+            .collect()
+    }
+
+    #[test]
+    fn the_canonical_signature_passes() {
+        let found = violations(
+            "pub trait CreateCommunityUseCase: Send + Sync {
+                fn execute(&self, command: CreateCommunityCommand)
+                    -> BoxFuture<'_, Result<CreateCommunityResponse, Failure<CreateCommunityError>>>;
+            }",
+        );
+
+        assert_eq!(found, Vec::<String>::new());
+    }
+
+    #[test]
+    fn a_query_and_a_synchronous_result_pass() {
+        let found = violations(
+            "pub trait VerifyAccessTokenUseCase {
+                fn execute(&self, query: VerifyAccessTokenQuery)
+                    -> Result<VerifyAccessTokenResponse, Failure<VerifyAccessTokenError>>;
+            }",
+        );
+
+        assert_eq!(found, Vec::<String>::new());
+    }
+
+    /// Sin árbol A no hay tipo de error (ERR-1): `Result<…, Fault>`.
+    #[test]
+    fn a_use_case_without_business_errors_returns_fault() {
+        let found = violations(
+            "pub trait ListCommunitiesUseCase {
+                fn execute(&self, query: ListCommunitiesQuery)
+                    -> BoxFuture<'_, Result<ListCommunitiesResponse, Fault>>;
+            }",
+        );
+
+        assert_eq!(found, Vec::<String>::new());
+    }
+
+    #[test]
+    fn a_second_argument_is_a_violation() {
+        let found = violations(
+            "pub trait CreateCommunityUseCase {
+                fn execute(&self, command: CreateCommunityCommand, identity: VerifiedIdentity)
+                    -> BoxFuture<'_, Result<CreateCommunityResponse, Failure<CreateCommunityError>>>;
+            }",
+        );
+
+        assert!(
+            found.iter().any(|v| v.contains("2 argumentos")),
+            "{found:?}"
+        );
+    }
+
+    #[test]
+    fn an_argument_of_another_type_is_a_violation() {
+        let found = violations(
+            "pub trait CreateCommunityUseCase {
+                fn execute(&self, request: CreateCommunityRequest)
+                    -> BoxFuture<'_, Result<CreateCommunityResponse, Failure<CreateCommunityError>>>;
+            }",
+        );
+
+        assert!(
+            found.iter().any(|v| v.contains("`CreateCommunityRequest`")),
+            "{found:?}"
+        );
+    }
+
+    #[test]
+    fn a_shared_error_type_is_a_violation() {
+        let found = violations(
+            "pub trait RegisterAccountUseCase {
+                fn execute(&self, command: RegisterAccountCommand)
+                    -> Result<RegisterAccountResponse, SystemError>;
+            }",
+        );
+
+        assert!(
+            found.iter().any(|v| v.contains("`SystemError`")),
+            "{found:?}"
+        );
+    }
+
+    #[test]
+    fn another_response_is_a_violation() {
+        let found = violations(
+            "pub trait CreateCommunityUseCase {
+                fn execute(&self, command: CreateCommunityCommand)
+                    -> Result<Community, Failure<CreateCommunityError>>;
+            }",
+        );
+
+        assert!(found.iter().any(|v| v.contains("`Community`")), "{found:?}");
+    }
+
+    #[test]
+    fn a_return_without_result_is_a_violation() {
+        let found = violations(
+            "pub trait CreateCommunityUseCase {
+                fn execute(&self, command: CreateCommunityCommand) -> CreateCommunityResponse;
+            }",
+        );
+
+        assert!(found.iter().any(|v| v.contains("Result")), "{found:?}");
+    }
+}
+
+/// ¿Alguna firma de `t` nombra el tipo `name`?
+fn uses_type(t: &syn::ItemTrait, name: &str) -> bool {
+    struct Uses<'a> {
+        name: &'a str,
+        found: bool,
+    }
+    impl<'ast> Visit<'ast> for Uses<'_> {
+        fn visit_path_segment(&mut self, segment: &'ast syn::PathSegment) {
+            self.found |= segment.ident == self.name;
+            syn::visit::visit_path_segment(self, segment);
+        }
+    }
+    let mut uses = Uses { name, found: false };
+    uses.visit_item_trait(t);
+    uses.found
+}
+
+/// Tipos `struct`/`enum` definidos en un directorio de `krate` (sin módulos de test).
+fn types_defined_under(dir: &Path) -> Vec<String> {
+    rust_files(dir)
+        .iter()
+        .flat_map(|path| {
+            let syntax = parse(path);
+            items_of(&syntax.items)
+                .into_iter()
+                .filter_map(|item| match item {
+                    syn::Item::Struct(s) => Some(s.ident.to_string()),
+                    syn::Item::Enum(e) => Some(e.ident.to_string()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+/// HEX-4, ERR-2: la firma de un caso de uso es su contrato propio. `execute`
+/// recibe un solo `{Verb}{Noun}Command` o `{Verb}{Noun}Query` y devuelve
+/// `Result<{Verb}{Noun}Response, Failure<{Verb}{Noun}Error>>` (o `Fault` sin
+/// árbol A). Esos tipos viven junto al handler, en
+/// `commands/{verb_noun}/` o `queries/{verb_noun}/`: ni un segundo argumento
+/// (la identidad va en el comando) ni un error compartido entre casos.
+#[test]
+fn hex_4_use_case_signatures_are_their_own_contract() {
+    let (violations, use_cases) = signature_violations(&crates());
+
+    assert_no_violations(
+        "hex_4_use_case_signatures_are_their_own_contract",
+        "HEX-4: `execute` recibe un solo `{Verb}{Noun}Command|Query` y devuelve \
+         `Result<{Verb}{Noun}Response, Failure<{Verb}{Noun}Error>>` (o `Fault`), definidos \
+         junto al handler",
+        &[("UseCase de ports/inbound", use_cases)],
+        violations,
+    );
+}
+
+/// En legacy, `commands/` es `src/application/commands`.
+#[test]
+fn hex_4_use_case_signatures_are_checked_in_legacy_contexts() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/legacy");
+
+    let (violations, use_cases) = signature_violations(&common::crates_at(&fixture));
+
+    assert_eq!(use_cases, 1, "{violations:#?}");
+    let found = |needle: &str| violations.iter().any(|v| v.contains(needle));
+    assert!(found("recibe 0 argumentos"), "{violations:#?}");
+    // El tipo existe, bajo src/application/commands/register/: el mensaje dice
+    // dónde está y dónde se espera.
+    assert!(
+        found(
+            "`RegisterAccountResponse` está en commands/register/: se espera en commands/register_account/"
+        ),
+        "{violations:#?}"
+    );
+}
+
+#[test]
+fn hex_4_snake_case_groups_acronyms() {
+    assert_eq!(snake_case("CreateCommunity"), "create_community");
+    assert_eq!(snake_case("VerifyHTTPToken"), "verify_http_token");
+    assert_eq!(snake_case("ImportCSV"), "import_csv");
+}
+
+/// Tipos de los casos de uso de `app`: nombre → `commands/{caso}` o
+/// `queries/{caso}`, para decir dónde está un tipo que no está en su lugar.
+fn case_types(app: &Crate) -> std::collections::BTreeMap<String, String> {
+    let mut found = std::collections::BTreeMap::new();
+    for kind in ["commands", "queries"] {
+        let Some(root) = app.path(&format!("src/{kind}")) else {
+            continue;
+        };
+        let Ok(entries) = std::fs::read_dir(&root) else {
+            continue;
+        };
+        for entry in entries.flatten().filter(|e| e.path().is_dir()) {
+            let case = entry.file_name().to_string_lossy().to_string();
+            for name in types_defined_under(&entry.path()) {
+                found
+                    .entry(name)
+                    .or_insert_with(|| format!("{kind}/{case}"));
+            }
+        }
+    }
+    found
+}
+
+/// HEX-4: violaciones de las firmas de los `UseCase` de `all`, y cuántos revisó.
+fn signature_violations(all: &[Crate]) -> (Vec<String>, usize) {
+    let mut violations = Vec::new();
+    let mut use_cases = 0;
+    for app in all.iter().filter(|c| c.layer == Layer::Application) {
+        let Some(inbound) = app.path("src/ports/inbound") else {
+            continue;
+        };
+        for path in rust_files(&inbound) {
+            let syntax = parse(&path);
+            let file = relative(&path);
+            for item in items_of(&syntax.items) {
+                let syn::Item::Trait(t) = item else {
+                    continue;
+                };
+                let name = t.ident.to_string();
+                let Some(stem) = name.strip_suffix("UseCase").filter(|s| !s.is_empty()) else {
+                    continue;
+                };
+                use_cases += 1;
+                for (line, v) in use_case_signature_violations(t) {
+                    violations.push(format!("{file}:{line}: {v}"));
+                }
+                let snake = snake_case(stem);
+                let dirs: Vec<PathBuf> = ["src/commands", "src/queries"]
+                    .iter()
+                    .filter_map(|d| app.path(d))
+                    .map(|d| d.join(&snake))
+                    .collect();
+                let defined: Vec<String> =
+                    dirs.iter().flat_map(|d| types_defined_under(d)).collect();
+                let elsewhere = case_types(app);
+                let line = t.ident.span().start().line;
+                let expected = format!("commands/{snake}/ o queries/{snake}/");
+                let misplaced = |names: &[String]| -> Option<String> {
+                    if names.iter().any(|n| defined.contains(n)) {
+                        return None;
+                    }
+                    let shown = names
+                        .iter()
+                        .map(|n| format!("`{n}`"))
+                        .collect::<Vec<_>>()
+                        .join(" o ");
+                    Some(
+                        match names.iter().find_map(|n| elsewhere.get(n).map(|d| (n, d))) {
+                            Some((n, dir)) => {
+                                format!("`{n}` está en {dir}/: se espera en {expected}")
+                            }
+                            None => format!("{shown} no está definido en {expected}"),
+                        },
+                    )
+                };
+                let input = [format!("{stem}Command"), format!("{stem}Query")];
+                let error = format!("{stem}Error");
+                let response = [format!("{stem}Response")];
+                for v in [misplaced(&input), misplaced(&response)]
+                    .into_iter()
+                    .flatten()
+                {
+                    violations.push(format!("{file}:{line}: {v}"));
+                }
+                if uses_type(t, &error) {
+                    if let Some(v) = misplaced(std::slice::from_ref(&error)) {
+                        violations.push(format!(
+                            "{file}:{line}: {v} (un error por caso de uso, ERR-2)"
+                        ));
+                    }
+                } else if defined.contains(&error) {
+                    violations.push(format!(
+                        "{file}:{line}: `{name}` falla solo con `Fault` y `{error}` sigue definido: \
+                         sin árbol A no hay tipo de error (ERR-1)"
+                    ));
+                }
+            }
+        }
+    }
+
+    (violations, use_cases)
+}
+
 /// Nombres con los que un archivo de `application` alcanza el crate de dominio.
 struct DomainNames {
     /// Ruta raíz del dominio: `["communities_domain"]`, o `["crate", "domain"]`
     /// en un contexto legacy.
     root: Vec<String>,
+    /// El dominio del kernel, también dominio para los contratos:
+    /// `["kernel", "domain"]`, o `["shared", "domain"]` con el kernel legacy.
+    kernel_domain: Vec<String>,
     /// Nombres locales importados con `use` desde ese crate (tipos o módulos).
     local: Vec<String>,
     /// `use {ctx}_domain::…::*`: cualquier nombre podría venir del dominio.
@@ -249,9 +716,10 @@ impl DomainNames {
             .collect()
     }
 
-    fn of(root: &[String], module: Option<Vec<String>>, file: &syn::File) -> Self {
+    fn of(root: &[String], kernel: &str, module: Option<Vec<String>>, file: &syn::File) -> Self {
         let mut names = Self {
             root: root.to_vec(),
+            kernel_domain: vec![kernel.to_string(), "domain".to_string()],
             module,
             local: Vec::new(),
             glob: false,
@@ -289,7 +757,9 @@ impl DomainNames {
 }
 
 fn self_is_domain(names: &DomainNames, path: &[String]) -> bool {
-    names.absolute(path).starts_with(&names.root)
+    let absolute = names.absolute(path);
+    absolute.starts_with(&names.root)
+        || absolute.starts_with(&names.kernel_domain)
         || path
             .first()
             .is_some_and(|first| names.local.contains(first))
@@ -418,6 +888,10 @@ fn domain_crate_of(application: &Crate, all: &[Crate]) -> Option<Vec<String>> {
 fn contract_violations(all: &[Crate]) -> (Vec<String>, usize) {
     let mut violations = Vec::new();
     let mut contracts = 0;
+    let kernel = all
+        .iter()
+        .find(|c| c.layer == Layer::Kernel)
+        .map_or_else(|| "kernel".into(), |k| k.name.replace('-', "_"));
 
     for app in all.iter().filter(|c| c.layer == Layer::Application) {
         let Some(krate) = domain_crate_of(app, all) else {
@@ -426,7 +900,7 @@ fn contract_violations(all: &[Crate]) -> (Vec<String>, usize) {
         for path in app.files("src") {
             let syntax = parse(&path);
             let module = app.legacy.then(|| module_path(&app.dir.join("src"), &path));
-            let names = DomainNames::of(&krate, module, &syntax);
+            let names = DomainNames::of(&krate, &kernel, module, &syntax);
             let file = relative(&path);
             let in_cases = is_under(&path, app, &["src/commands", "src/queries"]);
             let in_inbound = is_under(&path, app, &["src/ports/inbound"]);
@@ -817,6 +1291,458 @@ fn hex_5_adapters_are_named_by_technology_and_concept() {
     );
 }
 
+/// Alias de un archivo: `use kernel::IdGenerator as Ids;` → `Ids` → `IdGenerator`.
+fn renames_of(syntax: &syn::File) -> std::collections::BTreeMap<String, String> {
+    fn walk(tree: &syn::UseTree, out: &mut std::collections::BTreeMap<String, String>) {
+        match tree {
+            syn::UseTree::Path(p) => walk(&p.tree, out),
+            syn::UseTree::Rename(r) => {
+                out.insert(r.rename.to_string(), r.ident.to_string());
+            }
+            syn::UseTree::Group(g) => g.items.iter().for_each(|i| walk(i, out)),
+            _ => {}
+        }
+    }
+    let mut out = std::collections::BTreeMap::new();
+    for item in &syntax.items {
+        if let syn::Item::Use(u) = item {
+            walk(&u.tree, &mut out);
+        }
+    }
+    out
+}
+
+/// HEX-8: violaciones de ubicación de los adaptadores de capacidades en `all`,
+/// y cuántas implementaciones de producción revisó.
+fn capability_violations(all: &[Crate]) -> (Vec<String>, usize) {
+    let mut violations = Vec::new();
+    let mut implementations = 0;
+    for krate in all {
+        let mut renames = std::collections::BTreeMap::new();
+        for (file, imp, test) in trait_impls(krate) {
+            let Some((_, path, _)) = &imp.trait_ else {
+                continue;
+            };
+            let renamed = renames
+                .entry(file.clone())
+                .or_insert_with(|| renames_of(&parse(&file)));
+            let written = last_segment(path);
+            let capability = renamed.get(&written).cloned().unwrap_or(written);
+            if test || !CAPABILITIES.contains(&capability.as_str()) {
+                continue;
+            }
+            implementations += 1;
+            let shared = krate.layer == Layer::Infrastructure && krate.context.is_none();
+            if !shared {
+                violations.push(format!(
+                    "{}: implementa `{capability}`, una capacidad del kernel, en `{}`: \
+                     su adaptador va en un crate de infrastructure/*",
+                    relative(&file),
+                    krate.name
+                ));
+            }
+        }
+    }
+    (violations, implementations)
+}
+
+/// HEX-8: el adaptador de una capacidad del kernel es infraestructura
+/// compartida (`infrastructure/*`), no de un contexto: lo usan todos, y vive
+/// una sola vez. Los dobles (`Fixed…`, `Spy…`) de los tests no cuentan.
+#[test]
+fn hex_8_capability_adapters_are_shared_infrastructure() {
+    let (violations, implementations) = capability_violations(&crates());
+
+    assert_no_violations(
+        "hex_8_capability_adapters_are_shared_infrastructure",
+        "HEX-8: los adaptadores de las capacidades del kernel viven en infrastructure/*, \
+         fuera de los contextos",
+        &[(
+            "implementaciones de producción de capacidades del kernel",
+            implementations,
+        )],
+        violations,
+    );
+}
+
+/// En legacy, la capa virtual `infrastructure` es de un contexto, y un alias
+/// del import no esconde la capacidad.
+#[test]
+fn hex_8_capability_adapters_are_checked_in_legacy_contexts() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/legacy");
+
+    let (violations, implementations) = capability_violations(&common::crates_at(&fixture));
+
+    assert_eq!(implementations, 1, "{violations:#?}");
+    assert!(
+        violations
+            .iter()
+            .any(|v| v.contains("implementa `IdGenerator`") && v.contains("en `iam`")),
+        "{violations:#?}"
+    );
+}
+
+#[test]
+fn hex_8_renames_resolve_to_the_original_name() {
+    let syntax: syn::File = syn::parse_str(
+        "use kernel::{Clock, IdGenerator as Ids};\nuse shared::{FaultReporter as Faults};",
+    )
+    .expect("invariante: archivo de prueba válido");
+
+    let renames = renames_of(&syntax);
+
+    assert_eq!(renames.get("Ids").map(String::as_str), Some("IdGenerator"));
+    assert_eq!(
+        renames.get("Faults").map(String::as_str),
+        Some("FaultReporter")
+    );
+    assert_eq!(renames.get("Clock"), None);
+}
+
+/// HEX-1: violaciones de los adaptadores driving (`api`, también la capa
+/// virtual `infrastructure/http` de un contexto legacy) que nombran el dominio
+/// o un puerto saliente, y cuántos archivos revisó.
+fn driving_import_violations(all: &[Crate]) -> (Vec<String>, usize) {
+    /// Rutas de un ítem (en `use` y en el código).
+    #[derive(Default)]
+    struct Paths(Vec<(usize, Vec<String>)>);
+    impl<'ast> Visit<'ast> for Paths {
+        fn visit_path(&mut self, path: &'ast syn::Path) {
+            let segments = path.segments.iter().map(|s| s.ident.to_string()).collect();
+            let line = path
+                .segments
+                .first()
+                .map_or(0, |s| s.ident.span().start().line);
+            self.0.push((line, segments));
+            syn::visit::visit_path(self, path);
+        }
+        fn visit_item_use(&mut self, u: &'ast syn::ItemUse) {
+            let line = u.use_token.span.start().line;
+            for (leaf, _) in use_leaves(&u.tree) {
+                self.0.push((line, leaf));
+            }
+        }
+    }
+
+    let is_outbound = |path: &[String]| path.windows(2).any(|w| w == ["ports", "outbound"]);
+    let mut violations = Vec::new();
+    let mut files = 0;
+    for api in all.iter().filter(|c| c.layer == Layer::Api) {
+        // Raíces del dominio y de application que ve este `api`: las de su
+        // contexto, `crate::…` en legacy, o todas para un `api` central.
+        let roots = |layer: Layer| -> Vec<Vec<String>> {
+            if api.legacy {
+                let name = if layer == Layer::Domain {
+                    "domain"
+                } else {
+                    "application"
+                };
+                return vec![vec!["crate".into(), name.into()]];
+            }
+            all.iter()
+                .filter(|c| c.layer == layer && !c.legacy)
+                .filter(|c| api.context.is_none() || c.context == api.context)
+                .map(|c| vec![c.name.replace('-', "_")])
+                .collect()
+        };
+        let (domains, applications) = (roots(Layer::Domain), roots(Layer::Application));
+        let mut test_files: Vec<PathBuf> = Vec::new();
+        let mut parsed = Vec::new();
+        for path in api.files("src") {
+            let syntax = parse(&path);
+            let dir = module_dir(&path);
+            for item in &syntax.items {
+                if let syn::Item::Mod(m) = item
+                    && m.content.is_none()
+                    && is_test_module(m)
+                {
+                    test_files.push(dir.join(format!("{}.rs", m.ident)));
+                    test_files.push(dir.join(m.ident.to_string()));
+                }
+            }
+            parsed.push((path, syntax));
+        }
+        for (path, syntax) in parsed {
+            if test_files.iter().any(|t| path.starts_with(t)) {
+                continue;
+            }
+            files += 1;
+            let module = api.legacy.then(|| module_path(&api.dir.join("src"), &path));
+            let resolver = DomainNames {
+                root: Vec::new(),
+                kernel_domain: Vec::new(),
+                local: Vec::new(),
+                glob: false,
+                module,
+            };
+            // Nombres importados (`use x::ports;` → `ports` → `x::ports`) y
+            // globs, para expandir las rutas que empiezan por ellos.
+            let mut imported: std::collections::BTreeMap<String, Vec<String>> =
+                std::collections::BTreeMap::new();
+            let mut globs: Vec<Vec<String>> = Vec::new();
+            let items: Vec<&syn::Item> = items_of(&syntax.items)
+                .into_iter()
+                .filter(|i| !matches!(i, syn::Item::Mod(m) if is_test_module(m)))
+                .collect();
+            for item in &items {
+                if let syn::Item::Use(u) = item {
+                    for (leaf, local) in use_leaves(&u.tree) {
+                        let absolute = resolver.absolute(&leaf);
+                        match local {
+                            Some(name) => {
+                                imported.insert(name, absolute);
+                            }
+                            None => globs.push(absolute),
+                        }
+                    }
+                }
+            }
+            let mut paths = Paths::default();
+            for item in &items {
+                paths.visit_item(item);
+            }
+            let file = relative(&path);
+            let mut seen = std::collections::BTreeSet::new();
+            for (line, segments) in paths.0 {
+                let shown = segments.join("::");
+                let mut candidates = vec![resolver.absolute(&segments)];
+                // Un nombre suelto importado ya lo reporta su `use`.
+                if segments.len() > 1 {
+                    if let Some(prefix) = imported.get(&segments[0]) {
+                        candidates.push([prefix.clone(), segments[1..].to_vec()].concat());
+                    }
+                    for glob in &globs {
+                        candidates.push([glob.clone(), segments.clone()].concat());
+                    }
+                }
+                let under = |roots: &[Vec<String>], c: &Vec<String>| {
+                    roots.iter().any(|r| !r.is_empty() && c.starts_with(r))
+                };
+                let message = if candidates.iter().any(|c| under(&domains, c)) {
+                    format!(
+                        "nombra el dominio (`{shown}`): un adaptador driving solo ve el UseCase"
+                    )
+                } else if candidates
+                    .iter()
+                    .any(|c| under(&applications, c) && is_outbound(c))
+                {
+                    format!(
+                        "nombra un puerto saliente (`{shown}`): un adaptador driving llama al \
+                         UseCase, nunca a los puertos de los que depende el handler"
+                    )
+                } else {
+                    continue;
+                };
+                if seen.insert((line, shown)) {
+                    violations.push(format!("{file}:{line}: {message}"));
+                }
+            }
+        }
+    }
+    (violations, files)
+}
+
+/// HEX-6: violaciones de los tipos de `application` que aparecen en la firma
+/// de un puerto saliente sin estar definidos en `ports/outbound/dtos/`, y
+/// cuántos puertos revisó.
+fn outbound_type_violations(all: &[Crate]) -> (Vec<String>, usize) {
+    /// Rutas de una firma, completas.
+    struct Paths(Vec<Vec<String>>);
+    impl<'ast> Visit<'ast> for Paths {
+        fn visit_path(&mut self, path: &'ast syn::Path) {
+            self.0
+                .push(path.segments.iter().map(|s| s.ident.to_string()).collect());
+            syn::visit::visit_path(self, path);
+        }
+    }
+
+    let mut violations = Vec::new();
+    let mut ports = 0;
+    for app in all.iter().filter(|c| c.layer == Layer::Application) {
+        let Some(outbound) = app.path("src/ports/outbound") else {
+            continue;
+        };
+        // `dtos/` o `dtos.rs`.
+        let in_dtos =
+            |f: &Path| f.starts_with(outbound.join("dtos")) || f == outbound.join("dtos.rs");
+        // Los dobles, por su ruta dentro de `src` (no por la del proyecto).
+        let is_double = |f: &Path| {
+            f.strip_prefix(&app.src)
+                .unwrap_or(f)
+                .components()
+                .any(|c| matches!(c.as_os_str().to_str(), Some("testing" | "testing.rs")))
+        };
+        // Raíz de application tal como la escribe un archivo del crate.
+        let own_root: Vec<String> = if app.legacy {
+            vec!["crate".into(), "application".into()]
+        } else {
+            vec!["crate".into()]
+        };
+        let external_name = app.name.replace('-', "_");
+        let elsewhere: std::collections::BTreeSet<String> = app
+            .files("src")
+            .into_iter()
+            .filter(|f| !in_dtos(f) && !is_double(f))
+            .flat_map(|f| {
+                let syntax = parse(&f);
+                items_of(&syntax.items)
+                    .into_iter()
+                    .filter_map(|item| match item {
+                        syn::Item::Struct(s) => Some(s.ident.to_string()),
+                        syn::Item::Enum(e) => Some(e.ident.to_string()),
+                        syn::Item::Type(t) => Some(t.ident.to_string()),
+                        syn::Item::Union(u) => Some(u.ident.to_string()),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        for path in rust_files(&outbound).into_iter().filter(|f| !in_dtos(f)) {
+            let syntax = parse(&path);
+            let file = relative(&path);
+            let module = Some(module_path(&app.src, &path));
+            let resolver = DomainNames {
+                root: Vec::new(),
+                kernel_domain: Vec::new(),
+                local: Vec::new(),
+                glob: false,
+                module: module.map(|m| {
+                    if app.legacy {
+                        [vec!["application".to_string()], m].concat()
+                    } else {
+                        m
+                    }
+                }),
+            };
+            // ¿La ruta es de application? Sin `crate`/`super`/el crate propio
+            // delante, es de otro crate (dominio, kernel, `std`).
+            let is_application = |p: &[String]| {
+                let absolute = resolver.absolute(p);
+                absolute.starts_with(&own_root)
+                    && !absolute.starts_with(&["crate".into(), "domain".into()])
+                    || absolute.first() == Some(&external_name)
+            };
+            // Nombres sueltos importados de otro crate: no son de application.
+            let mut foreign = std::collections::BTreeSet::new();
+            for item in items_of(&syntax.items) {
+                if let syn::Item::Use(u) = item {
+                    for (leaf, local) in use_leaves(&u.tree) {
+                        if let Some(name) = local
+                            && !is_application(&leaf)
+                        {
+                            foreign.insert(name);
+                        }
+                    }
+                }
+            }
+            for item in items_of(&syntax.items) {
+                let syn::Item::Trait(t) = item else {
+                    continue;
+                };
+                ports += 1;
+                let mut found = std::collections::BTreeSet::new();
+                for trait_item in &t.items {
+                    let syn::TraitItem::Fn(f) = trait_item else {
+                        continue;
+                    };
+                    let mut paths = Paths(Vec::new());
+                    paths.visit_signature(&f.sig);
+                    for p in paths.0 {
+                        let Some(name) = p.last() else {
+                            continue;
+                        };
+                        let ours = if p.len() > 1 {
+                            is_application(&p)
+                        } else {
+                            !foreign.contains(name)
+                        };
+                        if ours && elsewhere.contains(name) {
+                            found.insert((f.sig.ident.span().start().line, name.clone()));
+                        }
+                    }
+                }
+                for (line, name) in found {
+                    violations.push(format!(
+                        "{file}:{line}: `{name}`, en la firma de `{}`, está definido en \
+                         application fuera de ports/outbound/dtos/: los tipos de un puerto \
+                         saliente viven en dtos/",
+                        t.ident
+                    ));
+                }
+            }
+        }
+    }
+    (violations, ports)
+}
+
+/// HEX-1: un adaptador driving llama al UseCase. No nombra el dominio (en
+/// legacy comparte crate con él, así que Cargo no lo impide) ni los puertos
+/// salientes, que son del handler.
+#[test]
+fn hex_1_driving_adapters_see_only_use_cases() {
+    let (violations, files) = driving_import_violations(&crates());
+
+    assert_no_violations(
+        "hex_1_driving_adapters_see_only_use_cases",
+        "HEX-1: un adaptador driving no nombra el dominio ni un puerto saliente",
+        &[("archivos de api", files)],
+        violations,
+    );
+}
+
+/// HEX-6: los tipos propios de un puerto saliente (DTOs y errores declarados)
+/// viven en `ports/outbound/dtos/`. El puerto puede usar el dominio, el kernel
+/// y `std`.
+#[test]
+fn hex_6_outbound_port_types_live_in_dtos() {
+    let (violations, ports) = outbound_type_violations(&crates());
+
+    assert_no_violations(
+        "hex_6_outbound_port_types_live_in_dtos",
+        "HEX-6: los tipos de application en la firma de un puerto saliente están en \
+         ports/outbound/dtos/",
+        &[("puertos salientes", ports)],
+        violations,
+    );
+}
+
+#[test]
+fn hex_1_driving_adapters_are_checked_in_legacy_contexts() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/legacy");
+
+    let (violations, _) = driving_import_violations(&common::crates_at(&fixture));
+
+    let shown: Vec<&str> = violations
+        .iter()
+        .map(|v| v.split(": ").nth(1).unwrap_or(v))
+        .collect();
+    assert_eq!(
+        shown,
+        [
+            "nombra un puerto saliente (`crate::application::ports::outbound::PasswordHashingService`)",
+            "nombra el dominio (`crate::domain::Account`)",
+            "nombra un puerto saliente (`ports::outbound::PasswordHashingService`)",
+            "nombra el dominio (`super::super::domain::Account`)",
+        ],
+        "{violations:#?}"
+    );
+}
+
+#[test]
+fn hex_6_outbound_port_types_are_checked_in_legacy_contexts() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/legacy");
+
+    let (violations, ports) = outbound_type_violations(&common::crates_at(&fixture));
+
+    assert_eq!(ports, 1, "{violations:#?}");
+    assert_eq!(violations.len(), 2, "{violations:#?}");
+    assert!(
+        violations[0].contains("`HashedPassword`"),
+        "{violations:#?}"
+    );
+    assert!(violations[1].contains("`Salt`"), "{violations:#?}");
+}
+
 #[test]
 fn hex_6_outbound_dtos_do_not_use_reserved_vocabulary() {
     let mut violations = Vec::new();
@@ -1112,6 +2038,10 @@ fn hex_4_contracts_are_checked_in_legacy_contexts() {
     );
     assert!(
         found("expone `super::super::super::super::domain::Account`"),
+        "{violations:#?}"
+    );
+    assert!(
+        found("expone `shared::domain::VerifiedIdentity`"),
         "{violations:#?}"
     );
 }
