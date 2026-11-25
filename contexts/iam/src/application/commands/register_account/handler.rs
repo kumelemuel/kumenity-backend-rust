@@ -65,12 +65,10 @@ impl RegisterAccountUseCase for RegisterAccountHandler {
 
         let hashed_password = self.password_hasher.hash(&cmd.password)?;
 
-        // Domain errors → flat leaf of the contract, by variant (ERR-2). A
-        // hash that is not a `HashedPassword` is a bug of the hasher, not
-        // something the client can fix: tree B.
-        let account =
-            AccountFactory::create(cmd.username, cmd.email, &cmd.password, hashed_password)
-                .map_err(|error| match error {
+        // Domain errors → flat leaf of the contract, by variant (ERR-2).
+        let draft =
+            AccountFactory::draft(cmd.username, cmd.email, &cmd.password).map_err(|error| {
+                match error {
                     AccountCreationError::Password(_) => {
                         Failure::expected(Validation { field: "password" })
                     }
@@ -80,10 +78,13 @@ impl RegisterAccountUseCase for RegisterAccountHandler {
                     AccountCreationError::Email(_) => {
                         Failure::expected(Validation { field: "email" })
                     }
-                    AccountCreationError::HashedPassword(_) => {
-                        Failure::Unexpected(Fault::new("password hasher returned a malformed hash"))
-                    }
-                })?;
+                }
+            })?;
+
+        // A hash that is not a `HashedPassword` is a bug of the hasher, not
+        // something the client can fix: tree B.
+        let account = AccountFactory::create(draft, hashed_password)
+            .map_err(|_| Fault::new("password hasher returned a malformed hash"))?;
 
         self.account_repository.save(&account)?;
 
@@ -124,13 +125,10 @@ mod tests {
         "$2b$12$12345678901234567890123456789012345673434534534534346346346346346890123456789012";
 
     fn registered(username: &str, email: &str) -> Account {
-        AccountFactory::create(
-            username.to_string(),
-            email.to_string(),
-            "password123456789",
-            HASH.to_string(),
-        )
-        .expect("invariante: cuenta de prueba válida")
+        let draft =
+            AccountFactory::draft(username.to_string(), email.to_string(), "password123456789")
+                .expect("invariante: borrador de prueba válido");
+        AccountFactory::create(draft, HASH.to_string()).expect("invariante: hash de prueba válido")
     }
 
     fn register_with(repo: Arc<FakeAccountAdapter>, input: RegisterAccountCommand) -> Outcome {
