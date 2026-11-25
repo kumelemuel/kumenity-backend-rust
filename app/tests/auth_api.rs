@@ -135,6 +135,24 @@ async fn register_accepts_same_username_with_surrounding_spaces() {
     assert_eq!(response.body["username"], "ana");
 }
 
+/// CURRENT BEHAVIOR: the conflict is checked with the raw input before the
+/// username format is validated, so an invalid username with a taken email
+/// answers 409 instead of 400.
+#[tokio::test]
+async fn register_with_invalid_username_and_taken_email_returns_409() {
+    let app = app().await;
+    register(&app, "ana", "ana@example.com", PASSWORD).await;
+
+    let response = register(&app, "ab", "ana@example.com", PASSWORD).await;
+
+    assert_error(
+        &response,
+        StatusCode::CONFLICT,
+        "IAM_ACCOUNT_EMAIL_ALREADY_EXISTS",
+        "This email is already in use.",
+    );
+}
+
 #[tokio::test]
 async fn register_rejects_password_shorter_than_8_chars() {
     let app = app().await;
