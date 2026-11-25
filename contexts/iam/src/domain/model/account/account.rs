@@ -124,9 +124,10 @@ impl Account {
                 if code_validation != code {
                     return Err(AccountError::InvalidVerification);
                 }
-                let _ = self
-                    .transition_status(AccountStatus::Active)
-                    .map_err(|_| AccountError::InvalidVerification);
+                // `can_transition_to` always admits Registered → Active: a
+                // failure here is a bug, not a client error (ERR-1.4).
+                self.transition_status(AccountStatus::Active)
+                    .expect("invariante: Registered→Active siempre es válida");
                 Ok(())
             }
             _ => Err(AccountError::InvalidVerification),
@@ -204,6 +205,16 @@ mod tests {
         let code = CodeValidation::new(123123).unwrap();
 
         assert!(user.confirm_registration(code).is_ok());
+    }
+
+    #[test]
+    fn confirmed_registration_leaves_the_account_active() {
+        let mut user = AccountFactory::dummy_account();
+
+        user.confirm_registration(CodeValidation::new(123123).expect("invariante: código válido"))
+            .expect("confirm with the delivered code");
+
+        assert_eq!(*user.status(), AccountStatus::Active);
     }
 
     #[test]

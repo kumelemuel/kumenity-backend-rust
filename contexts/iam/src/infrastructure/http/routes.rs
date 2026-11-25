@@ -5,7 +5,7 @@ use crate::{
         register_account_use_case::RegisterAccountUseCase,
         verify_account_use_case::VerifyAccountUseCase,
     },
-    infrastructure::http::{handlers::account_handlers, register_account},
+    infrastructure::http::{handlers::account_handlers, register_account, verify_account},
 };
 use axum::{Router, routing::post};
 use std::sync::Arc;
@@ -44,7 +44,7 @@ impl IamRoutes {
             )
             .route(
                 "/auth/verify",
-                post(account_handlers::verify).with_state(self.verify.clone()),
+                post(verify_account::verify).with_state(self.verify.clone()),
             )
             .route(
                 "/auth/identify",

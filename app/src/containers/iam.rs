@@ -2,8 +2,7 @@ use iam::{
     application::{
         commands::{
             authenticate_account::authenticate_account::AuthenticateAccount,
-            register_account::RegisterAccountHandler,
-            verify_account::verify_account::VerifyAccount,
+            register_account::RegisterAccountHandler, verify_account::VerifyAccountHandler,
         },
         ports::{
             inbound::{
@@ -59,7 +58,7 @@ impl IamContainer {
             access_tokens.clone(),
             decoy_hash,
         );
-        let verify_account = VerifyAccount::new(account_repository.clone());
+        let verify_account = VerifyAccountHandler::new(account_repository.clone());
         let identify_account = IdentifyAccount::new(account_repository.clone());
         let verify_access_token = VerifyAccessTokenHandler::new(access_tokens);
 
