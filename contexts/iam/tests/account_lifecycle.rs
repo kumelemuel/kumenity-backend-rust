@@ -13,7 +13,7 @@ use iam::{
                 authenticate_account::AuthenticateAccount, command::AuthenticateAccountCommand,
             },
             register_account::{RegisterAccountCommand, RegisterAccountHandler},
-            verify_account::{command::VerifyAccountCommand, verify_account::VerifyAccount},
+            verify_account::{VerifyAccountCommand, VerifyAccountHandler},
         },
         ports::{
             inbound::{
@@ -48,7 +48,7 @@ struct Iam {
     repository: Arc<InMemoryAccountAdapter>,
     jwt: Arc<JwtAccessTokenAdapter>,
     register: RegisterAccountHandler,
-    verify: VerifyAccount,
+    verify: VerifyAccountHandler,
     authenticate: AuthenticateAccount,
     identify: IdentifyAccount,
 }
@@ -60,7 +60,7 @@ fn iam() -> Iam {
     let jwt = Arc::new(JwtAccessTokenAdapter::new("lifecycle-secret".into(), 3600));
     Iam {
         register: RegisterAccountHandler::new(repository.clone(), hasher.clone()),
-        verify: VerifyAccount::new(repository.clone()),
+        verify: VerifyAccountHandler::new(repository.clone()),
         authenticate: AuthenticateAccount::new(repository.clone(), hasher, jwt.clone(), decoy_hash),
         identify: IdentifyAccount::new(repository.clone()),
         repository,

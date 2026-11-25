@@ -1,6 +1,6 @@
 use crate::{
     application::{
-        commands::verify_account::command::VerifyAccountCommand,
+        commands::verify_account::VerifyAccountCommand,
         ports::{
             inbound::verify_account_use_case::VerifyAccountUseCase,
             outbound::account_repository::AccountRepository,
@@ -11,17 +11,17 @@ use crate::{
 use shared::{domain::value_object::ValueObject, error::SystemError};
 use std::sync::Arc;
 
-pub struct VerifyAccount {
+pub struct VerifyAccountHandler {
     account_repository: Arc<dyn AccountRepository>,
 }
 
-impl VerifyAccount {
+impl VerifyAccountHandler {
     pub fn new(account_repository: Arc<dyn AccountRepository>) -> Self {
         Self { account_repository }
     }
 }
 
-impl VerifyAccountUseCase for VerifyAccount {
+impl VerifyAccountUseCase for VerifyAccountHandler {
     fn execute(&self, cmd: VerifyAccountCommand) -> Result<(), SystemError> {
         let Some(mut account) = self
             .account_repository
@@ -46,9 +46,7 @@ impl VerifyAccountUseCase for VerifyAccount {
 mod tests {
     use crate::{
         application::{
-            commands::verify_account::{
-                command::VerifyAccountCommand, verify_account::VerifyAccount,
-            },
+            commands::verify_account::{VerifyAccountCommand, VerifyAccountHandler},
             ports::inbound::verify_account_use_case::VerifyAccountUseCase,
             testing::{AccountOperation, FakeAccountAdapter},
         },
@@ -71,7 +69,7 @@ mod tests {
     #[test]
     fn fails_with_unexpected_when_find_by_email_fails() {
         let repo = Arc::new(FakeAccountAdapter::failing());
-        let use_case = VerifyAccount::new(repo);
+        let use_case = VerifyAccountHandler::new(repo);
 
         let result = use_case.execute(valid_command());
 
@@ -87,7 +85,7 @@ mod tests {
             FakeAccountAdapter::containing([AccountFactory::dummy_account()])
                 .failing_on(AccountOperation::Save),
         );
-        let use_case = VerifyAccount::new(repo);
+        let use_case = VerifyAccountHandler::new(repo);
 
         let result = use_case.execute(valid_command());
 
@@ -103,7 +101,7 @@ mod tests {
             AccountFactory::dummy_account_with_status("registered:123123".to_string()),
         ]));
 
-        let use_case = VerifyAccount::new(repo);
+        let use_case = VerifyAccountHandler::new(repo);
 
         let result = use_case.execute(VerifyAccountCommand {
             email: "dummy@example.com".to_string(),
@@ -117,7 +115,7 @@ mod tests {
     fn fails_when_email_not_found() {
         let repo = Arc::new(FakeAccountAdapter::empty());
 
-        let use_case = VerifyAccount::new(repo);
+        let use_case = VerifyAccountHandler::new(repo);
 
         let result = use_case.execute(VerifyAccountCommand {
             email: "not-exists@example.com".to_string(),
@@ -135,7 +133,7 @@ mod tests {
             AccountFactory::dummy_account_with_status("registered:123123".to_string()),
         ]));
 
-        let use_case = VerifyAccount::new(repo);
+        let use_case = VerifyAccountHandler::new(repo);
 
         let result = use_case.execute(VerifyAccountCommand {
             email: "dummy@example.com".to_string(),

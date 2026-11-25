@@ -1,4 +1,5 @@
-pub mod command;
-// HEX-4.1: el handler pasa a `handler.rs` (docs/harness-adoption.md)
-#[allow(clippy::module_inception)]
-pub mod verify_account;
+mod command;
+mod handler;
+
+pub use command::VerifyAccountCommand;
+pub use handler::VerifyAccountHandler;

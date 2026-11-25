@@ -2,7 +2,7 @@ use crate::{
     application::{
         commands::{
             authenticate_account::command::AuthenticateAccountCommand,
-            verify_account::command::VerifyAccountCommand,
+            verify_account::VerifyAccountCommand,
         },
         ports::inbound::{
             authenticate_account_use_case::AuthenticateAccountUseCase,
