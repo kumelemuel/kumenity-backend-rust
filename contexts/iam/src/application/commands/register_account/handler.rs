@@ -15,12 +15,12 @@ use crate::{
 use shared::{Failure, Fault, domain::value_object::ValueObject};
 use std::sync::Arc;
 
-/// Orchestrates (HEX-7): checks for conflicts, hashes, asks the factory for
-/// the account, saves it and maps it.
+/// Orchestrates (HEX-7): asks the factory for a draft, checks for conflicts
+/// with its normalized values, hashes, asks the factory for the account,
+/// saves it and maps it.
 ///
-/// The order is today's, fixed by `app/tests/`: email conflict, username
-/// conflict, hash, and then the factory's rules (password, username, email).
-/// R12 changes the conflict checks to the normalized values.
+/// The order is fixed by `app/tests/`: the factory's rules (password,
+/// username, email), then the email conflict, then the username conflict.
 pub struct RegisterAccountHandler {
     account_repository: Arc<dyn AccountRepository>,
     password_hasher: Arc<dyn PasswordHashingService>,
@@ -43,34 +43,11 @@ impl RegisterAccountUseCase for RegisterAccountHandler {
         &self,
         cmd: RegisterAccountCommand,
     ) -> Result<RegisterAccountResponse, Failure<RegisterAccountError>> {
-        // `find_*` answers an Option; this use case decides that existing is
-        // a conflict (ERR-1). `?` propagates the `Fault` as tree B.
-        if self
-            .account_repository
-            .find_by_email(cmd.email.as_str())?
-            .is_some()
-        {
-            return Err(Failure::expected(Conflict { resource: "email" }));
-        }
-
-        if self
-            .account_repository
-            .find_by_username(cmd.username.as_str())?
-            .is_some()
-        {
-            return Err(Failure::expected(Conflict {
-                resource: "username",
-            }));
-        }
-
-        let hashed_password = self.password_hasher.hash(&cmd.password)?;
-
-        // Domain errors → flat leaf of the contract, by variant (ERR-2). A
-        // hash that is not a `HashedPassword` is a bug of the hasher, not
-        // something the client can fix: tree B.
-        let account =
-            AccountFactory::create(cmd.username, cmd.email, &cmd.password, hashed_password)
-                .map_err(|error| match error {
+        // Domain errors → flat leaf of the contract, by variant (ERR-2). The
+        // draft comes first: password, then format, then conflict.
+        let draft =
+            AccountFactory::draft(cmd.username, cmd.email, &cmd.password).map_err(|error| {
+                match error {
                     AccountCreationError::Password(_) => {
                         Failure::expected(Validation { field: "password" })
                     }
@@ -80,10 +57,37 @@ impl RegisterAccountUseCase for RegisterAccountHandler {
                     AccountCreationError::Email(_) => {
                         Failure::expected(Validation { field: "email" })
                     }
-                    AccountCreationError::HashedPassword(_) => {
-                        Failure::Unexpected(Fault::new("password hasher returned a malformed hash"))
-                    }
-                })?;
+                }
+            })?;
+
+        // Uniqueness is looked up with the normalized values of the draft,
+        // the same ones the account is saved with (HEX-7.1). `find_*` answers
+        // an Option; this use case decides that existing is a conflict
+        // (ERR-1). `?` propagates the `Fault` as tree B.
+        if self
+            .account_repository
+            .find_by_email(draft.email().value())?
+            .is_some()
+        {
+            return Err(Failure::expected(Conflict { resource: "email" }));
+        }
+
+        if self
+            .account_repository
+            .find_by_username(draft.username().value())?
+            .is_some()
+        {
+            return Err(Failure::expected(Conflict {
+                resource: "username",
+            }));
+        }
+
+        let hashed_password = self.password_hasher.hash(&cmd.password)?;
+
+        // A hash that is not a `HashedPassword` is a bug of the hasher, not
+        // something the client can fix: tree B.
+        let account = AccountFactory::create(draft, hashed_password)
+            .map_err(|_| Fault::new("password hasher returned a malformed hash"))?;
 
         self.account_repository.save(&account)?;
 
@@ -124,13 +128,10 @@ mod tests {
         "$2b$12$12345678901234567890123456789012345673434534534534346346346346346890123456789012";
 
     fn registered(username: &str, email: &str) -> Account {
-        AccountFactory::create(
-            username.to_string(),
-            email.to_string(),
-            "password123456789",
-            HASH.to_string(),
-        )
-        .expect("invariante: cuenta de prueba válida")
+        let draft =
+            AccountFactory::draft(username.to_string(), email.to_string(), "password123456789")
+                .expect("invariante: borrador de prueba válido");
+        AccountFactory::create(draft, HASH.to_string()).expect("invariante: hash de prueba válido")
     }
 
     fn register_with(repo: Arc<FakeAccountAdapter>, input: RegisterAccountCommand) -> Outcome {
@@ -242,6 +243,97 @@ mod tests {
     }
 
     #[test]
+    fn fails_with_conflict_when_email_differs_only_in_case() {
+        let repo = Arc::new(FakeAccountAdapter::containing([registered(
+            "other_user",
+            "john@example.com",
+        )]));
+
+        let result = register_with(
+            repo,
+            with("john_doe", " John@Example.COM ", "password123456789"),
+        );
+
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(RegisterAccountError::Conflict(
+                    Conflict { resource: "email" }
+                )))
+            ),
+            "{result:?}"
+        );
+    }
+
+    #[test]
+    fn fails_with_conflict_when_username_differs_only_in_surrounding_spaces() {
+        let repo = Arc::new(FakeAccountAdapter::containing([registered(
+            "john_doe",
+            "other@example.com",
+        )]));
+
+        let result = register_with(
+            repo,
+            with("  john_doe ", "john@example.com", "password123456789"),
+        );
+
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(RegisterAccountError::Conflict(
+                    Conflict {
+                        resource: "username"
+                    }
+                )))
+            ),
+            "{result:?}"
+        );
+    }
+
+    /// Format before conflict: `register_rejects_invalid_username_before_checking_taken_email`.
+    #[test]
+    fn fails_with_validation_on_invalid_username_before_checking_taken_email() {
+        let repo = Arc::new(FakeAccountAdapter::containing([registered(
+            "other_user",
+            "john@example.com",
+        )]));
+
+        let result = register_with(repo, with("ab", "john@example.com", "password123456789"));
+
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(RegisterAccountError::Validation(
+                    Validation { field: "username" }
+                )))
+            ),
+            "{result:?}"
+        );
+    }
+
+    /// Password before conflict, as in
+    /// `register_validates_password_before_username_and_email`.
+    #[test]
+    fn fails_with_validation_on_short_password_before_checking_taken_email() {
+        let repo = Arc::new(FakeAccountAdapter::containing([registered(
+            "other_user",
+            "john@example.com",
+        )]));
+
+        let result = register_with(repo, with("john_doe", "john@example.com", "1234567"));
+
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(RegisterAccountError::Validation(
+                    Validation { field: "password" }
+                )))
+            ),
+            "{result:?}"
+        );
+    }
+
+    #[test]
     fn fails_with_unexpected_when_find_by_email_fails() {
         let result = register_with(Arc::new(FakeAccountAdapter::failing()), valid_input());
 
@@ -276,6 +368,27 @@ mod tests {
         let result = use_case.execute(valid_input());
 
         assert!(matches!(result, Err(Failure::Unexpected(_))), "{result:?}");
+    }
+
+    /// The policy runs before the hash: a rejected password never reaches the
+    /// hasher, so a hasher that would fail is not called.
+    #[test]
+    fn rejects_the_password_before_hashing_it() {
+        let hasher =
+            Arc::new(FixedPasswordHashingAdapter::new().failing_on(PasswordHashingOperation::Hash));
+        let use_case = RegisterAccountHandler::new(Arc::new(FakeAccountAdapter::empty()), hasher);
+
+        let result = use_case.execute(with("john_doe", "john@example.com", "1234567"));
+
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(RegisterAccountError::Validation(
+                    Validation { field: "password" }
+                )))
+            ),
+            "{result:?}"
+        );
     }
 
     /// Answers a hash that is not a `HashedPassword`. It breaks the
