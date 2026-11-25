@@ -11,8 +11,9 @@ use shared::{domain::value_object::ValueObject, error::SystemError};
 
 /// What a registration asks for, already checked against the rules of the
 /// domain: the password policy, and the username and email as normalized
-/// value objects. It is the only way to `AccountFactory::create`, so an
-/// account is never created from unchecked input.
+/// value objects. It is the only way through `AccountFactory::create`.
+/// `Account::new` is still public until R20 (HEX-7.5), and that the hash
+/// comes from the password the policy accepted is up to the caller (TDD-2.7).
 ///
 /// The raw password is not kept: once the policy accepts it, only its hash
 /// goes into the account.
