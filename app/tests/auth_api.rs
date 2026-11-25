@@ -99,47 +99,40 @@ async fn register_checks_email_before_username_when_both_are_taken() {
     assert_eq!(response.body["code"], "IAM_ACCOUNT_EMAIL_ALREADY_EXISTS");
 }
 
-/// CURRENT BEHAVIOR: the duplicate check compares the raw input against the
-/// stored (lowercased) email, so a different casing registers a second
-/// account with the same email.
 #[tokio::test]
-async fn register_accepts_same_email_with_different_casing() {
+async fn register_rejects_same_email_with_different_casing_with_409() {
     let app = app().await;
     register(&app, "ana", "ana@example.com", PASSWORD).await;
 
     let response = register(&app, "other", "ANA@example.com", PASSWORD).await;
 
-    assert_eq!(
-        response.status,
-        StatusCode::CREATED,
-        "{}",
-        response.raw_body
+    assert_error(
+        &response,
+        StatusCode::CONFLICT,
+        "IAM_ACCOUNT_EMAIL_ALREADY_EXISTS",
+        "This email is already in use.",
     );
-    assert_eq!(response.body["email"], "ana@example.com");
 }
 
-/// CURRENT BEHAVIOR: same as above for usernames with surrounding spaces.
 #[tokio::test]
-async fn register_accepts_same_username_with_surrounding_spaces() {
+async fn register_rejects_same_username_with_surrounding_spaces_with_409() {
     let app = app().await;
     register(&app, "ana", "ana@example.com", PASSWORD).await;
 
     let response = register(&app, " ana ", "other@example.com", PASSWORD).await;
 
-    assert_eq!(
-        response.status,
-        StatusCode::CREATED,
-        "{}",
-        response.raw_body
+    assert_error(
+        &response,
+        StatusCode::CONFLICT,
+        "IAM_ACCOUNT_USERNAME_ALREADY_EXISTS",
+        "This username is already in use.",
     );
-    assert_eq!(response.body["username"], "ana");
 }
 
-/// CURRENT BEHAVIOR: the conflict is checked with the raw input before the
-/// username format is validated, so an invalid username with a taken email
-/// answers 409 instead of 400.
+/// Format before conflict: an invalid username is a 400 even if the email is
+/// taken.
 #[tokio::test]
-async fn register_with_invalid_username_and_taken_email_returns_409() {
+async fn register_rejects_invalid_username_before_checking_taken_email() {
     let app = app().await;
     register(&app, "ana", "ana@example.com", PASSWORD).await;
 
@@ -147,9 +140,9 @@ async fn register_with_invalid_username_and_taken_email_returns_409() {
 
     assert_error(
         &response,
-        StatusCode::CONFLICT,
-        "IAM_ACCOUNT_EMAIL_ALREADY_EXISTS",
-        "This email is already in use.",
+        StatusCode::BAD_REQUEST,
+        "IAM_INVALID_USERNAME",
+        "Please enter a valid username.",
     );
 }
 
