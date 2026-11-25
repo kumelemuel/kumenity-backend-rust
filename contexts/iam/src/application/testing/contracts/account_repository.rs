@@ -126,6 +126,27 @@ pub fn find_by_username_matches_the_whole_username<R: AccountRepository>(
     assert_eq!(by_username(&adapter, "anabella"), None);
 }
 
+/// La normalización es de los value objects, no del adaptador: una cuenta
+/// creada con `Email` y `Username` de una entrada con mayúsculas y espacios se
+/// encuentra con el valor normalizado de otra entrada equivalente. Es la
+/// búsqueda que hace el alta (HEX-7.1).
+pub fn finds_by_the_normalized_email_and_username<R: AccountRepository>(
+    new_adapter: impl Fn() -> R,
+) {
+    let adapter = new_adapter();
+    let saved = account("  ana ", " Ana@Example.COM ");
+    save(&adapter, &saved);
+
+    let email = Email::new("ANA@example.com".into()).expect("invariante: email de prueba válido");
+    let username = Username::new(" ana".into()).expect("invariante: username de prueba válido");
+
+    assert_eq!(by_email(&adapter, email.value()), Some(snapshot(&saved)));
+    assert_eq!(
+        by_username(&adapter, username.value()),
+        Some(snapshot(&saved))
+    );
+}
+
 /// Con varias cuentas, cada email y cada username encuentran la suya.
 pub fn finds_each_account_by_its_own_email_and_username<R: AccountRepository>(
     new_adapter: impl Fn() -> R,
@@ -206,6 +227,11 @@ macro_rules! account_repository_contract {
             #[test]
             fn find_by_username_matches_the_whole_username() {
                 contract::find_by_username_matches_the_whole_username(|| $new_adapter);
+            }
+
+            #[test]
+            fn finds_by_the_normalized_email_and_username() {
+                contract::finds_by_the_normalized_email_and_username(|| $new_adapter);
             }
 
             #[test]
