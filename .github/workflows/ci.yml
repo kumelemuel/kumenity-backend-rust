@@ -35,5 +35,9 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
+      # Un conjunto vacío de una regla de arquitectura falla, salvo que esté
+      # exento en tools/architecture/material-exempt.txt (VER-1).
       - name: Tests
+        env:
+          ARCH_REQUIRE_MATERIAL: "1"
         run: cargo test --workspace --locked
