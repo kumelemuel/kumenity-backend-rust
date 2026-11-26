@@ -106,7 +106,8 @@ mod tests {
             },
         },
         domain::model::account::{
-            account::Account, account_factory::AccountFactory, account_id::AccountId,
+            account::Account, account_id::AccountId, account_status::AccountStatus, email::Email,
+            hashed_password::HashedPassword, username::Username,
         },
     };
     const PASSWORD: &str = "dummy-password";
@@ -119,14 +120,14 @@ mod tests {
 
     /// `dummy`, with `PASSWORD` hashed by `FixedPasswordHashingAdapter`.
     fn dummy_account(status: &str) -> Account {
-        AccountFactory::reconstitute(
-            AccountId::generate().as_uuid().to_string(),
-            "dummy".to_string(),
-            "dummy@example.com".to_string(),
-            hash_of(PASSWORD),
-            status.to_string(),
+        Account::new(
+            AccountId::generate(),
+            Username::new("dummy".to_string()).expect("invariante: username de prueba válido"),
+            Email::new("dummy@example.com".to_string())
+                .expect("invariante: email de prueba válido"),
+            HashedPassword::new(hash_of(PASSWORD)).expect("invariante: hash de prueba válido"),
+            AccountStatus::from_str(status).expect("invariante: estado de prueba válido"),
         )
-        .expect("invariante: cuenta de prueba válida")
     }
 
     fn command(username: &str, password: &str) -> AuthenticateAccountCommand {
