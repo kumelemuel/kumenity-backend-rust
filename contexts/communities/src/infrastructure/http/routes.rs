@@ -1,6 +1,6 @@
 use crate::{
     application::ports::inbound::create_community_use_case::CreateCommunityUseCase,
-    infrastructure::http::handlers::community_handlers,
+    infrastructure::http::create_community,
 };
 use axum::{Router, routing::post};
 use std::sync::Arc;
@@ -21,7 +21,7 @@ impl CommunitiesRoutes {
     pub fn protected(&self) -> Router {
         Router::new().route(
             "/communities/create",
-            post(community_handlers::create).with_state(self.create.clone()),
+            post(create_community::create).with_state(self.create.clone()),
         )
     }
 }

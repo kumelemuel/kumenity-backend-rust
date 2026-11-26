@@ -1,5 +1,4 @@
 use crate::{
-    application::errors::error_codes::COMMUNITIES_SLUG_ALREADY_EXISTS,
     domain::errors::error_codes::{
         COMMUNITIES_INVALID_COMMUNITY_NAME, COMMUNITIES_INVALID_COMMUNITY_SLUG,
     },
@@ -38,7 +37,6 @@ pub fn map_application_error(error: SystemError) -> Response {
 
 fn status_from_error_code(code: &str) -> StatusCode {
     match code {
-        COMMUNITIES_SLUG_ALREADY_EXISTS => StatusCode::CONFLICT,
         COMMUNITIES_INVALID_COMMUNITY_NAME
         | COMMUNITIES_INVALID_COMMUNITY_SLUG
         | IAM_INVALID_ACCOUNT_ID
@@ -82,14 +80,6 @@ mod tests {
 
     fn status_for(code: &'static str) -> StatusCode {
         map_application_error(SystemError::from(ErrorWithCode(code))).status()
-    }
-
-    #[test]
-    fn duplicated_slug_maps_to_conflict() {
-        assert_eq!(
-            status_for(COMMUNITIES_SLUG_ALREADY_EXISTS),
-            StatusCode::CONFLICT
-        );
     }
 
     #[test]

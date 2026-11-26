@@ -1,20 +1,32 @@
-use super::{CreateCommunityCommand, CreateCommunityResponse};
+use super::{CreateCommunityCommand, CreateCommunityError, CreateCommunityResponse};
 use crate::{
     application::{
-        errors::community_creation::CommunityCreationError,
+        errors::{conflict::Conflict, invalid_owner::InvalidOwner, validation::Validation},
         ports::{
             inbound::create_community_use_case::CreateCommunityUseCase,
             outbound::community_repository::CommunityRepository,
         },
     },
-    domain::model::community::{
-        community::Community, community_id::CommunityId, community_name::CommunityName,
-        community_slug::CommunitySlug, owner_id::OwnerId,
+    domain::{
+        errors::{
+            invalid_community_name::InvalidCommunityName,
+            invalid_community_slug::InvalidCommunitySlug, invalid_owner_id::InvalidOwnerId,
+        },
+        model::community::{
+            community::Community, community_id::CommunityId, community_name::CommunityName,
+            community_slug::CommunitySlug, owner_id::OwnerId,
+        },
     },
 };
-use shared::{domain::model::verified_identity::VerifiedIdentity, error::SystemError};
+use shared::Failure;
 use std::sync::Arc;
 
+/// Orchestrates (HEX-7): builds the value objects, checks the slug for a
+/// conflict, creates the community, saves it and maps it.
+///
+/// The order is fixed by `app/tests/`: the slug, then its conflict
+/// (`create_checks_slug_uniqueness_before_subject_format`), then the owner,
+/// then the name.
 pub struct CreateCommunityHandler {
     community_repository: Arc<dyn CommunityRepository>,
 }
@@ -30,26 +42,41 @@ impl CreateCommunityHandler {
 impl CreateCommunityUseCase for CreateCommunityHandler {
     fn execute(
         &self,
-        data: CreateCommunityCommand,
-        auth: VerifiedIdentity,
-    ) -> Result<CreateCommunityResponse, SystemError> {
-        let slug = CommunitySlug::new(data.slug)?;
-        let existing_slug = self
+        command: CreateCommunityCommand,
+    ) -> Result<CreateCommunityResponse, Failure<CreateCommunityError>> {
+        // Domain errors → flat leaf of the contract, by variant (ERR-2).
+        let slug = CommunitySlug::new(command.slug)
+            .map_err(|InvalidCommunitySlug| Failure::expected(Validation { field: "slug" }))?;
+
+        // `find_by_slug` answers an Option; this use case decides that
+        // existing is a conflict (ERR-1). `?` propagates the `Fault` as
+        // tree B.
+        if self
             .community_repository
-            .find_by_slug(slug.clone().as_str())
-            .map_err(SystemError::Unexpected)?;
-        if existing_slug.is_some() {
-            return Err(CommunityCreationError::SlugAlreadyExists.into());
+            .find_by_slug(slug.as_str())?
+            .is_some()
+        {
+            return Err(Failure::expected(Conflict { resource: "slug" }));
         }
-        let owner_id = OwnerId::from_str(auth.account_id.as_str())?;
-        let id = CommunityId::generate();
-        let name = CommunityName::new(data.name.clone())?;
 
-        let community = Community::create(id, owner_id, slug, name, data.is_public);
+        let owner_id = OwnerId::from_str(&command.owner_id).map_err(|error| {
+            Failure::expected(match error {
+                InvalidOwnerId::Nil => InvalidOwner::Nil,
+                InvalidOwnerId::WrongFormat => InvalidOwner::WrongFormat,
+            })
+        })?;
+        let name = CommunityName::new(command.name)
+            .map_err(|InvalidCommunityName| Failure::expected(Validation { field: "name" }))?;
 
-        self.community_repository
-            .save(&community)
-            .map_err(SystemError::Unexpected)?;
+        let community = Community::create(
+            CommunityId::generate(),
+            owner_id,
+            slug,
+            name,
+            command.is_public,
+        );
+
+        self.community_repository.save(&community)?;
 
         Ok(CreateCommunityResponse {
             id: community.id().as_uuid().to_string(),
@@ -61,81 +88,172 @@ impl CreateCommunityUseCase for CreateCommunityHandler {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        application::{
-            commands::create_community::{CreateCommunityCommand, CreateCommunityHandler},
-            errors::error_codes::COMMUNITIES_SLUG_ALREADY_EXISTS,
-            ports::inbound::create_community_use_case::CreateCommunityUseCase,
-            testing::{CommunityOperation, FakeCommunityAdapter},
-        },
-        domain::errors::error_codes::{
-            COMMUNITIES_INVALID_COMMUNITY_NAME, COMMUNITIES_INVALID_COMMUNITY_SLUG,
-        },
-    };
-    use shared::{domain::model::verified_identity::VerifiedIdentity, error::SystemError};
-    use std::sync::Arc;
+    use super::*;
+    use crate::application::testing::{CommunityOperation, FakeCommunityAdapter};
 
-    fn valid_auth_context() -> VerifiedIdentity {
-        VerifiedIdentity {
-            account_id: "6f1c2a4e-8b3d-4c5e-9f7a-1b2c3d4e5f60".to_string(),
-        }
-    }
+    type Outcome = Result<CreateCommunityResponse, Failure<CreateCommunityError>>;
+
+    const OWNER: &str = "6f1c2a4e-8b3d-4c5e-9f7a-1b2c3d4e5f60";
 
     fn valid_input() -> CreateCommunityCommand {
+        with(OWNER, "Community-Test", "Community Test")
+    }
+
+    fn with(owner_id: &str, slug: &str, name: &str) -> CreateCommunityCommand {
         CreateCommunityCommand {
-            slug: "Community-Test".to_string(),
-            name: "Community Test".to_string(),
+            owner_id: owner_id.to_string(),
+            slug: slug.to_string(),
+            name: name.to_string(),
             is_public: true,
         }
     }
 
+    fn create_with(repo: Arc<FakeCommunityAdapter>, input: CreateCommunityCommand) -> Outcome {
+        CreateCommunityHandler::new(repo).execute(input)
+    }
+
     #[test]
     fn create_community_successfully() {
-        let repo = Arc::new(FakeCommunityAdapter::empty());
+        let result = create_with(Arc::new(FakeCommunityAdapter::empty()), valid_input());
 
-        let use_case = CreateCommunityHandler::new(repo);
-
-        let result = use_case.execute(valid_input(), valid_auth_context());
-
-        assert!(result.is_ok());
+        let response = result.expect("the community is created");
+        assert_eq!(response.slug, "community-test");
+        assert_eq!(response.name, "Community Test");
     }
 
     #[test]
-    fn fails_when_name_is_invalid() {
-        let repo = Arc::new(FakeCommunityAdapter::empty());
+    fn fails_with_validation_on_invalid_slug() {
+        let result = create_with(
+            Arc::new(FakeCommunityAdapter::empty()),
+            with(OWNER, "", "Community Test"),
+        );
 
-        let use_case = CreateCommunityHandler::new(repo);
-
-        let input = CreateCommunityCommand {
-            slug: "Community-Test".to_string(),
-            name: "".to_string(),
-            is_public: false,
-        };
-
-        let result = use_case.execute(input, valid_auth_context());
-
-        let err = result.expect_err("Expected error");
-
-        assert_eq!(err.code(), COMMUNITIES_INVALID_COMMUNITY_NAME);
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(CreateCommunityError::Validation(
+                    Validation { field: "slug" }
+                )))
+            ),
+            "{result:?}"
+        );
     }
 
     #[test]
-    fn fails_when_slug_is_invalid() {
+    fn fails_with_validation_on_invalid_name() {
+        let result = create_with(
+            Arc::new(FakeCommunityAdapter::empty()),
+            with(OWNER, "Community-Test", ""),
+        );
+
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(CreateCommunityError::Validation(
+                    Validation { field: "name" }
+                )))
+            ),
+            "{result:?}"
+        );
+    }
+
+    #[test]
+    fn fails_with_conflict_on_taken_slug() {
         let repo = Arc::new(FakeCommunityAdapter::empty());
+        create_with(repo.clone(), valid_input())
+            .expect("the first community with this slug is created");
 
-        let use_case = CreateCommunityHandler::new(repo);
+        let result = create_with(repo, valid_input());
 
-        let input = CreateCommunityCommand {
-            slug: "".to_string(),
-            name: "Community Test".to_string(),
-            is_public: false,
-        };
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(CreateCommunityError::Conflict(
+                    Conflict { resource: "slug" }
+                )))
+            ),
+            "{result:?}"
+        );
+    }
 
-        let result = use_case.execute(input, valid_auth_context());
+    #[test]
+    fn fails_when_owner_id_is_invalid() {
+        let result = create_with(
+            Arc::new(FakeCommunityAdapter::empty()),
+            with("not-a-uuid", "Community-Test", "Community Test"),
+        );
 
-        let err = result.expect_err("Expected error");
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(CreateCommunityError::InvalidOwner(
+                    InvalidOwner::WrongFormat
+                )))
+            ),
+            "{result:?}"
+        );
+    }
 
-        assert_eq!(err.code(), COMMUNITIES_INVALID_COMMUNITY_SLUG);
+    #[test]
+    fn fails_when_owner_id_is_nil() {
+        let result = create_with(
+            Arc::new(FakeCommunityAdapter::empty()),
+            with(
+                "00000000-0000-0000-0000-000000000000",
+                "Community-Test",
+                "Community Test",
+            ),
+        );
+
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(CreateCommunityError::InvalidOwner(
+                    InvalidOwner::Nil
+                )))
+            ),
+            "{result:?}"
+        );
+    }
+
+    /// Slug, then conflict, then owner: as
+    /// `create_checks_slug_uniqueness_before_subject_format` fixes.
+    #[test]
+    fn fails_with_conflict_on_taken_slug_before_checking_the_owner() {
+        let repo = Arc::new(FakeCommunityAdapter::empty());
+        create_with(repo.clone(), valid_input())
+            .expect("the first community with this slug is created");
+
+        let result = create_with(repo, with("not-a-uuid", "Community-Test", "Community Test"));
+
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(CreateCommunityError::Conflict(
+                    Conflict { resource: "slug" }
+                )))
+            ),
+            "{result:?}"
+        );
+    }
+
+    /// The owner, then the name: the order of today.
+    #[test]
+    fn fails_when_owner_id_is_invalid_before_validating_the_name() {
+        let result = create_with(
+            Arc::new(FakeCommunityAdapter::empty()),
+            with("not-a-uuid", "Community-Test", ""),
+        );
+
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(CreateCommunityError::InvalidOwner(
+                    InvalidOwner::WrongFormat
+                )))
+            ),
+            "{result:?}"
+        );
     }
 
     #[test]
@@ -143,44 +261,17 @@ mod tests {
         let repo =
             Arc::new(FakeCommunityAdapter::empty().failing_on(CommunityOperation::FindBySlug));
 
-        let use_case = CreateCommunityHandler::new(repo);
+        let result = create_with(repo, valid_input());
 
-        let result = use_case.execute(valid_input(), valid_auth_context());
-
-        assert!(
-            matches!(result, Err(SystemError::Unexpected(_))),
-            "{result:?}"
-        );
+        assert!(matches!(result, Err(Failure::Unexpected(_))), "{result:?}");
     }
 
     #[test]
     fn fails_with_unexpected_when_save_fails() {
         let repo = Arc::new(FakeCommunityAdapter::empty().failing_on(CommunityOperation::Save));
 
-        let use_case = CreateCommunityHandler::new(repo);
+        let result = create_with(repo, valid_input());
 
-        let result = use_case.execute(valid_input(), valid_auth_context());
-
-        assert!(
-            matches!(result, Err(SystemError::Unexpected(_))),
-            "{result:?}"
-        );
-    }
-
-    #[test]
-    fn fails_when_slug_already_exists() {
-        let repo = Arc::new(FakeCommunityAdapter::empty());
-
-        let use_case = CreateCommunityHandler::new(repo);
-
-        use_case
-            .execute(valid_input(), valid_auth_context())
-            .expect("the first community with this slug is created");
-
-        let result = use_case.execute(valid_input(), valid_auth_context());
-
-        let err = result.expect_err("Expected error");
-
-        assert_eq!(err.code(), COMMUNITIES_SLUG_ALREADY_EXISTS);
+        assert!(matches!(result, Err(Failure::Unexpected(_))), "{result:?}");
     }
 }
