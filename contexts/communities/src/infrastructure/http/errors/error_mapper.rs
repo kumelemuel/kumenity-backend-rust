@@ -1,12 +1,4 @@
-use crate::{
-    domain::errors::error_codes::{
-        COMMUNITIES_INVALID_COMMUNITY_NAME, COMMUNITIES_INVALID_COMMUNITY_SLUG,
-    },
-    infrastructure::http::{
-        codes::{IAM_INVALID_ACCOUNT_ID, IAM_INVALID_ACCOUNT_ID_FORMAT},
-        unexpected::unexpected,
-    },
-};
+use crate::infrastructure::http::unexpected::unexpected;
 use axum::{
     Json,
     http::StatusCode,
@@ -14,17 +6,15 @@ use axum::{
 };
 use shared::{error::SystemError, infrastructure::http::api_error_response::ApiErrorResponse};
 
+/// Legacy mapper, deleted in R19. Since R17 no endpoint of communities uses
+/// it: `POST /communities/create` has its exhaustive `fold`, and no error of
+/// this context reaches here with a client code, so everything is a 500.
 pub fn map_application_error(error: SystemError) -> Response {
-    let (status, code, message) = match error {
+    let (code, message) = match error {
         SystemError::Unexpected(fault) => return unexpected(&fault),
         SystemError::Domain(err)
         | SystemError::Application(err)
-        | SystemError::Infrastructure(err) => {
-            let code = err.code();
-            let message = err.message();
-            let status = status_from_error_code(code);
-            (status, code, message)
-        }
+        | SystemError::Infrastructure(err) => (err.code(), err.message()),
     };
 
     let body = ApiErrorResponse {
@@ -32,17 +22,7 @@ pub fn map_application_error(error: SystemError) -> Response {
         message: message.to_string(),
     };
 
-    (status, Json(body)).into_response()
-}
-
-fn status_from_error_code(code: &str) -> StatusCode {
-    match code {
-        COMMUNITIES_INVALID_COMMUNITY_NAME
-        | COMMUNITIES_INVALID_COMMUNITY_SLUG
-        | IAM_INVALID_ACCOUNT_ID
-        | IAM_INVALID_ACCOUNT_ID_FORMAT => StatusCode::BAD_REQUEST,
-        _ => StatusCode::INTERNAL_SERVER_ERROR,
-    }
+    (StatusCode::INTERNAL_SERVER_ERROR, Json(body)).into_response()
 }
 
 #[cfg(test)]
@@ -80,18 +60,6 @@ mod tests {
 
     fn status_for(code: &'static str) -> StatusCode {
         map_application_error(SystemError::from(ErrorWithCode(code))).status()
-    }
-
-    #[test]
-    fn invalid_input_maps_to_bad_request() {
-        for code in [
-            COMMUNITIES_INVALID_COMMUNITY_NAME,
-            COMMUNITIES_INVALID_COMMUNITY_SLUG,
-            IAM_INVALID_ACCOUNT_ID,
-            IAM_INVALID_ACCOUNT_ID_FORMAT,
-        ] {
-            assert_eq!(status_for(code), StatusCode::BAD_REQUEST, "{code}");
-        }
     }
 
     #[test]
