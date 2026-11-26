@@ -139,8 +139,9 @@ mod tests {
     }
 
     #[test]
-    fn fails_with_unexpected_when_repository_fails() {
-        let repo = Arc::new(FakeCommunityAdapter::failing());
+    fn fails_with_unexpected_when_find_by_slug_fails() {
+        let repo =
+            Arc::new(FakeCommunityAdapter::empty().failing_on(CommunityOperation::FindBySlug));
 
         let use_case = CreateCommunityHandler::new(repo);
 
