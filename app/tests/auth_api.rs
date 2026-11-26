@@ -582,15 +582,42 @@ async fn identify_with_malformed_identifier_returns_404() {
     );
 }
 
-/// CURRENT BEHAVIOR: lookup is exact; the input is not normalized.
+/// D10 (R12b): the identifier is looked up normalized, as the registration
+/// stores it. Before R12b this was a 404.
 #[tokio::test]
-async fn identify_with_different_email_casing_returns_404() {
+async fn identify_with_different_email_casing_returns_200() {
     let app = app().await;
     register(&app, "ana", "ana@example.com", PASSWORD).await;
 
     let response = identify(&app, "ANA@example.com").await;
 
-    assert_eq!(response.status, StatusCode::NOT_FOUND);
+    assert_eq!(response.status, StatusCode::OK, "{}", response.raw_body);
+    assert_eq!(
+        response.body,
+        json!({ "username": "ana", "status": "registered" })
+    );
+}
+
+/// D10, with surrounding spaces in the email and in the username.
+#[tokio::test]
+async fn identify_with_surrounding_spaces_returns_200() {
+    let app = app().await;
+    register(&app, "ana", "ana@example.com", PASSWORD).await;
+
+    for identifier in ["  ana@example.com  ", "  ana  "] {
+        let response = identify(&app, identifier).await;
+
+        assert_eq!(
+            response.status,
+            StatusCode::OK,
+            "{identifier:?}: {}",
+            response.raw_body
+        );
+        assert_eq!(
+            response.body,
+            json!({ "username": "ana", "status": "registered" })
+        );
+    }
 }
 
 #[tokio::test]
