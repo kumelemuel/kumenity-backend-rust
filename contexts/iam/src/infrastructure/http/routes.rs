@@ -6,7 +6,7 @@ use crate::{
         verify_account_use_case::VerifyAccountUseCase,
     },
     infrastructure::http::{
-        authenticate_account, handlers::account_handlers, register_account, verify_account,
+        authenticate_account, identify_account, register_account, verify_account,
     },
 };
 use axum::{Router, routing::post};
@@ -50,7 +50,7 @@ impl IamRoutes {
             )
             .route(
                 "/auth/identify",
-                post(account_handlers::identify).with_state(self.identify.clone()),
+                post(identify_account::identify).with_state(self.identify.clone()),
             )
     }
 

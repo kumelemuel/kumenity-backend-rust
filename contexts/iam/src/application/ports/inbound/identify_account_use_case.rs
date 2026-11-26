@@ -1,8 +1,11 @@
 use crate::application::queries::identify_account::{
-    IdentifyAccountQuery, IdentifyAccountResponse,
+    IdentifyAccountError, IdentifyAccountQuery, IdentifyAccountResponse,
 };
-use shared::error::SystemError;
+use shared::Failure;
 
 pub trait IdentifyAccountUseCase: Send + Sync {
-    fn execute(&self, query: IdentifyAccountQuery) -> Result<IdentifyAccountResponse, SystemError>;
+    fn execute(
+        &self,
+        query: IdentifyAccountQuery,
+    ) -> Result<IdentifyAccountResponse, Failure<IdentifyAccountError>>;
 }
