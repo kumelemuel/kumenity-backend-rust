@@ -335,6 +335,21 @@ async fn authenticate_unverified_account_returns_401_cannot_authenticate() {
     );
 }
 
+/// Not a valid username (inner space): answered like an unknown username.
+#[tokio::test]
+async fn authenticate_with_malformed_username_returns_401_login_failed() {
+    let app = app().await;
+
+    let response = authenticate(&app, "a b", PASSWORD).await;
+
+    assert_error(
+        &response,
+        StatusCode::UNAUTHORIZED,
+        "IAM_LOGIN_FAILED",
+        "The username or password is incorrect.",
+    );
+}
+
 /// Authentication looks the account up by username only.
 #[tokio::test]
 async fn authenticate_by_email_returns_401() {
@@ -365,6 +380,21 @@ async fn verify_unknown_email_returns_404() {
     let app = app().await;
 
     let response = verify(&app, "ghost@example.com", 123_456).await;
+
+    assert_error(
+        &response,
+        StatusCode::NOT_FOUND,
+        "IAM_ACCOUNT_NOT_FOUND",
+        "No account was found with the provided information.",
+    );
+}
+
+/// Not a valid email: answered like an unknown email, never as a 400.
+#[tokio::test]
+async fn verify_with_malformed_email_returns_404() {
+    let app = app().await;
+
+    let response = verify(&app, "not an email", 123_456).await;
 
     assert_error(
         &response,
@@ -476,6 +506,21 @@ async fn identify_unknown_returns_404() {
     let app = app().await;
 
     let response = identify(&app, "ghost").await;
+
+    assert_error(
+        &response,
+        StatusCode::NOT_FOUND,
+        "IAM_ACCOUNT_NOT_FOUND",
+        "No account was found with the provided information.",
+    );
+}
+
+/// Neither an email nor a username: answered like an unknown account.
+#[tokio::test]
+async fn identify_with_malformed_identifier_returns_404() {
+    let app = app().await;
+
+    let response = identify(&app, "a b").await;
 
     assert_error(
         &response,
