@@ -1,6 +1,8 @@
 use crate::{
     application::{
-        commands::verify_account::{VerifyAccountCommand, VerifyAccountError},
+        commands::verify_account::{
+            VerifyAccountCommand, VerifyAccountError, VerifyAccountResponse,
+        },
         errors::{
             invalid_verification::InvalidVerification, not_found::NotFound, validation::Validation,
         },
@@ -24,8 +26,9 @@ pub async fn verify(
 ) -> Response {
     // Exhaustive `fold` of the contract into the transport (ERR-4.5).
     match use_case.execute(VerifyAccountCommand::from(request)) {
-        // Today's body for a success: `null`.
-        Ok(()) => (StatusCode::OK, Json(())).into_response(),
+        // Today's body for a success: `null`. The response is not
+        // serialized (D11).
+        Ok(VerifyAccountResponse) => (StatusCode::OK, Json(())).into_response(),
         Err(Failure::Expected(error)) => match error {
             VerifyAccountError::NotFound(leaf) => not_found(leaf),
             VerifyAccountError::Validation(leaf) => validation(leaf),
@@ -86,18 +89,22 @@ mod tests {
     use crate::infrastructure::http::testing::{D7_BODY, body_of, ready};
 
     /// Always answers the same outcome.
-    struct StubVerifyAccountUseCase(fn() -> Result<(), Failure<VerifyAccountError>>);
+    struct StubVerifyAccountUseCase(
+        fn() -> Result<VerifyAccountResponse, Failure<VerifyAccountError>>,
+    );
 
     impl VerifyAccountUseCase for StubVerifyAccountUseCase {
         fn execute(
             &self,
             _command: VerifyAccountCommand,
-        ) -> Result<(), Failure<VerifyAccountError>> {
+        ) -> Result<VerifyAccountResponse, Failure<VerifyAccountError>> {
             (self.0)()
         }
     }
 
-    fn respond(outcome: fn() -> Result<(), Failure<VerifyAccountError>>) -> Response {
+    fn respond(
+        outcome: fn() -> Result<VerifyAccountResponse, Failure<VerifyAccountError>>,
+    ) -> Response {
         let use_case: Arc<dyn VerifyAccountUseCase> = Arc::new(StubVerifyAccountUseCase(outcome));
         let request = VerifyRequest {
             email: "ana@example.com".to_string(),
@@ -116,7 +123,7 @@ mod tests {
 
     #[test]
     fn a_verified_account_returns_200_with_a_null_body() {
-        let response = respond(|| Ok(()));
+        let response = respond(|| Ok(VerifyAccountResponse));
 
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(body_of(response), "null");

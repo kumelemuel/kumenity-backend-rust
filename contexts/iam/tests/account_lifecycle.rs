@@ -13,7 +13,10 @@ use iam::{
                 authenticate_account::AuthenticateAccount, command::AuthenticateAccountCommand,
             },
             register_account::{RegisterAccountCommand, RegisterAccountHandler},
-            verify_account::{VerifyAccountCommand, VerifyAccountError, VerifyAccountHandler},
+            verify_account::{
+                VerifyAccountCommand, VerifyAccountError, VerifyAccountHandler,
+                VerifyAccountResponse,
+            },
         },
         ports::{
             inbound::{
@@ -94,7 +97,7 @@ impl Iam {
         }
     }
 
-    fn verify_with(&self, code: u32) -> Result<(), Failure<VerifyAccountError>> {
+    fn verify_with(&self, code: u32) -> Result<VerifyAccountResponse, Failure<VerifyAccountError>> {
         self.verify.execute(VerifyAccountCommand {
             email: "ana@example.com".into(),
             code,
