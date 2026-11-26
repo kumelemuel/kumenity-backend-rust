@@ -335,6 +335,24 @@ async fn authenticate_unverified_account_returns_401_cannot_authenticate() {
     );
 }
 
+/// D10: the username is looked up trimmed, as the registration stores it.
+/// The account is unverified, so finding it with the right password answers
+/// CANNOT_AUTHENTICATE instead of LOGIN_FAILED.
+#[tokio::test]
+async fn authenticate_finds_the_account_with_surrounding_spaces_in_the_username() {
+    let app = app().await;
+    register(&app, "ana", "ana@example.com", PASSWORD).await;
+
+    let response = authenticate(&app, "  ana  ", PASSWORD).await;
+
+    assert_error(
+        &response,
+        StatusCode::UNAUTHORIZED,
+        "IAM_CANNOT_AUTHENTICATE",
+        "This account is not allowed to sign in at the moment.",
+    );
+}
+
 /// Not a valid username (inner space): answered like an unknown username.
 #[tokio::test]
 async fn authenticate_with_malformed_username_returns_401_login_failed() {

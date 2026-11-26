@@ -10,7 +10,9 @@ use crate::{
             },
         },
     },
-    domain::errors::CannotAuthenticate as AccountCannotAuthenticate,
+    domain::{
+        errors::CannotAuthenticate as AccountCannotAuthenticate, model::account::username::Username,
+    },
 };
 use shared::{Failure, domain::value_object::ValueObject};
 use std::sync::Arc;
@@ -18,7 +20,7 @@ use std::sync::Arc;
 /// Orchestrates (HEX-7): loads the account, checks the password, asks the
 /// aggregate whether it can sign in and issues the token.
 ///
-/// An unknown username and a wrong password are the same answer,
+/// An unknown or malformed username and a wrong password are the same answer,
 /// `LoginFailed`, and cost the same (D6).
 pub struct AuthenticateAccountHandler {
     account_repository: Arc<dyn AccountRepository>,
@@ -48,11 +50,14 @@ impl AuthenticateAccountUseCase for AuthenticateAccountHandler {
         &self,
         cmd: AuthenticateAccountCommand,
     ) -> Result<AuthenticateAccountResponse, Failure<AuthenticateAccountError>> {
-        // `?` propagates every `Fault` as tree B.
-        let Some(account) = self
-            .account_repository
-            .find_by_username(cmd.username.as_str())?
-        else {
+        // Looked up normalized, as the registration stores it (D10). A
+        // malformed username cannot belong to any account: it takes the same
+        // path as an unknown one. `?` propagates every `Fault` as tree B.
+        let found = match Username::new(cmd.username) {
+            Ok(username) => self.account_repository.find_by_username(username.value())?,
+            Err(_) => None,
+        };
+        let Some(account) = found else {
             // Pay the same hashing cost as a wrong password, so the response
             // time does not reveal whether the username exists. Only the
             // outcome is discarded (`black_box` keeps the optimizer from
@@ -171,6 +176,67 @@ mod tests {
             ),
             "{result:?}"
         );
+    }
+
+    /// D6 also for a malformed username ("a b" cannot be a `Username`): it
+    /// costs the same as a wrong password.
+    #[test]
+    fn verifies_against_the_decoy_hash_when_identifier_is_malformed() {
+        let hasher = Arc::new(SpyPasswordHashingAdapter::new());
+        let decoy_hash = hash_of("decoy");
+        let use_case = AuthenticateAccountHandler::new(
+            Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
+            hasher.clone(),
+            Arc::new(FakeAccessTokenAdapter::new()),
+            decoy_hash.clone(),
+        );
+
+        let _ = use_case.execute(command("a b", PASSWORD));
+
+        assert_eq!(
+            hasher.verify_calls(),
+            vec![(PASSWORD.to_string(), decoy_hash)]
+        );
+    }
+
+    /// A malformed username is answered like an unknown one: no new 400. The
+    /// decoy is the hash of the password sent, so the handler has to discard
+    /// its outcome.
+    #[test]
+    fn fails_with_login_failed_when_identifier_is_malformed() {
+        let use_case = AuthenticateAccountHandler::new(
+            Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
+            Arc::new(SpyPasswordHashingAdapter::new()),
+            Arc::new(FakeAccessTokenAdapter::new()),
+            hash_of(PASSWORD),
+        );
+
+        let result = use_case.execute(command("a b", PASSWORD));
+
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(AuthenticateAccountError::LoginFailed(
+                    LoginFailed
+                )))
+            ),
+            "{result:?}"
+        );
+    }
+
+    /// D10: the username is looked up normalized, as the registration stores it.
+    #[test]
+    fn authenticates_with_surrounding_spaces_in_the_username() {
+        let use_case = AuthenticateAccountHandler::new(
+            Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
+            Arc::new(FixedPasswordHashingAdapter::new()),
+            Arc::new(FakeAccessTokenAdapter::new()),
+            hash_of("decoy"),
+        );
+
+        let result = use_case.execute(command("  dummy  ", PASSWORD));
+
+        assert!(result.is_ok(), "{result:?}");
     }
 
     #[test]
