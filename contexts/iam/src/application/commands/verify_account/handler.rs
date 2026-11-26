@@ -1,4 +1,4 @@
-use super::{VerifyAccountCommand, VerifyAccountError};
+use super::{VerifyAccountCommand, VerifyAccountError, VerifyAccountResponse};
 use crate::{
     application::{
         errors::{
@@ -33,7 +33,10 @@ impl VerifyAccountHandler {
 }
 
 impl VerifyAccountUseCase for VerifyAccountHandler {
-    fn execute(&self, cmd: VerifyAccountCommand) -> Result<(), Failure<VerifyAccountError>> {
+    fn execute(
+        &self,
+        cmd: VerifyAccountCommand,
+    ) -> Result<VerifyAccountResponse, Failure<VerifyAccountError>> {
         // `find_*` answers an Option; this use case requires the account
         // (ERR-1). `?` propagates the `Fault` as tree B.
         let Some(mut account) = self.account_repository.find_by_email(cmd.email.as_str())? else {
@@ -61,7 +64,7 @@ impl VerifyAccountUseCase for VerifyAccountHandler {
 
         self.account_repository.save(&account)?;
 
-        Ok(())
+        Ok(VerifyAccountResponse)
     }
 }
 
@@ -73,7 +76,7 @@ mod tests {
         domain::model::account::account_factory::AccountFactory,
     };
 
-    type Outcome = Result<(), Failure<VerifyAccountError>>;
+    type Outcome = Result<VerifyAccountResponse, Failure<VerifyAccountError>>;
 
     /// `dummy_account` is pending verification with the code 123123.
     fn valid_command() -> VerifyAccountCommand {
