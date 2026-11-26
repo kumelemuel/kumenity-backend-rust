@@ -4,11 +4,11 @@ Este archivo guarda el estado entre sesiones de la adopción de los principios c
 
 | Dato | Valor |
 |---|---|
-| Fecha de la auditoría | 2026-11-19; auditoría completa de P1: 2026-11-23 |
+| Fecha de la auditoría | 2026-11-19; auditorías completas de P1: 2026-11-23 y de P2: 2026-11-26 |
 | Plugin | `craft-backend@ai-harness` 0.12.0 |
-| Commit auditado | `d0b0eeb` (rama `ci/sync-development`); P1: `bab68c5` (`main`, después de R10b) |
+| Commit auditado | `d0b0eeb` (rama `ci/sync-development`); P1: `bab68c5` (`main`, después de R10b); P2: `0eaab25` (`main`, después de R19) |
 | Revisor | `craft-backend:architecture-reviewer`, auditoría completa en solo lectura |
-| Hallazgos | 120: 26 de severidad alta, 52 media, 42 baja. 94 de la auditoría inicial (RS-1.4 agregado en R2), 16 de la de P1 (ERR-4.9 a ERR-4.12, HEX-7.10 a HEX-7.12, HEX-8.10, ERR-1.8, TDD-1.8, TDD-2.6 y VER-1.3 a VER-1.7), 3 de la revisión de R11 (ERR-3.4, ERR-4.13, TDD-2.7), 1 de R12 (ERR-4.14), 1 de la revisión de R13 (ERR-2.11), 3 de S3, la sincronización con `v1.0.0-rc.3` (HEX-4.5, HEX-8.11, HEX-8.12), y 2 de la revisión de R16, inventariados en R16b (RS-2.6, TDD-2.8) |
+| Hallazgos | 131: 26 de severidad alta, 55 media, 50 baja. 94 de la auditoría inicial (RS-1.4 agregado en R2), 16 de la de P1 (ERR-4.9 a ERR-4.12, HEX-7.10 a HEX-7.12, HEX-8.10, ERR-1.8, TDD-1.8, TDD-2.6 y VER-1.3 a VER-1.7), 3 de la revisión de R11 (ERR-3.4, ERR-4.13, TDD-2.7), 1 de R12 (ERR-4.14), 1 de la revisión de R13 (ERR-2.11), 3 de S3, la sincronización con `v1.0.0-rc.3` (HEX-4.5, HEX-8.11, HEX-8.12), 2 de la revisión de R16, inventariados en R16b (RS-2.6, TDD-2.8), y 11 de la auditoría de P2 (HEX-2.7, HEX-7.13, HEX-7.14, VER-1.8, VER-1.9, ERR-2.12, TDD-2.9 a TDD-2.11, RS-1.5 y RS-1.6) |
 
 ## Cómo mantener este archivo
 
@@ -21,8 +21,9 @@ Este archivo guarda el estado entre sesiones de la adopción de los principios c
 ## Prioridades inmediatas
 
 1. **ERR-4.1:** `.env` ya no se versiona (0df9baa), pero `JWT_SECRET` sigue en el historial: **rotar el secreto** en cada entorno donde se haya usado.
-2. **ERR-1.1 / RS-2.1:** `SystemError`, con su `From` genérico, mezcla los errores de negocio con los técnicos. Hay que reemplazarlo por `{Verb}{Noun}Error` por caso de uso y `Fault`/`Failure<E>`.
-3. **RS-1 / HEX-1 / HEX-2:** separar cada contexto en crates por capa, empezando por `communities` (HEX-1.1).
+2. ~~**ERR-1.1 / RS-2.1:** retirar `SystemError`.~~ Hecho en R19 (11f8c92): los casos de uso devuelven `Failure<{Verb}{Noun}Error>` y el árbol B es `Fault`.
+3. **HEX-2 / HEX-7 (fase 4):** sacar `uuid`, `rand` y `chrono` del núcleo (R20a, R20b, R21, R22), la condición para separar crates (§5.6, "Precondiciones de R27 y R28").
+4. **RS-1 / HEX-1 / HEX-2:** separar cada contexto en crates por capa, empezando por `communities` (R27). HEX-1.1 ya está resuelto (f6bc1fd).
 
 Ya resueltas: ERR-4.2 (`dbg!`), ERR-4.3 (`Debug` con el secreto), VER-1.1/RS-4.1 (`tools/architecture` con trinquete sobre `baseline.txt`), VER-1.2 (CI con fmt, clippy y test), RS-2.5 (`[workspace.lints]`) ERR-1.2/ERR-1.3 (los errores ya no implementan `std::error::Error`) HEX-8.4/HEX-8.7 (código muerto del kernel) y RS-1.3/RS-1.4 (herencia del workspace, sin `anyhow`). En P1, ERR-4.9 (un `JWT_SECRET` vacío o corto ya no arranca el servidor; PR #40).
 
@@ -31,24 +32,24 @@ Ya resueltas: ERR-4.2 (`dbg!`), ERR-4.3 (`Debug` con el secreto), VER-1.1/RS-4.1
 | Regla | Alta | Media | Baja | Total |
 |---|---|---|---|---|
 | HEX-1 Dependencias hacia adentro | 6 | 3 | 0 | 9 |
-| HEX-2 Núcleo sin framework | 3 | 3 | 0 | 6 |
+| HEX-2 Núcleo sin framework | 3 | 4 | 0 | 7 |
 | HEX-4 Puertos entrantes | 0 | 2 | 3 | 5 |
 | HEX-5 Puertos por rol | 0 | 2 | 0 | 2 |
 | HEX-6 Vocabulario | 0 | 0 | 2 | 2 |
-| HEX-7 El dominio decide | 1 | 7 | 4 | 12 |
+| HEX-7 El dominio decide | 1 | 7 | 6 | 14 |
 | HEX-8 Kernel delgado | 3 | 5 | 4 | 12 |
-| VER-1 Verificación automática | 2 | 0 | 5 | 7 |
+| VER-1 Verificación automática | 2 | 1 | 6 | 9 |
 | ERR-1 Dos árboles | 2 | 4 | 2 | 8 |
-| ERR-2 Contrato por caso de uso | 2 | 5 | 4 | 11 |
+| ERR-2 Contrato por caso de uso | 2 | 5 | 5 | 12 |
 | ERR-3 Semántica de adaptadores | 0 | 3 | 1 | 4 |
 | ERR-4 Transporte en el borde | 3 | 6 | 5 | 14 |
 | TDD-1 Test primero | 0 | 4 | 4 | 8 |
-| TDD-2 Tests por capa y dobles | 1 | 2 | 5 | 8 |
-| RS-1 Crate por capa | 1 | 1 | 2 | 4 |
+| TDD-2 Tests por capa y dobles | 1 | 3 | 7 | 11 |
+| RS-1 Crate por capa | 1 | 1 | 4 | 6 |
 | RS-2 `Fault` y `panic!` | 1 | 4 | 1 | 6 |
 | RS-3 Puertos async | 0 | 1 | 0 | 1 |
 | RS-4 Tests de arquitectura | 1 | 0 | 0 | 1 |
-| **Total** | **26** | **52** | **42** | **120** |
+| **Total** | **26** | **55** | **50** | **131** |
 
 Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se repite igual en varios archivos, la fila lista todas las ubicaciones.
 
@@ -63,18 +64,19 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | HEX-1.1 | HEX-1 Dependencias | contexts/communities/Cargo.toml:16 | `communities` declara `iam` como dependencia: un contexto depende de otro. | alta | Quitar `iam`; `communities` modela su propio `OwnerId`. | resuelto (f6bc1fd) |
 | HEX-1.2 | HEX-1 Dependencias | contexts/communities/src/domain/model/community/community.rs:7 | El dominio de `communities` importa `iam::…::AccountId` y lo guarda como `_owner_id` (línea 12). | alta | Value object `OwnerId` propio del contexto. | resuelto (3646f25, f6bc1fd) |
 | HEX-1.3 | HEX-1 Dependencias | contexts/communities/src/application/commands/create_community/create_community.rs:17; application/testing/contracts/community_repository.rs:14 | El handler importa `AccountId` de `iam` y valida con él el sujeto del token (línea 47). También lo importan la batería de contrato (desde R7) y el módulo de tests del handler (línea 86). | alta | Validar con `OwnerId::new` del propio contexto. | resuelto (f6bc1fd): `OwnerId::from_str` |
-| HEX-1.4 | HEX-1 Dependencias | contexts/communities/src/infrastructure/http/errors/error_mapper.rs:12 | El borde HTTP de `communities` importa códigos de error del dominio de `iam`. | media | Códigos propios en `communities-api/src/codes.rs`. | resuelto (f6bc1fd): el mapper toma `IAM_INVALID_ACCOUNT_ID(_FORMAT)` de `infrastructure/http/codes.rs`. Los demás códigos de communities salen de domain con R17 (HEX-1.8) |
+| HEX-1.4 | HEX-1 Dependencias | contexts/communities/src/infrastructure/http/errors/error_mapper.rs:12 | El borde HTTP de `communities` importa códigos de error del dominio de `iam`. | media | Códigos propios en `communities-api/src/codes.rs`. | resuelto (f6bc1fd): el mapper toma `IAM_INVALID_ACCOUNT_ID(_FORMAT)` de `infrastructure/http/codes.rs`. Los demás códigos de communities salen de domain con R17 (HEX-1.8). *(P2)* El mapper ya no existe (11f8c92); esos dos códigos los usa el `fold` (`create_community.rs:79-91`) |
 | HEX-1.5 | HEX-1 Autenticación | shared/src/application/ports/outbound/token_verifier.rs:6 | `TokenVerifier` vive en un `shared` que ven todos los contextos: es la violación típica que nombra la regla. | alta | `VerifyAccessTokenUseCase` en `iam/application/queries` + puerto `AccessTokenService`. | resuelto (517e4cd, 101f652, 9be8d19, 3c1a6bb): `AccessTokenService` en R10a; la query `VerifyAccessToken`, el middleware sobre ella y el borrado de `TokenVerifier` en R10b |
 | HEX-1.6 | HEX-1 Autenticación | app/src/middleware/auth.rs:17 | El middleware vive en el composition root, no en el `api` de `iam`. Inyecta `VerifiedIdentity` (de `shared::domain`, línea 36) en vez de un tipo del borde. Desde R10b consume `VerifyAccessTokenUseCase`, pero importa `iam::infrastructure::http::errors::error_mapper` (línea 12), un detalle del `api` de iam. | alta | `IamApi::protect(routes)` en `iam-api`, que inserta `edge_http::AuthenticatedAccount`. | abierto: desde R11 (7655856) el middleware importa `iam::infrastructure::http::unexpected` en lugar del mapper; sigue siendo un detalle del HTTP de iam (R28) |
 | HEX-1.7 | HEX-1 Dependencias | contexts/iam/src/infrastructure/http/errors/error_mapper.rs:3 | El adaptador driving (HTTP) importa `crate::domain::errors::error_codes`: `api` ve `domain`. | media | `api` solo ve el contrato `{Verb}{Noun}Error` de `application`. | resuelto (11f8c92): R19 borró el mapper con sus 9 códigos de dominio; la entrada `hex_1_driving_adapters_see_only_use_cases` (n = 9) se borró y el test quedó en cero. La separación del crate `iam-api` sigue en R28 (HEX-1.9) |
 | HEX-1.8 | HEX-1 Dependencias | contexts/communities/src/infrastructure/http/errors/error_mapper.rs:3 | Igual que HEX-1.7: el `api` de `communities` importa códigos de `domain`. | media | Igual que HEX-1.7. | resuelto (838b923): R17. El `fold` de `CreateCommunity` traduce por variante, así que los `impl ErrorLayout` de `InvalidCommunityName`, `InvalidCommunitySlug` e `InvalidOwnerId` quedaron sin llamadores y se borraron con sus constantes de dominio; sin productores, se borró el brazo 400 del mapper. El mapper sigue en su ruta hasta R19 y ya no nombra `crate::domain`: con la entrada borrada, el test la reportó en el mismo archivo y pasó a verde al quitar el import. Tampoco queda el acoplamiento por valor de R16: ningún error de communities responde un código de cliente por `ErrorLayout` |
-| HEX-1.9 | HEX-1 Dependencias | contexts/iam/src/infrastructure/mod.rs:1; contexts/communities/src/infrastructure/mod.rs:1 | El adaptador driving (`http`) es un submódulo de `infrastructure`: `api` e `infrastructure` no están separados y pueden importarse entre sí. | alta | Crate `{ctx}-api` separado (RS-1). | abierto |
-| HEX-2.1 | HEX-2 Núcleo sin framework | contexts/iam/Cargo.toml:11-17 | `domain` y `application` comparten crate con `uuid`, `argon2`, `rand`, `jsonwebtoken`, `serde`, `chrono` y `axum`, así que todos están disponibles en el núcleo. | alta | Crates `iam-domain` e `iam-application` con solo el kernel. | abierto |
-| HEX-2.2 | HEX-2 Núcleo sin framework | contexts/iam/src/domain/model/account/account_id.rs:3 | El dominio usa `uuid::Uuid`. | alta | El id llega de `kernel::IdGenerator`; `uuid` solo en infraestructura. | abierto |
-| HEX-2.3 | HEX-2 Núcleo sin framework | contexts/iam/src/domain/model/account/code_validation.rs:2 | El dominio usa `rand` para generar el código (líneas 29-33). | media | Generar el código con un puerto o capacidad y pasárselo a `Account::create`. | abierto |
-| HEX-2.4 | HEX-2 Núcleo sin framework | contexts/iam/src/domain/model/account/events/account_event.rs:1 | El dominio usa `chrono`. | media | El instante llega de `Clock`. | abierto |
-| HEX-2.5 | HEX-2 Núcleo sin framework | contexts/communities/Cargo.toml:11-14 | `uuid`, `axum`, `serde` y `http` (este último, visto en S1) están disponibles en `domain` y `application`. | alta | Separar crates por capa. | abierto |
-| HEX-2.6 | HEX-2 Núcleo sin framework | contexts/communities/src/domain/model/community/community_id.rs:2 | El dominio usa `uuid`. | media | `IdGenerator` + value object sobre `String`. | abierto |
+| HEX-1.9 | HEX-1 Dependencias | contexts/iam/src/infrastructure/mod.rs:1; contexts/communities/src/infrastructure/mod.rs:1 | El adaptador driving (`http`) es un submódulo de `infrastructure`: `api` e `infrastructure` no están separados y pueden importarse entre sí. | alta | Crate `{ctx}-api` separado (RS-1). | abierto: R27 (communities) y R28 (iam) |
+| HEX-2.1 | HEX-2 Núcleo sin framework | contexts/iam/Cargo.toml:11-17 | `domain` y `application` comparten crate con `uuid`, `argon2`, `rand`, `jsonwebtoken`, `serde`, `chrono` y `axum`, así que todos están disponibles en el núcleo. | alta | Crates `iam-domain` e `iam-application` con solo el kernel. | abierto: R28. *(P2)* Antes salen `uuid` (R20a) y `chrono` (R21); quedan `argon2`, `axum`, `jsonwebtoken`, `rand` y `serde`, que la separación deja fuera de domain y application |
+| HEX-2.2 | HEX-2 Núcleo sin framework | contexts/iam/src/domain/model/account/account_id.rs:3 | El dominio usa `uuid::Uuid`. | alta | El id llega de `kernel::IdGenerator`; `uuid` solo en infraestructura. | abierto: R20a |
+| HEX-2.3 | HEX-2 Núcleo sin framework | contexts/iam/src/domain/model/account/code_validation.rs:2 | El dominio usa `rand` para generar el código (líneas 29-33). | media | Generar el código con un puerto o capacidad y pasárselo a `Account::create`. | abierto: R20b |
+| HEX-2.4 | HEX-2 Núcleo sin framework | contexts/iam/src/domain/model/account/events/account_event.rs:1 | El dominio usa `chrono`. | media | El instante llega de `Clock`. | abierto: R21 (D4: se borra `AccountEvent`) |
+| HEX-2.5 | HEX-2 Núcleo sin framework | contexts/communities/Cargo.toml:11-14 | `uuid`, `axum`, `serde` y `http` (este último, visto en S1) están disponibles en `domain` y `application`. | alta | Separar crates por capa. | abierto: R27. *(P2)* Antes salen `uuid` (R22, con HEX-2.7) y `http` (R22, RS-1.5); quedan `axum` y `serde`, que la separación deja en `communities-api` |
+| HEX-2.6 | HEX-2 Núcleo sin framework | contexts/communities/src/domain/model/community/community_id.rs:2 | El dominio usa `uuid`. | media | `IdGenerator` + value object sobre `String`. | abierto: R22. *(P2)* `owner_id.rs` también lo usa: HEX-2.7 |
+| HEX-2.7 | HEX-2 Núcleo sin framework | contexts/communities/src/domain/model/community/owner_id.rs:2 | `OwnerId` valida con `uuid` (`Uuid::parse_str`, `is_nil`). Entró en R16 (3646f25) sin que fallara nada: en legacy, la entrada `hex_2_core … communities#dependencies.uuid` es por manifiesto y ya existía (VER-1.8). HEX-2.6 solo nombraba `community_id.rs`, así que `uuid` habría seguido en el dominio después de R22 y R27 habría creado `communities-domain` con una violación nueva. Hallado en P2. | media | `OwnerId(String)`, validado a mano con std (forma con guiones, hexadecimal, sin nil), con `InvalidOwnerId { Nil, WrongFormat }` (D2 a) e `impl FromStr` (RS-2.6). | abierto: R22 |
 | HEX-4.1 | HEX-4 Casos de uso | iam/…/authenticate_account.rs:17; register_account.rs:18; verify_account.rs:14; identify_account.rs:16; communities/…/create_community.rs:21; list_public_communities.rs:14 | Las implementaciones no se llaman `{Verb}{Noun}Handler` (`AuthenticateAccount`, `RegisterAccount`…). | media | Renombrar a `AuthenticateAccountHandler` y demás, en `handler.rs`. | resuelto (4a04532): R18 (a603969) borró `list_public_communities.rs`; R11 (1482280) movió register a `RegisterAccountHandler` en `commands/register_account/handler.rs`; R13 (2d16725), verify a `VerifyAccountHandler` en `commands/verify_account/handler.rs`; R14 (09fb976), authenticate a `AuthenticateAccountHandler` en `commands/authenticate_account/handler.rs`; R15 (cf2b905), identify a `IdentifyAccountHandler` en `queries/identify_account/handler.rs`; R17 (4a04532), create a `CreateCommunityHandler` en `commands/create_community/handler.rs`. Resuelto |
 | HEX-4.2 | HEX-4 Casos de uso | contexts/communities/src/application/ports/inbound/create_community_use_case.rs:10 | `execute` recibe un segundo argumento, `VerifiedIdentity`, del dominio del kernel: el contrato expone un tipo de `domain` fuera del `Command`. | media | Campo `owner_id: String` en `CreateCommunityCommand`. | resuelto (58958bc): R17. `execute(command)`, y el `fold` de `infrastructure/http/create_community.rs` copia el sujeto de `VerifiedIdentity` a `owner_id`. Se borraron las dos entradas (`hex_4_use_case_signatures_…`, n = 2, y `hex_4_use_case_contracts_…`) |
 | HEX-4.3 | HEX-4 Casos de uso | contexts/communities/src/application/ports/inbound/list_public_communities_use_case.rs:6 | Le falta `Send + Sync`, recibe un `AuthContext` que no usa (línea 10) y no está cableado. | baja | Firma `execute(query)`, con `Send + Sync`, o eliminarlo. | resuelto (a603969): eliminado (D3) |
@@ -82,20 +84,22 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | HEX-4.5 | HEX-4 Casos de uso | contexts/iam/src/application/ports/inbound/verify_account_use_case.rs:5 | `execute` responde `()`: no hay `VerifyAccountResponse` en `commands/verify_account/`. R13 lo decidió así (el caso no devuelve datos, y el revisor lo confirmó), pero `hex_4_use_case_signatures_are_their_own_contract` exige un `{Verb}{Noun}Response` y cuenta 2 violaciones (el tipo que falta y la firma). Hallado en S3. | baja | `VerifyAccountResponse` vacío en `commands/verify_account/response.rs`; el `fold` de `infrastructure/http/verify_account.rs` sigue respondiendo 200 con cuerpo `null`, sin serializarlo. O, si el harness acepta `()` para un caso sin datos (§6), borrar la entrada. | resuelto (d37fe10): R13b (D11 a) |
 | HEX-5.1 | HEX-5 Rol | iam/…/ports/outbound/account_repository.rs:6; password_hasher.rs:1; token_generator.rs:3; communities/…/community_repository.rs:6 | Sufijo `Port`, prohibido. En `PasswordHasher` y `TokenGenerator`, al quitarlo, no queda rol. | media | `AccountRepository`, `CommunityRepository`, `PasswordHashingService`, `AccessTokenService`. | resuelto (692bc7c, ebd0819, 73f9c44, 517e4cd): `CommunityRepository` en R7, `AccountRepository` en R8, `PasswordHashingService` en R9 y `AccessTokenService` (fusión con `TokenVerifier`) en R10a |
 | HEX-5.2 | HEX-5 Adaptadores | iam/…/in_memory/account_repository.rs:14; communities/…/in_memory/community_repository.rs:13; iam/…/argon2_password_hasher.rs:8; iam/…/jwt_service.rs:15 | Los adaptadores no siguen `{Tecnología}{Concepto}Adapter`: repiten el rol o terminan en `Service`. | media | `InMemoryAccountAdapter`, `InMemoryCommunityAdapter`, `Argon2PasswordHashingAdapter`, `JwtAccessTokenAdapter`. | resuelto (6b808a2, 9a90d8a, 17ba68e, c9db5fa): el último, `JwtAccessTokenAdapter`, en R10a |
-| HEX-6.1 | HEX-6 Transporte | iam/…/requests/sign_up.rs:5, sign_in.rs:5, verify.rs:5, identify.rs:5; responses/signed_up.rs:5, signed_in.rs:5, identified.rs:5; communities/…/requests/create.rs:5, responses/created.rs:5 | Los DTOs HTTP no son `{Caso}HttpRequest`/`{Caso}HttpResponse`, y `CreateRequest` colisiona con el vocabulario de puerto saliente. | baja | `RegisterAccountHttpRequest`, `CreateCommunityHttpResponse` y demás. | abierto |
+| HEX-6.1 | HEX-6 Transporte | iam/…/requests/sign_up.rs:5, sign_in.rs:5, verify.rs:5, identify.rs:5; responses/signed_up.rs:5, signed_in.rs:5, identified.rs:5; communities/…/requests/create.rs:5, responses/created.rs:5 | Los DTOs HTTP no son `{Caso}HttpRequest`/`{Caso}HttpResponse`, y `CreateRequest` colisiona con el vocabulario de puerto saliente. | baja | `RegisterAccountHttpRequest`, `CreateCommunityHttpResponse` y demás. | abierto: R27 (communities) y R28 (iam) |
 | HEX-6.2 | HEX-6 Vocabulario | contexts/communities/src/application/queries/list_public_communities/response.rs:5 | `CommunityResult` usa el sufijo `Result`, reservado para control de flujo. | baja | `PublicCommunity` o `CommunitySummary`. | resuelto (a603969): eliminado (D3) |
 | HEX-7.1 | HEX-7 Lógica en handler | contexts/iam/src/application/commands/register_account/register_account.rs:40 | La unicidad se consulta con el texto crudo (`cmd.email`, y `cmd.username` en la línea 48), no con el value object normalizado. Resultado: se registran duplicados por mayúsculas o espacios, como confirma el test `register_accepts_same_email_with_different_casing`. | alta | Construir `Email`/`Username` antes y buscar por el valor normalizado (como hace `CreateCommunity` con el slug). | resuelto (77e0ca4, 06a5676): `AccountFactory::draft` construye los value objects y el handler busca con sus valores |
 | HEX-7.2 | HEX-7 Lógica en handler | contexts/iam/src/application/commands/authenticate_account/authenticate_account.rs:70 | `if !account.can_authenticate()` es un `if` de negocio en el handler. | media | `account.authenticate() -> Result<_, CannotAuthenticate>` en el agregado. | resuelto (c6c3281, 8adb31f): `Account::authenticate() -> Result<(), CannotAuthenticate>`; `fails_with_login_failed_when_an_inactive_account_gets_a_wrong_password` fija que la contraseña se verifica antes |
-| HEX-7.3 | HEX-7 Inmutabilidad | contexts/iam/src/domain/model/account/account.rs:89-134 | El agregado es mutable (`&mut self`): `change_password`, `change_email`, `deactivate`, `confirm_registration`… | media | `fn confirm(&self, …) -> Result<Self, …>`, que devuelve el estado nuevo. | abierto |
+| HEX-7.3 | HEX-7 Inmutabilidad | contexts/iam/src/domain/model/account/account.rs:94-140 *(P2; antes 89-134)* | El agregado es mutable (`&mut self`): `change_password`, `change_email`, `deactivate`, `confirm_registration`… | media | `fn confirm(&self, …) -> Result<Self, …>`, que devuelve el estado nuevo. | abierto: R21. *(P2)* Con HEX-7.13, solo `confirm_registration` tiene llamador de producción: los demás se borran en lugar de volverse inmutables |
 | HEX-7.4 | HEX-7 Eventos | contexts/iam/src/domain/model/account/account.rs:32-46 | `record_event`/`pull_events` son `todo!()`; ninguna transición registra eventos (`AccountEvent::Registered` nunca se emite). | media | `create` registra `Registered`, más `take_events`; o quitar el andamiaje. | abierto: R21 (D4: se retira) |
-| HEX-7.5 | HEX-7 Crear/reconstituir | contexts/iam/src/domain/model/account/account_factory.rs:14 | `AccountFactory::create`/`reconstitute` (línea 32) reciben `String`. Además, `Account::new` es público (account.rs:49) y permite saltarse las reglas de alta. | media | `Account::create`/`Account::restore` con value objects; `new` privado. | abierto |
-| HEX-7.6 | HEX-7 Identificador | contexts/iam/src/domain/model/account/account_factory.rs:21; contexts/communities/src/application/commands/create_community/create_community.rs:48 | El id se genera en el dominio (`AccountId::generate`, `CommunityId::generate`) en vez de recibirse de `IdGenerator`. | media | Inyectar `Arc<dyn IdGenerator>` en el handler y pasar el id. | abierto |
-| HEX-7.7 | HEX-7 Mapeo de persistencia | contexts/iam/src/domain/model/account/account_status.rs:76 | `from_str` define en el dominio el formato persistido `"registered:123123"`. | baja | El adaptador traduce de `String` a `AccountStatus`. | abierto |
+| HEX-7.5 | HEX-7 Crear/reconstituir | contexts/iam/src/domain/model/account/account_factory.rs:53 *(P2; antes :14)* | `AccountFactory::create`/`reconstitute` (línea 32) reciben `String`. Además, `Account::new` es público (account.rs:49) y permite saltarse las reglas de alta. *(P2)* `reconstitute` se borró (0a3c49a) y `create` recibe un `AccountDraft` con value objects (77e0ca4, R12), más `hashed_password: String` (l.55). Siguen `String` en `draft` (l.41), el hash como `String` y `Account::new` público. | media | `Account::create`/`Account::restore` con value objects; `new` privado. | abierto: R20b (parcial de paso en R12 y R19) |
+| HEX-7.6 | HEX-7 Identificador | contexts/iam/src/domain/model/account/account_factory.rs:63 (y `CodeValidation::generate` en la l.59); contexts/communities/src/application/commands/create_community/handler.rs:72 *(P2; antes account_factory.rs:21 y create_community.rs:48)* | El id se genera en el dominio (`AccountId::generate`, `CommunityId::generate`) en vez de recibirse de `IdGenerator`. | media | Inyectar `Arc<dyn IdGenerator>` en el handler y pasar el id. | abierto: R20a (iam) y R22 (communities) |
+| HEX-7.7 | HEX-7 Mapeo de persistencia | contexts/iam/src/domain/model/account/account_status.rs:76 | `from_str` define en el dominio el formato persistido `"registered:123123"`. | baja | El adaptador traduce de `String` a `AccountStatus`. | abierto: R20b |
 | HEX-7.8 | HEX-7 Servicio de dominio | contexts/communities/src/domain/services/membership_policy.rs:2 | `MembershipPolicy` es un enum de opciones (value object) archivado en `services/`. | baja | Moverlo a `model/community/`. | abierto: R22 (D4: se retira) |
 | HEX-7.9 | HEX-7 Comportamiento | contexts/communities/src/domain/model/community/community.rs:19-56 | Agregado anémico: `membership_policy` siempre es `None` y `MembershipPolicyChanged` (membership_policy_changed.rs:4) no se usa. | baja | Agregar el comportamiento con su evento, o retirar lo muerto. | abierto: R22 (D4: se retira) |
 | HEX-7.10 | HEX-7 Lógica en handler | contexts/iam/src/application/commands/verify_account/verify_account.rs:28 | `find_by_email` recibe `cmd.email` crudo, no el `Email` normalizado. El alta guarda el email en minúsculas, así que verificar con `Ana@Example.com` responde 404 a una cuenta que existe. Misma causa que HEX-7.1. Hallado en P1. | media | Construir `Email` y buscar por su valor. | resuelto (8460492): un email mal formado es `NotFound`, como uno desconocido |
 | HEX-7.11 | HEX-7 Lógica en handler | contexts/iam/src/application/commands/authenticate_account/authenticate_account.rs:47 | `find_by_username` recibe `cmd.username` sin el recorte que aplica `Username`. Misma causa que HEX-7.1. Hallado en P1. | media | Buscar por `Username`; si no se puede construir, `LoginFailed` con la verificación del señuelo (D6). | resuelto (5359976) |
 | HEX-7.12 | HEX-7 Comportamiento | contexts/communities/src/domain/errors/community_error.rs:10 | `CommunityError` está muerto: 6 variantes, con sus códigos en `domain/errors/error_codes.rs:4-9`, que nada produce. Residuo de la membresía, como HEX-7.9. Hallado en P1. | baja | Borrarlo con sus códigos. | resuelto (11f8c92): R19 borró `CommunityError` y sus 6 códigos |
+| HEX-7.13 | HEX-7 Comportamiento | contexts/iam/src/domain/model/account/account.rs:94-124 | `activate`, `deactivate`, `suspend`, `change_password`, `change_email` y `change_username` no tienen llamador de producción; solo los usan sus tests. Además, `activate` decide con `self.status.as_str() == "registered"` (l.116), comparando la representación de texto, que es también el formato de identify. Hallado en P2. | baja | Criterio de D4 (sin comportamiento ni uso): borrarlos con sus tests en R21. Si alguno se conserva, que decida con `matches!(self.status, AccountStatus::Registered { .. })`. | abierto: R21 |
+| HEX-7.14 | HEX-7 Identificador | contexts/iam/src/domain/model/account/account_id.rs:26-39; contexts/communities/src/domain/model/community/community_id.rs:12-25 | `AccountId::from_uuid`/`from_str` y `AccountIdError` (errors/account_id.rs:4) no tienen llamador de producción desde f6bc1fd (R16), y `CommunityId::from_uuid`/`from_str` e `InvalidCommunityId` (errors/invalid_community_id.rs:4) nunca lo tuvieron. Sostienen el `uuid` de HEX-2.2 y HEX-2.6 y los `#[allow(clippy::should_implement_trait)]` de account_id.rs:35 y community_id.rs:21. Hallado en P2. | baja | Borrarlos con sus tests, en lugar de convertirlos en `FromStr`: los ids nacen del `IdGenerator`. | abierto: R20a (iam) y R22 (communities) |
 | HEX-8.1 | HEX-8 Kernel sin dependencias | shared/Cargo.toml:7-8 | El kernel depende de `chrono` y `serde`. | alta | Kernel solo `std`. | abierto: desde S1, `chrono` sale en R21 y `serde` en R25 |
 | HEX-8.2 | HEX-8 Marcadores | shared/src/domain/domain_event.rs:5 | El marcador `DomainEvent` exige `DateTime<Utc>` de `chrono`. | media | Sin dependencias; el instante llega de `Clock`. | abierto: R21 (D4). Desde S3, que el marcador declare métodos es HEX-8.11 |
 | HEX-8.3 | HEX-8 Kernel | shared/src/error.rs:10 | `ErrorLayout` y `SystemError` (línea 17), un error global por capas, viven en el kernel. | alta | `Fault` + `Failure<E>` (RS-2). | resuelto (11f8c92): R19 borró `shared/src/error.rs`; con él, `hex_8_kernel_traits_are_model_markers_or_listed_capabilities` quedó en cero |
@@ -103,9 +107,9 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | HEX-8.5 | HEX-8 Sin puertos | shared/src/application/ports/outbound/token_verifier.rs:6 | Un puerto de negocio (`TokenVerifier`) y su `TokenError` (error.rs:2) están en el kernel; no es una capacidad de la lista. | alta | Moverlo a `iam` (ver HEX-1.5). | resuelto (3c1a6bb): R10b borró `TokenVerifier`, `TokenError` y `shared::application` |
 | HEX-8.6 | HEX-8 Sin modelos | shared/src/domain/model/verified_identity.rs:2; shared/src/application/auth_context.rs:2 | Tipos de identidad en el kernel. | media | `AuthenticatedAccount` en `edge/http`. | abierto: R18 (a603969) borró `AuthContext` (sin usos tras quitar `ListPublicCommunities`); queda `VerifiedIdentity` (R27) |
 | HEX-8.7 | HEX-8 Kernel | shared/src/application/common_application_error.rs:2 | `CommonApplicationError` está muerto y es un error compartido de aplicación. | baja | Eliminarlo. | resuelto (80c00e4) |
-| HEX-8.8 | HEX-8 Kernel | shared/src/infrastructure/http/api_error_response.rs:4 | Un tipo de transporte HTTP (con `serde`) en el kernel. | media | `edge/http` con `Problem`. | abierto |
+| HEX-8.8 | HEX-8 Kernel | shared/src/infrastructure/http/api_error_response.rs:4 | Un tipo de transporte HTTP (con `serde`) en el kernel. | media | `edge/http` con `Problem`. | abierto: R25 *(P2; antes R30)*: sale del kernel como una copia por contexto, y R30 borra las copias |
 | HEX-8.9 | HEX-8 Marcadores | shared/src/domain/aggregate_root.rs:6-8 | `AggregateRoot` no es un marcador: impone `record_event(&mut self)`, `pull_events` y `version`, una API mutable. Además trae el helper mutable `EventRecorder` (líneas 11-32). | baja | Marcador vacío; los eventos se manejan con `take_events(self)` en el agregado. | abierto: R21. Desde S3 tiene entrada en `hex_8_model_markers_have_no_items`. El `AggregateRoot` de la plantilla ya es `pub trait AggregateRoot {}` |
-| HEX-8.10 | HEX-8 Marcadores | shared/src/domain/value_object.rs:1 | `ValueObject` no es un marcador: impone `new(Value)` y `value()`. Obliga a los `todo!()` de `AccountId` (account_id.rs:13,17) y `AccountStatus` (account_status.rs:18,22), 4 de los 10 de RS-2.2. Hallado en P1. | media | Marcador vacío, o borrarlo, con `new`/`as_str` propios en cada value object. | abierto: R21 (R20 ya quita los `impl` de `AccountId` y `AccountStatus`). Desde S3 tiene entrada en `hex_8_model_markers_have_no_items`. Además de esos dos, el trait lo implementan `Email`, `Username`, `HashedPassword` y `CodeValidation`, y unos 12 archivos llaman a `new`/`value` a través de él, incluido `account_lifecycle.rs` (adaptación mecánica: el import). La plantilla lo deja en `pub trait ValueObject: Clone + Eq {}` |
+| HEX-8.10 | HEX-8 Marcadores | shared/src/domain/value_object.rs:1 | `ValueObject` no es un marcador: impone `new(Value)` y `value()`. Obliga a los `todo!()` de `AccountId` (account_id.rs:13,17) y `AccountStatus` (account_status.rs:18,22), 4 de los 10 de RS-2.2. Hallado en P1. | media | Marcador vacío, o borrarlo, con `new`/`as_str` propios en cada value object. | abierto: R21 (R20 ya quita los `impl` de `AccountId` y `AccountStatus`). Desde S3 tiene entrada en `hex_8_model_markers_have_no_items`. Además de esos dos, el trait lo implementan `Email`, `Username`, `HashedPassword` y `CodeValidation`, y unos 12 archivos llaman a `new`/`value` a través de él, incluido `account_lifecycle.rs` (adaptación mecánica: el import). *(P2)* Son 11 archivos que no implementan el trait (incluido `account_lifecycle.rs:43`), más los 6 `impl`. La plantilla lo deja en `pub trait ValueObject: Clone + Eq {}` |
 | HEX-8.11 | HEX-8 Marcadores | shared/src/domain/domain_event.rs:3 | `DomainEvent` no es un marcador: declara `event_type`, `occurred_at`, `aggregate_id` y `event_version`. Solo lo implementa `AccountEvent`, que D4 retira. Hallado en S3. | baja | Borrarlo con `AccountEvent` (D4), o dejar `pub trait DomainEvent: Clone {}` como en la plantilla. | abierto: R21 |
 | HEX-8.12 | HEX-8 Marcadores | shared/src/domain/entity.rs:1 | `Entity` no es un marcador: declara `type Id`, `fn id` y `fn same_identity_as`. Solo lo implementa `Account` (account.rs:24). La plantilla no trae `Entity` (su `model.rs` tiene `ValueObject`, `AggregateRoot` y `DomainEvent`). Hallado en S3. | baja | Borrarlo; `Account` expone su propio `id()`. | abierto: R21 |
 | VER-1.1 | VER-1 Tests de arquitectura | Cargo.toml:2-5 | No existe `tools/architecture`: ninguna regla de dependencias o de nombres tiene test. | alta | Agregar `tools/architecture` (la plantilla de rust-stack). | resuelto (ad558fc) |
@@ -114,7 +118,9 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | VER-1.4 | VER-1 Tests de arquitectura | tools/architecture/tests/naming.rs | Ningún test prohíbe que el adaptador driving legacy (`infrastructure/http`) importe `crate::domain`: HEX-1.4, HEX-1.7 y HEX-1.8 no tienen entrada en la línea base. Hallado en P1. | baja | Proponer al harness un test de imports `api → domain` sobre la capa virtual. | resuelto en el harness (S3, `v1.0.0-rc.3`): `hex_1_driving_adapters_see_only_use_cases`. HEX-1.7 y HEX-1.8 tienen sus entradas; HEX-1.4 sigue en la de HEX-1.1 |
 | VER-1.5 | VER-1 Tests de arquitectura | tools/architecture/tests/naming.rs | Nada prohíbe `shared::error::SystemError` en `ports/inbound` (ERR-2.1) ni exige que `{Verb}{Noun}Error` viva junto al handler (HEX-4.4, ERR-2.4). Hallado en P1. | baja | Proponer al harness un test de firmas de los puertos entrantes. | resuelto en el harness (S3, `v1.0.0-rc.3`): `hex_4_use_case_signatures_are_their_own_contract` exige `Failure<{Verb}{Noun}Error>` y los tres tipos junto al handler. ERR-2.1 tiene sus entradas |
 | VER-1.6 | VER-1 Tests de arquitectura | tools/architecture/tests/kernel.rs:69 | El test acepta como marcadores `AggregateRoot` y `ValueObject` con métodos (HEX-8.9, HEX-8.10). Hallado en P1. | baja | Proponer al harness: un marcador es un trait sin ítems. | resuelto en el harness (S3, `v1.0.0-rc.3`): `hex_8_model_markers_have_no_items`. HEX-8.9, HEX-8.10, HEX-8.11 y HEX-8.12 tienen sus entradas |
-| VER-1.7 | VER-1 Lints | Cargo.toml:41 | `[workspace.lints.clippy]` solo prohíbe `unwrap_used`. Nada impide un `todo!()` (RS-2.2) o un `dbg!` (ERR-4.2) nuevo. Hallado en P1. | baja | `todo = "deny"` y `dbg_macro = "deny"`. | abierto: R21 (cuando se borra el último `todo!()` de RS-2.2) |
+| VER-1.7 | VER-1 Lints | Cargo.toml:40 (`[workspace.lints.clippy]`; `unwrap_used` en la l.43) *(P2; antes :41)* | `[workspace.lints.clippy]` solo prohíbe `unwrap_used`. Nada impide un `todo!()` (RS-2.2) o un `dbg!` (ERR-4.2) nuevo. Hallado en P1. | baja | `todo = "deny"` y `dbg_macro = "deny"`. | abierto: R21 (cuando se borra el último `todo!()` de RS-2.2) |
+| VER-1.8 | VER-1 Tests de arquitectura | tools/architecture/tests/dependencies.rs:87 | En legacy, `hex_2_core_depends_only_on_std_and_the_kernel` agrupa las violaciones por manifiesto: un `use` nuevo de un crate prohibido en un archivo de domain o application no cambia ninguna entrada. Así entró `use uuid::Uuid` en `owner_id.rs` en R16 (HEX-2.7). Hasta R27 y R28, cualquier `use chrono`, `rand`, `uuid` o `serde` nuevo en el núcleo pasa en verde. Hallado en P2. | media | Proponer al harness (§6) un test de imports por capa virtual en legacy, con línea base por archivo. Mientras tanto, el revisor lo busca en cada rebanada. | abierto: se propone al harness (§6, S4) |
+| VER-1.9 | VER-1 Tests de arquitectura | tools/architecture/tests/naming.rs | Ningún test exige que el `fold` de un `{Verb}{Noun}Error` sea exhaustivo y sin `_ =>`. ERR-4.5 se cerró borrando los mappers, pero nada impide volver a meter un comodín. Hoy ningún `fold` lo tiene, y los brazos que enlazan un `field` o `resource` desconocido van a `unexpected` (500). Es la fricción de R17 en §6. Hallado en P2. | baja | Proponer al harness un test: un `match` sobre `Failure::Expected(e)` o un `…Error` del contrato no admite `Pat::Wild`, y un brazo que enlaza un `&str` desconocido solo llama a `unexpected`. | abierto: se propone al harness (§6, S4) |
 
 ### ERR (error-handling)
 
@@ -132,25 +138,26 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | ERR-2.2 | ERR-2 Sin envolver | shared/src/error.rs:18-20 | Los errores se envuelven (`Domain(Box<dyn ErrorLayout>)`), y el error de dominio llega tal cual al contrato (p. ej. `AccountError::EmailAlreadyExists.into()` en register_account.rs:43). | alta | Traducir a una hoja plana (`Conflict { resource }`). | resuelto (11f8c92): R11 (3f25daf, 3ff0ae1, 7e51295) en register: `AccountFactory::create` devuelve `AccountCreationError` y el handler lo traduce por variante a `Validation { field }`; los conflictos son `Conflict { resource }` y se borraron `AccountError::{Email,Username}AlreadyExists`. R13 (2d91c4a) en verify: `CodeValidationError` → `Validation { field: "code" }` y `AccountError::InvalidVerification` → `InvalidVerification`, por variante. R14 (7932c45) en authenticate: el `CannotAuthenticate` de dominio → la hoja `CannotAuthenticate`. R15 (2c37b03) en identify: la cuenta que falta es la hoja `NotFound { resource: "account" }`, no `AccountError::AccountNotFound`, que se borró (6b09abd). R17 (58958bc) en create: `InvalidCommunitySlug`/`InvalidCommunityName` → `Validation { field }`, el slug tomado → `Conflict { resource: "slug" }` e `InvalidOwnerId` → `InvalidOwner`, por variante, y se borró `CommunityCreationError`. Queda `SystemError` (R19). R19 (11f8c92) lo borró: ningún error se envuelve | 
 | ERR-2.3 | ERR-2 Contrato incompleto | contexts/iam/src/application/errors/authenticate_account.rs:6 | `AuthenticateAccountError` no cubre `NotFound` (viene de `AccountError`) ni la falla de token: hay contratos parciales mezclados. | media | Un enum cerrado con todas las variantes que el caso produce. | resuelto (ad2f129, 65f455d, 7932c45): R2 quitó `NotFound` del caso; R10a hizo de la falla de token un `Fault` (árbol B), que no va en el contrato; R14 cerró el enum, `AuthenticateAccountError { LoginFailed, CannotAuthenticate }` en `commands/authenticate_account/error.rs` |
 | ERR-2.4 | ERR-2 Nombre | contexts/communities/src/application/errors/community_creation.rs:6 | `CommunityCreationError` en vez de `CreateCommunityError`, y fuera del directorio del caso. | baja | `commands/create_community/error.rs`. | resuelto (58958bc): `CreateCommunityError` en `commands/create_community/error.rs`; `CommunityCreationError` y `application/errors/error_codes.rs` se borraron |
-| ERR-2.5 | ERR-2 Variante correcta | contexts/iam/src/domain/model/account/account_status.rs:82, 90 | Un estado ilegible se reporta como `InvalidTransition`. | baja | Dato corrupto → `Fault` en el adaptador. | abierto |
+| ERR-2.5 | ERR-2 Variante correcta | contexts/iam/src/domain/model/account/account_status.rs:82, 90 | Un estado ilegible se reporta como `InvalidTransition`. | baja | Dato corrupto → `Fault` en el adaptador. | abierto: R20b (se borra `from_str`) |
 | ERR-2.6 | ERR-2 Tests por variante | contexts/iam/src/application/commands/register_account/register_account.rs:147 (patrón en todos los tests de handler) | Los tests afirman sobre `err.code()` (un string), no sobre la variante. | baja | `matches!(r, Err(Failure::Expected(…)))`. | resuelto (58958bc): R11 (3ff0ae1) pasó los tests de register a `matches!` sobre la variante, R13 (2d91c4a) los de verify, R14 (7932c45) los de authenticate, R15 (2c37b03) los de identify y R17 (58958bc) los de create |
 | ERR-2.7 | ERR-2 Test por variante | contexts/iam/src/application/commands/register_account/register_account.rs:65 | Falta el test del handler para contraseña corta (`fails_when_password_is_too_short`). Falla de repositorio sin test de endpoint (solo el unit test del mapper). | media | Agregar ambos. | resuelto (3ff0ae1): `fails_when_password_is_too_short`; las fallas del repositorio ya estaban desde R8 (ebd0819, cc3d60c), y el 500 por endpoint lo fija `a_fault_returns_500_with_the_d7_body` |
 | ERR-2.8 | ERR-2 Test por variante | contexts/iam/src/application/commands/authenticate_account/authenticate_account.rs:77 | La falla del generador de tokens no tiene test de handler (`fails_when_token_generation_fails`) ni de endpoint. | media | Doble que falle + test. | resuelto (65f455d, c65817c): R10a agrega `fails_with_unexpected_when_issue_fails`. La falla es árbol B, no una variante del contrato, así que el test por variante de ERR-2 no aplica; el 500 lo fijan `unexpected_fault_maps_to_internal_server_error` y `a_fault_verifying_the_token_returns_500`. El resto del manejador global sigue en ERR-4.7 |
 | ERR-2.9 | ERR-2 Test por variante | contexts/iam/src/application/commands/verify_account/verify_account.rs:41 | Faltan el test de handler para código fuera de rango (`fails_when_code_is_out_of_range`) y los de handler y endpoint para la falla del repositorio (`fails_when_repository_fails`). | media | Agregar los tests. | resuelto (ebd0819, cc3d60c, 2d91c4a): R8 agregó los de handler para la falla del repositorio (árbol B); R13, `fails_when_code_is_out_of_range` y el 500 por endpoint (`a_fault_returns_500_with_the_d7_body` en `infrastructure/http/verify_account.rs`). El de endpoint del código ya existía (`verify_with_code_out_of_6_digit_range_returns_400`) |
 | ERR-2.10 | ERR-2 Test por variante | contexts/communities/src/application/commands/create_community/create_community.rs:62 | El owner con formato inválido o nil no tiene test de handler (`fails_when_owner_id_is_invalid`), solo de endpoint. La falla de repositorio no tiene test de endpoint. | media | Agregar los tests. | resuelto (58958bc): R7 (692bc7c, ba15189) agrega los de handler para la falla del repositorio, que es árbol B; R17, `fails_when_owner_id_is_invalid` y `fails_when_owner_id_is_nil`, y el 500 por endpoint (`a_fault_returns_500_with_the_d7_body` en `infrastructure/http/create_community.rs`) |
 | ERR-2.11 | ERR-2 Variante imposible | contexts/iam/src/application/commands/verify_account/handler.rs:57 | `confirm_registration` devuelve `AccountError`, así que el handler tiene que traducir `AccountNotFound`, que nunca produce, con una rama a `Fault` que ningún test alcanza. El `match` exhaustivo deja de decir algo. Hallado en la revisión de R13. | baja | Un error propio de `confirm_registration` con solo `InvalidVerification`. O, cuando R15 deje a `AccountError::AccountNotFound` sin productor, borrar la variante y la rama. | resuelto (6b09abd): R15 dejó `AccountError::AccountNotFound` sin productor; se borraron la variante, la rama de `VerifyAccountHandler`, su código de dominio y el brazo del mapper |
+| ERR-2.12 | ERR-2 Error por regla | contexts/iam/src/domain/errors/account.rs:4 | `AccountError`, un error con nombre de agregado, tiene una sola variante (`InvalidVerification`) y un solo productor (`confirm_registration`). Es el patrón de error global de dominio que ERR-2.11 propuso reemplazar: una variante nueva obliga a cada `match` del handler a traducir variantes que esa operación no produce. Hallado en P2. | baja | Un error propio de la transición (`InvalidVerification`, como `CannotAuthenticate`), que devuelve el nuevo `confirm(&self, …) -> Result<Self, InvalidVerification>`. | abierto: R21 |
 | ERR-3.1 | ERR-3 Respondió vs no pudo | contexts/iam/src/infrastructure/services/jwt_service/jwt_service.rs:85-92 | Un token inválido o vencido se devuelve como `Err(TokenError)`; es un veredicto, no un fallo. | media | `Ok(AccessTokenVerdict::Invalid)`. | resuelto (c9db5fa, 62d5456): `JwtAccessTokenAdapter` responde `Invalid` a todo error del token, y `Fault` a uno de clave o de validación |
 | ERR-3.2 | ERR-3 Errores para transporte | iam/src/application/errors/account_repository.rs:16-27, token_generator.rs:16-27; communities/src/application/errors/community_repository.rs:16-27 | Los errores de puerto traen un `code()` y un `message()` pensados para el cliente HTTP. | media | Sin texto de usuario; el borde decide. | resuelto (692bc7c, ebd0819, 65f455d): R10a borró `TokenGeneratorError` |
 | ERR-3.3 | ERR-3 Falla técnica = árbol B | iam/src/application/errors/account_repository.rs:6, token_generator.rs:6; communities/src/application/errors/community_repository.rs:6 | Fallas técnicas no declarables (persistencia, codificación JWT) modeladas como errores tipados del contrato. | media | `Fault`, propagado con `?`. | resuelto (692bc7c, ebd0819, 65f455d): R10a borró `TokenGeneratorError` |
-| ERR-3.4 | ERR-3 Error declarado | contexts/iam/src/application/ports/outbound/account_repository.rs (`save`); register_account/handler.rs:88 | `save -> Result<(), Fault>` no declara el duplicado: con una carrera entre `find_*` y `save`, un adaptador con índice único respondería un 500 en lugar del `Conflict`. Hoy no pasa: el adaptador en memoria no tiene índices. Hallado en la revisión de R11. | baja | Al llegar la persistencia real, `AccountRepositoryError::Duplicate { resource }` declarado en el puerto, con su caso en la batería, traducido a la hoja `Conflict`. | abierto: sin rebanada (con el primer adaptador persistente) |
+| ERR-3.4 | ERR-3 Error declarado | contexts/iam/src/application/ports/outbound/account_repository.rs (`save`); register_account/handler.rs:92 *(P2; antes :88)* | `save -> Result<(), Fault>` no declara el duplicado: con una carrera entre `find_*` y `save`, un adaptador con índice único respondería un 500 en lugar del `Conflict`. Hoy no pasa: el adaptador en memoria no tiene índices. Hallado en la revisión de R11. | baja | Al llegar la persistencia real, `AccountRepositoryError::Duplicate { resource }` declarado en el puerto, con su caso en la batería, traducido a la hoja `Conflict`. | abierto: sin rebanada (con el primer adaptador persistente) |
 | ERR-4.1 | ERR-4 Secretos | .env:1 | `JWT_SECRET` está versionado; `.gitignore:1-2` no excluye `.env`. | alta | Sacar `.env` del índice y rotar el secreto; `.env.example` sin valores. | en curso (0df9baa): fuera del índice; falta rotar el secreto |
 | ERR-4.2 | ERR-4 Logging en el núcleo | contexts/iam/src/application/commands/register_account/register_account.rs:55 | `dbg!(&account)` escribe en stderr la cuenta completa (email y hash de la contraseña). | alta | Eliminarlo. | resuelto (57e814e) |
 | ERR-4.3 | ERR-4 Secretos | app/src/config/jwt.rs:3; app/src/config/app.rs:3 | `#[derive(Debug)]` sobre una configuración que contiene el secreto. | media | Sin `Debug`. | resuelto (8195600) |
 | ERR-4.4 | ERR-4 Códigos en el borde | iam/src/domain/errors/error_codes.rs:1-12; iam/src/application/errors/error_codes.rs:1-2; communities/src/domain/errors/error_codes.rs:1-13; communities/src/domain/errors/invalid_owner_id.rs:33; communities/src/application/errors/error_codes.rs:1-2 | Los códigos estables y los mensajes de cliente viven en el núcleo. | media | `{ctx}-api/src/codes.rs`. | resuelto (11f8c92): R11 (7655856, 3ff0ae1) creó `infrastructure/http/codes.rs` con los códigos y mensajes de register y el de D7, byte a byte; R13 (2d91c4a) sumó los tres de verify (`IAM_ACCOUNT_NOT_FOUND`, `IAM_INVALID_CODE_VALIDATION`, `IAM_ACCOUNT_INVALID_VERIFICATION`); R14 (7932c45), los dos de authenticate (`IAM_LOGIN_FAILED`, `IAM_CANNOT_AUTHENTICATE`), y borró `application/errors/error_codes.rs`; R15 (2c37b03, 6b09abd) usa en el `fold` de identify los de verify, y borró `IAM_ACCOUNT_NOT_FOUND` de `domain/errors/error_codes.rs`; los demás de ese archivo siguen alimentando el mapper (R17, R19); R16 (3646f25) sumó al dominio de communities `IAM_INVALID_ACCOUNT_ID(_FORMAT)` (D2 a) y los mensajes de `InvalidOwnerId::message()`, puente del mapper legacy, y los dos códigos en `communities/src/infrastructure/http/codes.rs` (f6bc1fd); R17 (58958bc, 838b923) pasó a `codes.rs` los códigos y mensajes de create (`COMMUNITIES_INVALID_COMMUNITY_{SLUG,NAME}`, `COMMUNITIES_SLUG_ALREADY_EXISTS` y los mensajes `IAM_`), y borró `communities/src/application/errors/error_codes.rs`, las constantes `IAM_` y las de nombre y slug del dominio y los `impl ErrorLayout` de `InvalidOwnerId`, `InvalidCommunityName` e `InvalidCommunitySlug`. Quedan en `communities/src/domain/errors/error_codes.rs` el de `InvalidCommunityId` y los 6 de `CommunityError` (HEX-7.12), y los de `iam/src/domain/errors/error_codes.rs` (R19). R19 (11f8c92) borró los dos `error_codes.rs` de domain (los de application ya no estaban desde R14 y R17) y todos los `impl ErrorLayout`: los códigos y mensajes de cliente viven solo en `infrastructure/http/codes.rs`. La forma `{ctx}-api/src/codes.rs` llega con la separación de crates (R27, R28) |
 | ERR-4.5 | ERR-4 `fold` exhaustivo | contexts/iam/src/infrastructure/http/errors/error_mapper.rs:60-77; contexts/communities/src/infrastructure/http/errors/error_mapper.rs:58-66 | El status HTTP se decide comparando strings, con un comodín `_ => 500` (líneas 76 y 65). | media | `match` exhaustivo sobre el enum del contrato. | resuelto (11f8c92): R11 (3ff0ae1, d0dd8cb) `POST /auth/register` ya no usa el mapper: `match` exhaustivo en `infrastructure/http/register_account.rs`, con un test de endpoint por brazo; un `field` o `resource` desconocido es árbol B. R13 (2d91c4a) hizo lo mismo con `POST /auth/verify` en `infrastructure/http/verify_account.rs`, y R14 (7932c45) con `POST /auth/authenticate` en `infrastructure/http/authenticate_account.rs` (se borró el brazo 401 del mapper, sin productor). R15 (2c37b03) con `POST /auth/identify` en `infrastructure/http/identify_account.rs`; con él, ningún endpoint de iam usa el mapper. R17 (58958bc) con `POST /communities/create` en `infrastructure/http/create_community.rs`; con él, ningún endpoint usa un mapper. R19 (11f8c92) los borró, con sus comodines |
-| ERR-4.6 | ERR-4 Problem Details | shared/src/infrastructure/http/api_error_response.rs:4; app/src/middleware/auth.rs:29, 42 | Las respuestas de error usan `{code,message}` y el 401 va con cuerpo vacío, no en RFC 9457. | media | `edge_http::Problem` con un helper por hoja. | abierto |
+| ERR-4.6 | ERR-4 Problem Details | shared/src/infrastructure/http/api_error_response.rs:4; app/src/middleware/auth.rs:29, 42 | Las respuestas de error usan `{code,message}` y el 401 va con cuerpo vacío, no en RFC 9457. | media | `edge_http::Problem` con un helper por hoja. | abierto: R30 (D5 decidida) |
 | ERR-4.7 | ERR-4 Manejador global | app/src/server.rs:24-27 | No hay manejador del árbol B, ni `FaultReporter`, ni `CatchPanicLayer`. Los `todo!`/`expect` cortan la conexión y las fallas técnicas no se registran. | media | `CatchPanicLayer` + `unexpected()` que reporta y devuelve un 500 genérico. | abierto: R5 (29890cb) existe el trait `FaultReporter`; desde R11 (7655856) `unexpected()` vive en `iam/…/infrastructure/http/unexpected.rs` y lo usan los `fold` de iam y el middleware (el mapper, hasta R19), con el `Fault` en stderr como interino; R17 (9614aaa) sacó el de communities a `communities/…/infrastructure/http/unexpected.rs`, que usan el `fold` de create y el mapper; faltan el adaptador, `edge/http` y `CatchPanicLayer` (R26, R30) |
-| ERR-4.8 | ERR-4 Identidad faltante | contexts/communities/src/infrastructure/http/create_community.rs:27 (hasta R17, `handlers/community_handlers.rs:18`) | `Extension<VerifiedIdentity>` obligatoria: en una ruta sin proteger responde 500, no 401. | baja | `Option<Extension<AuthenticatedAccount>>` → 401. | abierto |
+| ERR-4.8 | ERR-4 Identidad faltante | contexts/communities/src/infrastructure/http/create_community.rs:27 (hasta R17, `handlers/community_handlers.rs:18`) | `Extension<VerifiedIdentity>` obligatoria: en una ruta sin proteger responde 500, no 401. | baja | `Option<Extension<AuthenticatedAccount>>` → 401. | abierto: R27 |
 | ERR-4.9 | ERR-4 Secretos | app/src/config/jwt.rs:26 | `from_vars` aceptaba un `JWT_SECRET` vacío: copiando `.env.example` (`JWT_SECRET=`), el servidor arrancaba firmando HS256 con clave vacía y cualquiera podía falsificar un token. Hallado en P1. | alta | `ConfigError::Invalid("JWT_SECRET")` por debajo de 32 bytes. | resuelto (e1b613b, PR #40) |
 | ERR-4.10 | ERR-4 Secretos | contexts/iam/src/infrastructure/http/requests/sign_in.rs:4; sign_up.rs:4 | `SignInRequest` y `SignUpRequest` derivan `Debug` con `password` en claro: un `{:?}` futuro (log, `TraceLayer` con cuerpo) filtra la contraseña. Igual que ERR-4.3. Hallado en P1. | media | Sin `Debug`, o a mano con `<redacted>`. Se corrige en el lugar: las entradas `hex_6` de esos archivos prohíben moverlos, no editarlos. | resuelto (9819983, e370462): `sign_up.rs` en R11 y `sign_in.rs` en R14, los dos con `Debug` a mano y `<redacted>`. R12 revisó los demás DTOs de entrada y los `Command`: ningún otro lleva la contraseña en `Debug` (el código de verificación, en ERR-4.14) |
 | ERR-4.11 | ERR-4 Secretos | contexts/iam/src/application/queries/verify_access_token/query.rs:1; commands/authenticate_account/response.rs:1 | `VerifyAccessTokenQuery` y `AuthenticateAccountResponse` derivan `Debug` con el token. Hallado en P1. | baja | `Debug` a mano con el token redactado. | resuelto (542fa7b) |
@@ -176,24 +183,29 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | TDD-2.4 | TDD-2 Doble fiel | contexts/iam/src/application/ports/outbound/password_hasher.rs:19-21 | `verify` compara texto plano contra el hash, y el repositorio devuelve una cuenta cuyo email no es el consultado (account_repository.rs:95). El test de éxito tiene que mandar el hash como contraseña (authenticate_account.rs:163). | media | Doble coherente + batería de contrato. | resuelto (de6c308, cc3d60c, c04f69d): R8 resolvió el repositorio; R9, `verify` (`FixedPasswordHashingAdapter` solo acepta la contraseña con la que generó el hash) |
 | TDD-2.5 | TDD-2 Doble completo | contexts/communities/src/application/ports/outbound/community_repository.rs:80 | El doble tiene `todo!()` en `get_public_list`, helpers muertos copiados de iam (líneas 59 y 68) y el campo `_activated` sin uso (línea 26). | baja | Implementar el método o quitarlo del puerto. | resuelto (a603969): `get_public_list`, los helpers muertos y `_activated` quitados |
 | TDD-2.6 | TDD-2 Doble completo | contexts/communities/src/application/commands/create_community/create_community.rs:169 | El `StubCommunityAdapter` local (ba15189) falla siempre en `save` y no puede pasar la batería de contrato. Fricción ya anotada en §6. Hallado en P1. | baja | `FakeCommunityAdapter::failing_on(CommunityOperation::Save)`, como `FakeAccountAdapter`, y borrar el Stub. | resuelto (c7cc244) |
-| TDD-2.7 | TDD-2 Doble completo | contexts/iam/src/application/commands/register_account/handler.rs (`StubPasswordHashingAdapter`) | El brazo `AccountCreationError::HashedPassword` (→ `Fault`; desde R12 (77e0ca4), el `HashedPasswordError` de `AccountFactory::create`) solo se alcanza con `StubPasswordHashingAdapter`, que incumple a propósito `hash_is_a_valid_hashed_password` y no corre la batería. La causa es la firma `hash -> Result<String, Fault>`, que admite un estado que el contrato prohíbe. Declarado con su motivo. Hallado en la revisión de R11. | baja | `PasswordHashingService::hash -> Result<HashedPassword, Fault>` y `AccountFactory::create` recibe un `HashedPassword`: desaparecen el error, el brazo y el stub. | abierto: fase 4 (se asigna en P2) |
+| TDD-2.7 | TDD-2 Doble completo | contexts/iam/src/application/commands/register_account/handler.rs (`StubPasswordHashingAdapter`) | El brazo `AccountCreationError::HashedPassword` (→ `Fault`; desde R12 (77e0ca4), el `HashedPasswordError` de `AccountFactory::create`) solo se alcanza con `StubPasswordHashingAdapter`, que incumple a propósito `hash_is_a_valid_hashed_password` y no corre la batería. La causa es la firma `hash -> Result<String, Fault>`, que admite un estado que el contrato prohíbe. Declarado con su motivo. Hallado en la revisión de R11. | baja | `PasswordHashingService::hash -> Result<HashedPassword, Fault>` y `AccountFactory::create` recibe un `HashedPassword`: desaparecen el error, el brazo y el stub. | abierto: R20b (asignado en P2: `AccountFactory::create` cambia ahí, y `Account::create` recibe el `HashedPassword`) |
 | TDD-2.8 | TDD-2 Prueba por llamada | contexts/communities/src/application/commands/create_community/create_community.rs:146 | `fails_with_unexpected_when_repository_fails` usa `FakeCommunityAdapter::failing()`, así que falla en la primera llamada, `find_by_slug`, pero el nombre no dice cuál. El de `save` sí la nombra (`fails_with_unexpected_when_save_fails`), y §5.1 pide `fails_with_unexpected_when_<operación>_fails` por llamada. Hallado en la revisión de R16. | baja | Renombrar a `fails_with_unexpected_when_find_by_slug_fails`, con `failing_on(CommunityOperation::FindBySlug)`, como iam desde R12b. | resuelto (60caf6f) |
+| TDD-2.9 | TDD-2 Batería completa | contexts/communities/src/application/testing/contracts/community_repository.rs:44 | `snapshot` compara `id`, `slug`, `name` e `is_public`, pero no el dueño: `Community` no expone `owner_id()` (el campo es `_owner_id`, community.rs:12). Un adaptador que pierda o confunda el dueño pasa la batería, y ningún test de handler puede afirmar que la comunidad se guardó con el `owner_id` del comando. Hallado en P2. | media | `Community::owner_id() -> &OwnerId`, el dueño en `snapshot`, y afirmarlo en `create_community_successfully`. | abierto: R22 |
+| TDD-2.10 | TDD-2 Doble completo | contexts/iam/src/application/testing.rs:214 | `SpyPasswordHashingAdapter` no tiene `failing()` ni `failing_on`, aunque su puerto puede fallar. Hallado en P2. | baja | Delegar en el `FixedPasswordHashingAdapter` interno: `failing()`/`failing_on(op)`. | abierto: R23 |
+| TDD-2.11 | TDD-2 Nombre del test | contexts/iam/src/domain/model/account/account.rs:265 | `reconstituted_user_preserves_status` ya no prueba ninguna restauración: arma la cuenta con el helper (`AccountStatus::from_str` + `Account::new`) y afirma el getter. El nombre promete `reconstitute`, que se borró en 0a3c49a. El revisor de R19 lo dejó en el texto de §5.3, sin ID. Hallado en P2. | baja | Reescribirlo contra `Account::restore`: `restored_account_preserves_status`. | abierto: R20b |
 
 ### RS (rust-stack)
 
 | ID | Regla | archivo:línea | Violación | Sev. | Corrección | Estado |
 |---|---|---|---|---|---|---|
-| RS-1.1 | RS-1 Crate por capa | Cargo.toml:2-5 | Un crate por contexto (`contexts/*`), con las capas como módulos; no hay `kernel/` ni `edge/http`. | alta | `contexts/{ctx}/{domain,application,infrastructure,api}` (migración incremental). | abierto |
-| RS-1.2 | RS-1 Kernel | shared/Cargo.toml:2 | El kernel se llama `shared` y tiene capas propias (`application`, `infrastructure/http`). | media | `kernel/` (solo std) + `edge/http`. | abierto |
+| RS-1.1 | RS-1 Crate por capa | Cargo.toml:2-5 | Un crate por contexto (`contexts/*`), con las capas como módulos; no hay `kernel/` ni `edge/http`. | alta | `contexts/{ctx}/{domain,application,infrastructure,api}` (migración incremental). | abierto: R27 y R28 |
+| RS-1.2 | RS-1 Kernel | shared/Cargo.toml:2 | El kernel se llama `shared` y tiene capas propias (`application`, `infrastructure/http`). | media | `kernel/` (solo std) + `edge/http`. | abierto: R29 |
 | RS-1.3 | RS-1 Herencia | Cargo.toml:1-11 | Sin `[workspace.package]` ni `[workspace.lints]`; versiones repetidas por crate (`uuid` en contexts/iam/Cargo.toml:7 y contexts/communities/Cargo.toml:7, `serde` en cuatro crates). | baja | Herencia del workspace. | resuelto (991e672) |
 | RS-1.4 | RS-1 Dependencias | app/Cargo.toml:18 | `anyhow` está declarado y no se usa: cargo avisa `unused dependency`. Hallado en R2, fuera de la auditoría. | baja | Quitarlo, junto con RS-1.3 (R6). | resuelto (991e672) |
+| RS-1.5 | RS-1 Dependencias | contexts/communities/Cargo.toml:12 | `http` está declarado y no se usa: desde 58958bc (R17), los `StatusCode` de communities vienen de `axum::http`. Sostiene la entrada `hex_2_core … communities#dependencies.http 2` sin ningún uso. Hallado en P2. | baja | Quitarlo del manifiesto y borrar su entrada en el mismo PR (§5.1, "Una dependencia, una entrada"). | abierto: R22 |
+| RS-1.6 | RS-1 Dependencias | app/Cargo.toml:10, 12 | `serde` y `tower` están en `[dependencies]` de `app`, y ningún archivo de producción los usa: `tower::ServiceExt` solo aparece en el `mod tests` de `middleware/auth.rs:57`, y `tower` ya está en `[dev-dependencies]` con `util`. Como `anyhow` (RS-1.4). Hallado en P2. | baja | Quitar los dos de `[dependencies]`; `tower` sigue en `[dev-dependencies]`. | abierto: R26 |
 | RS-2.1 | RS-2 Árbol B = `Fault` | shared/src/error.rs:17 | No existen `Fault` ni `Failure<E>`; el árbol B viaja como `SystemError::Infrastructure`. | alta | `kernel::Fault` y `kernel::Failure`. | resuelto (11f8c92): R5 agregó `Fault` y `Failure<E>`; R19 borró `SystemError` con su puente `Unexpected` |
-| RS-2.2 | RS-2 `panic!` solo invariantes | iam/…/account.rs:36,40,44; account_id.rs:13,17; account_status.rs:18,22; events/account_event.rs:10,14,18; communities/…/in_memory/community_repository.rs:27 | 11 `todo!()` en código de producción. El de `get_public_list` haría caer la petición si se cablea. | media | Implementar o eliminar los `impl` de trait vacíos. | abierto: R18 (a603969) quitó el de `in_memory/community_repository.rs`; quedan los 10 de iam (R20, R21) |
+| RS-2.2 | RS-2 `panic!` solo invariantes | iam/…/account.rs:36,40,44; account_id.rs:13,17; account_status.rs:18,22; events/account_event.rs:10,14,18; communities/…/in_memory/community_repository.rs:27 | 11 `todo!()` en código de producción. El de `get_public_list` haría caer la petición si se cablea. | media | Implementar o eliminar los `impl` de trait vacíos. | abierto: R18 (a603969) quitó el de `in_memory/community_repository.rs` (hoy `in_memory_community.rs`, sin ninguno); quedan los 10 de iam, con las líneas exactas: `account_id.rs` (R20a), `account_status.rs` (R20b), `account.rs` y `account_event.rs` (R21) |
 | RS-2.3 | RS-2 `unwrap` prohibido | iam/…/authenticate_account.rs:55; verify_account.rs:30; identify_account.rs:44; account_status.rs:79 (dos veces), 81; app/src/config/jwt.rs:15; app/src/main.rs:12,14 | `unwrap` en producción. En `account_status.rs` panica ante un dato persistido; en `jwt.rs`, ante un `JWT_EXPIRATION_TIME` no numérico. | media | `let Some(..) else`, `?` o `ConfigError`. | resuelto (0415e3e, 4355c9f, ebcd593, 9315004) |
 | RS-2.4 | RS-2 `expect("invariante: …")` | iam/…/argon2_password_hasher.rs:26,32; iam/…/in_memory/account_repository.rs:28,36,44; communities/…/in_memory/community_repository.rs:31,39,47 | Los mensajes no empiezan con "invariante:". Argon2 usa `expect` para una falla técnica (línea 26) y para un hash persistido corrupto (línea 32), que deberían ser `Fault`. | media | `Fault` en Argon2; "invariante: mutex sin envenenar" en los mutex. | resuelto (6b808a2, 9a90d8a, 17ba68e, dddc146): los mutex en R7 y R8; Argon2 en R9, con sus errores como `Fault` |
 | RS-2.5 | RS-2 Lints | Cargo.toml:1-11 | Sin `[workspace.lints]` con `unwrap_used = "deny"` ni `unsafe_code`. | media | Agregarlos. | resuelto (9315004) |
 | RS-2.6 | RS-2 Lints | contexts/communities/src/domain/model/community/owner_id.rs:12 | `OwnerId::from_str` es un método inherente bajo `#[allow(clippy::should_implement_trait)]`, copiado de `AccountId` en R16 (3646f25). Silencia el lint en lugar de implementar `FromStr`. R20 quita los de `model/account` y R22 los de `CommunityId`, pero ninguna rebanada nombraba el de `OwnerId`. Hallado en la revisión de R16. | baja | `impl FromStr for OwnerId` (`type Err = InvalidOwnerId`) y quitar el `allow`; los llamadores pasan a `.parse()` o `OwnerId::from_str` por el trait. | abierto: R22 |
-| RS-3.1 | RS-3 Puertos async | iam/…/ports/outbound/*.rs; communities/…/community_repository.rs:6; los 5 `ports/inbound/*.rs` (`list_public_communities_use_case.rs` se borró en R18 y `verify_access_token_use_case.rs` llegó en R10b) | Todos los puertos son síncronos: un adaptador con E/S real (Postgres) no cabe. Además, Argon2 bloquea el runtime dentro de handlers async. | media | `BoxFuture<'a, Result<…>>` del kernel. | abierto: R16b (d3ab538, fdc1941) dio a las 4 baterías de contrato la forma async, con `run: block_on`; los puertos pasan a `BoxFuture` en R23 y R24 |
+| RS-3.1 | RS-3 Puertos async | iam/…/ports/outbound/*.rs; communities/…/community_repository.rs:6; los 5 `ports/inbound/*.rs` (`list_public_communities_use_case.rs` se borró en R18 y `verify_access_token_use_case.rs` llegó en R10b) | Todos los puertos son síncronos: un adaptador con E/S real (Postgres) no cabe. Además, Argon2 bloquea el runtime dentro de handlers async. | media | `BoxFuture<'a, Result<…>>` del kernel. | abierto: R16b (d3ab538, fdc1941) dio a las 4 baterías de contrato la forma async, con `run: block_on`; los puertos pasan a `BoxFuture` en R23 y R24. *(P2)* `spawn_blocking` para Argon2 pasa a R28: en legacy, `tokio` en `contexts/iam/Cargo.toml` sería una entrada nueva de `hex_2_core` |
 | RS-4.1 | RS-4 Tests de arquitectura | Cargo.toml:2-5 | No hay `cargo test -p architecture` (ver VER-1.1). | alta | `tools/architecture`. | resuelto (ad558fc) |
 
 ## 3. Reglas que se cumplen
@@ -217,7 +229,7 @@ No cuentan en el inventario. Si se confirman, pasan a él con el siguiente ID li
 
 - ~~**Enumeración de usuarios (ERR-4).** `authenticate` responde 404 a un usuario inexistente y 401 a una contraseña incorrecta, así que se puede saber qué nombres de usuario existen.~~ Confirmada por el usuario y resuelta en R2 (ad2f129, 4149660): 401 `IAM_LOGIN_FAILED` y verificación contra un hash señuelo (D6).
 - **El señuelo y los parámetros de Argon2 (R2).** `verify` usa los parámetros del hash guardado. Si `Argon2::default()` cambia al actualizar el crate, el señuelo (generado al arrancar con los parámetros nuevos) y los hashes viejos dejan de costar lo mismo. Hoy no pasa; habría que revisarlo al subir `argon2` o al cambiar sus parámetros.
-- **`Account` deriva `Debug` con `HashedPassword` dentro** (account.rs:14). Cualquier log futuro con `{:?}` filtra el hash. No viola nada hoy, quitando el `dbg!` de ERR-4.2.
+- **`Account` deriva `Debug` con `HashedPassword` dentro** (account.rs:14). Cualquier log futuro con `{:?}` filtra el hash. No viola nada hoy, quitando el `dbg!` de ERR-4.2. *(P2)* También imprime el código de verificación pendiente, dentro de `AccountStatus::Registered`.
 - ~~**Orden en `RegisterAccount`.** Hashea con Argon2 (register_account.rs:49) antes de validar la política de contraseña dentro de la factory. Es orquestación cuestionable (costo y contraseña en claro pasada al dominio), no claramente un `if` de negocio en el handler.~~ Resuelto en R12 (06a5676) como consecuencia del orden pedido (contraseña, formato, conflicto y después el hash). Lo fija `rejects_the_password_before_hashing_it` (e4b270b).
 - **Tests de caracterización en `app/tests/`.** Prueban reglas de negocio (longitudes, formatos) por el endpoint, y con adaptadores reales en vez de `Stub…UseCase`. Es la violación típica de TDD-2, pero están ahí a propósito como red de seguridad para el refactor. No los conté.
 - **Verificar dos veces** devuelve `InvalidVerification` (400). Podría ser `Conflict`, pero depende de la semántica del producto (ERR-2).
@@ -231,14 +243,14 @@ No cuentan en el inventario. Si se confirman, pasan a él con el siguiente ID li
 
 ## 5. Plan de rebanadas
 
-Las rebanadas se citan como **R1…R30**. Cada una es un PR que tiene que estar verde en CI. En ese mismo PR se actualiza el inventario (`resuelto (<commit>)`) y, al terminar, se vuelve a auditar con `craft-backend:architecture-reviewer`. El avance de cada rebanada se anota en §5.8.
+Las rebanadas se citan como **R1…R31** (con las intermedias R10a, R10b, R12b, R13b, R16b, R20a, R20b y R29b) y las sincronizaciones, como **S1…S4**. Cada una es un PR que tiene que estar verde en CI. En ese mismo PR se actualiza el inventario (`resuelto (<commit>)`) y, al terminar, se vuelve a auditar con `craft-backend:architecture-reviewer`. El avance de cada rebanada se anota en §5.8.
 
 Datos verificados que condicionan el plan:
 - ~~`hex_4_use_case_contracts_do_not_expose_domain_types` no actúa sobre los contextos legacy.~~ Desde S1 (ai-harness `v1.0.0-rc.1`) sí actúa: en legacy, el dominio de application es `crate::domain`. Revisa 17 tipos de contrato y pasa en verde.
 - Un contexto legacy no puede depender de un crate `edge/*`. Todas las capas virtuales comparten el manifiesto, y `(Domain, Edge)` está prohibido. En `iam` aparecería una entrada nueva en `contexts/iam/Cargo.toml`. En `communities` seguiría viva la entrada de HEX-1.1.
 - `hex_2_core_depends_only_on_std_and_the_kernel` cuenta también las `[dev-dependencies]`. Después de la separación, los tests de application no pueden usar tokio.
 - Los tests de caracterización fijan `IAM_INVALID_ACCOUNT_ID(_FORMAT)` en `/communities/create`, los bodies `{code,message}` exactos y el 401 con cuerpo vacío. Además documentan como "CURRENT BEHAVIOR" el duplicado por mayúsculas (HEX-7.1).
-- `AccountFactory::reconstitute` y `AccountStatus::from_str` no se usan fuera de los tests: ningún adaptador persiste en texto.
+- `AccountStatus::from_str` no se usa fuera de los tests: ningún adaptador persiste en texto. *(P2)* `AccountFactory::reconstitute` ya no existe (R19, 0a3c49a).
 - Decidido por el usuario: `account_lifecycle.rs` admite **adaptación mecánica**.
 - `tools/architecture/baseline.txt` tiene 63 líneas: 8 de comentario y **55 entradas**. Coincide con la suma de §5.6. El "56" del encargo original era un error de conteo; ninguna entrada queda sin rebanada. *(En R1. Después de R3 y R4 quedaron 36, y S1 las reescribe como 47 con el formato nuevo. S2 (`v1.0.0-rc.2`) las conserva, idénticas, y S3 (`v1.0.0-rc.3`) conserva las 31 que quedaban después de R13 y suma 11: ver §5.10.)*
 
@@ -258,7 +270,7 @@ Datos verificados que condicionan el plan:
 - **Una dependencia, una entrada.** Desde S1, las claves de los tests de dependencias son `ruta/Cargo.toml#sección.paquete`, con `n` = número de capas virtuales que la ven. La rebanada que quita un paquete de un `Cargo.toml` borra sus entradas en el mismo PR, aunque el plan asignara el cierre a otra rebanada.
 - **Firma que pasa a ser falible (desde S3, craft-backend 1.0.0-rc.3).** El commit de la firma falla fuerte con `.expect("pendiente: …")`, nunca descarta el `Fault`, y el `?` llega en el commit siguiente, con su test en rojo contra el commit padre. Reemplaza la secuencia de R10a, que descartaba el `Fault` de forma explícita. `rs_2_expect_names_the_invariant` admite `"pendiente:"`, y el revisor lo reporta si llega al final de la rebanada.
 - **Baterías de contrato nuevas (desde S3).** Nacen con la forma final aunque el puerto siga síncrono: casos `pub async fn`, macro con `run` invocada con `run: block_on` y `#![expect(clippy::unused_async, reason = "puerto todavía síncrono: …")]` (receta "Puerto todavía síncrono" del README del stack).
-- **Mapper de iam (desde S3).** Su entrada `hex_1_driving_adapters_see_only_use_cases` cuenta los códigos de `crate::domain` que nombra (n = 10). Si una rebanada de la fase 3 borra un brazo del mapper y con él un código de dominio, baja la `n` en el mismo PR.
+- ~~**Mapper de iam (desde S3).**~~ *(P2: ya no aplica; R19 borró el mapper.)* Su entrada `hex_1_driving_adapters_see_only_use_cases` cuenta los códigos de `crate::domain` que nombra (n = 10). Si una rebanada de la fase 3 borra un brazo del mapper y con él un código de dominio, baja la `n` en el mismo PR.
 - **La línea base solo crece en una sincronización con el harness.** Esa sincronización va en un PR propio, sin código de producción, y con el análisis de la línea base vieja frente a la nueva: entradas que se mantienen, las que cambian de clave, las que desaparecen y las nuevas, con ID del inventario y rebanada (ver §5.10). **Nunca en una rebanada.** Si una entrada desaparece sin un cambio de formato que lo explique, el PR se detiene: puede ser un cierre en falso.
 
 ### 5.2 Errores y estructura: recomendación
@@ -881,87 +893,147 @@ En todas, el contrato HTTP se mantiene.
 
 #### Fase 4: dominio
 
-**R20. Alta y restauración de `Account`.**
-- **IDs:**
-  - HEX-7.5, HEX-7.6 (iam), HEX-2.2 y HEX-2.3;
-  - HEX-7.7 y ERR-2.5 (se borra `from_str`, que no tiene uso fuera de los tests, junto con sus tests). *(R19)* `reconstitute` (ERR-1.5) ya lo borró R19 (0a3c49a); los helpers de test que usan `AccountStatus::from_str` pasan a construir el estado directamente;
-  - RS-2.2 (`account_id.rs` y `account_status.rs`).
+*(Revalidada en P2 contra `0eaab25` y contra la plantilla `v1.0.0-rc.3`.)* Cambios de P2 en la fase:
+- R20 se parte de antemano en **R20a** (el id) y **R20b** (el código de verificación y el alta). R10 pasó de 700 líneas como M/L, y R20 era M/L con dos temas independientes.
+- `uuid` sale de `contexts/iam/Cargo.toml` en R20a y de `contexts/communities/Cargo.toml` en R22. Antes, la línea base no cambiaba en R20. Ahora es −1 en R20a y −2 en R22, que también quita `http`, sin uso (RS-1.5). Sin eso, R27 crearía `communities-domain` con `uuid` (por `OwnerId`), una entrada nueva que la línea base no admite (ver §5.6, "Precondiciones de R27 y R28").
+- R21 conserva su alcance, con un punto de corte si pasa de 500 líneas.
+- R22 depende de R20a, que crea `infrastructure/uuid`.
+- R23 ya no lleva `tokio`: en legacy, `hex_2_core` cuenta las `[dev-dependencies]` de `contexts/iam/Cargo.toml`. `spawn_blocking` y el `run` sobre un runtime real pasan a R28.
+
+**R20a. El id de `Account` llega de `IdGenerator` (P2: primera parte de R20).**
+- **IDs:** HEX-7.6 (iam), HEX-2.2, RS-2.2 (`account_id.rs`) y HEX-7.14 (iam: se borran `from_uuid`, `from_str` y `AccountIdError`, sin llamadores de producción).
 - **Cambios:**
-  - `Account::create`/`restore` con value objects, y `new` privado;
-  - `AccountId` sobre `String`, con el id que llega de `IdGenerator`;
-  - *(S3)* `UuidIdGeneratorAdapter` se copia de `stacks/rust/template/infrastructure/uuid` (crate `infrastructure-uuid`, con sus tests de UUID v4 y sin repetidos) a `infrastructure/uuid/` en la raíz del workspace: infraestructura compartida, no `contexts/iam/src/infrastructure`. Lo exige `hex_8_capability_adapters_are_shared_infrastructure`. En legacy depende de `shared` en lugar de `kernel`. Con este primer adaptador de producción el conjunto deja de estar vacío, y el test pide borrar la tercera exención de `material-exempt.txt` en el mismo PR. Si `uuid` sale de `contexts/iam/Cargo.toml`, se borra su entrada `hex_2_core` (§5.1, "Una dependencia, una entrada");
-  - *(S3)* la batería nueva del generador de códigos nace con la forma async (§5.1, "Baterías de contrato nuevas");
-  - el código de verificación sale de un puerto `VerificationCodeService` (`RandVerificationCodeAdapter`);
-  - se quitan los `should_implement_trait` y el `module_inception` de `model/account`;
-  - *(P1)* `AccountId` y `AccountStatus` dejan de implementar `ValueObject`, y con eso desaparecen sus 4 `todo!()` (HEX-8.10, parcial). El trait se ajusta en R21.
+  - `AccountId` sobre `String` (`new(String)`, `as_str()`), sin `uuid`, sin `generate`, sin `from_uuid`, sin `from_str` y sin `as_uuid`. `from_str` y `as_uuid` no tienen llamadores de producción fuera del id: `as_uuid().to_string()` en `register_account/handler.rs:95` y `authenticate_account/handler.rs:87` pasa a `as_str()`;
+  - `AccountId` deja de implementar `ValueObject`, y desaparecen sus 2 `todo!()` (HEX-8.10, parcial). El trait se ajusta en R21;
+  - `RegisterAccountHandler` recibe `Arc<dyn IdGenerator>` y pasa el id a `AccountFactory::create`; el composition root cablea `UuidIdGeneratorAdapter`;
+  - `FixedIdGeneratorAdapter` (y, si hace falta, uno con secuencia) en `application/testing.rs`;
+  - los usos de `AccountId::generate()` en tests (la batería de `AccountRepository`, los helpers de `AccountFactory` y de authenticate) pasan a ids fijos;
+  - *(S3)* `UuidIdGeneratorAdapter` se copia de `stacks/rust/template/infrastructure/uuid` (crate `infrastructure-uuid`, con `next_id_is_a_uuid_v4` y `next_id_does_not_repeat`) a `infrastructure/uuid/` en la raíz del workspace: infraestructura compartida, no `contexts/iam/src/infrastructure`. Lo exige `hex_8_capability_adapters_are_shared_infrastructure`. En legacy depende de `shared` (`shared.workspace = true`, `use shared::IdGenerator`) en lugar de `kernel`; R29 lo renombra. `members` del `Cargo.toml` raíz suma `infrastructure/*`. *(P2, verificado)* `tools/architecture` ya clasifica `infrastructure/*` como Infrastructure compartida (`tests/common/mod.rs`, `crates_at`), también en legacy;
+  - con este primer adaptador de producción, el conjunto `implementaciones de producción de capacidades del kernel` deja de estar vacío, y el test pide **borrar la tercera exención de `material-exempt.txt`** (`hex_8_capability_adapters_are_shared_infrastructure`). La exención la escribió el usuario, y el hook `pre-edit` bloquea al agente sobre ese archivo. Si también bloquea el borrado, la rebanada se detiene ahí y le pide al usuario que la borre, en el mismo PR;
+  - se quita el `should_implement_trait` de `account_id.rs`.
+- **Línea base: −1** *(P2; antes sin cambios)*: `hex_2_core_depends_only_on_std_and_the_kernel contexts/iam/Cargo.toml#dependencies.uuid 2`. Con `AccountId` sobre `String`, nada de iam usa `uuid` (verificado en P2: el único archivo es `account_id.rs`), y sale del manifiesto (§5.1, "Una dependencia, una entrada").
+- **Rojo:**
+  - handler con `FixedIdGeneratorAdapter`: `registers_with_the_generated_id`;
+  - los dos tests de la plantilla en `infrastructure-uuid` (no compilan sin el crate);
+  - el trinquete de `uuid` y la exención.
+- **Riesgo:** `register_returns_201_with_uuid…` (36 caracteres), que cumple el adaptador UUID.
+- **Contrato HTTP:** sin cambios.
+- **Tamaño:** M.
+
+**R20b. Alta y restauración de `Account`, y el código de verificación (P2: segunda parte de R20).**
+- **IDs:**
+  - HEX-7.5 y HEX-2.3;
+  - *(P2)* TDD-2.7: `PasswordHashingService::hash -> Result<HashedPassword, Fault>`, y `Account::create` recibe el `HashedPassword`. Desaparecen `HashedPasswordError` en `create`, su brazo en el handler y el `StubPasswordHashingAdapter`. El caso de la batería `hash_is_a_valid_hashed_password` pasa a cumplirse por tipo;
+  - *(P2)* TDD-2.11: el nombre de `reconstituted_user_preserves_status` (abajo);
+  - HEX-7.7 y ERR-2.5 (se borra `AccountStatus::from_str`, que no tiene uso fuera de los tests, junto con sus 3 tests). *(R19)* `reconstitute` (ERR-1.5) ya lo borró R19 (0a3c49a). *(P2, verificado)* Los helpers de test que usan `from_str` son `AccountFactory::account` (detrás de `dummy_account` y `dummy_account_with_status`, en `account_factory.rs:176`) y `dummy_account` de `authenticate_account/handler.rs:129`. Pasan a recibir un `AccountStatus` construido directamente (`AccountStatus::Suspended`, `AccountStatus::Registered { code_validation }`…). Cambian las 26 llamadas: 14 en `account.rs`, 9 en `authenticate_account/handler.rs`, 2 en `verify_account/handler.rs` y 1 en `identify_account/handler.rs`. Es un refactor de tests: ningún aserto cambia;
+  - RS-2.2 (`account_status.rs`).
+- **Cambios:**
+  - `Account::create`/`restore` con value objects, y `new` privado. Los helpers de test usan `restore`;
+  - *(R19)* `reconstituted_user_preserves_status` (`account.rs:265`) conserva un nombre de cuando existía `reconstitute`: pasa a `restored_account_preserves_status`, sobre `Account::restore`;
+  - el código de verificación sale de un puerto `VerificationCodeService` (`RandVerificationCodeAdapter`), y `CodeValidation` deja de usar `rand`. `rand` sigue en `contexts/iam/Cargo.toml`, porque Argon2 usa `rand::rngs::OsRng` para la sal, así que su entrada no cambia hasta R28;
+  - *(S3)* la batería nueva del generador de códigos nace con la forma async (§5.1, "Baterías de contrato nuevas"); el puerto va en R23 con los demás;
+  - *(S3)* si la firma de `VerificationCodeService` es falible, rige §5.1 ("Firma que pasa a ser falible");
+  - se quitan el `should_implement_trait` de `account_status.rs` y el `module_inception` de `model/account`;
+  - `AccountStatus` deja de implementar `ValueObject`, y desaparecen sus 2 `todo!()` (HEX-8.10, parcial).
+- **Precondición:** R20a hecha (`AccountFactory::create` ya recibe el id).
 - **Línea base:** sin cambios.
 - **Rojo:**
   - `create_uses_the_given_id_and_code` (dominio);
-  - handler con `FixedIdGeneratorAdapter`: `registers_with_the_generated_id`;
   - batería del generador de códigos: `generates_six_digit_codes`.
-- **Riesgo:** `register_returns_201_with_uuid…` y `verification_code_is_six_digits`.
-- **Tamaño:** M/L.
+- **Riesgo:** `verification_code_is_six_digits`.
+- **Caracterización:** lifecycle se adapta, si construye la app con el puerto nuevo.
+- **Contrato HTTP:** sin cambios.
+- **Tamaño:** M.
 
 **R21. Agregado inmutable y eventos.**
 - **IDs:**
-  - HEX-7.3, HEX-7.4, HEX-8.9, HEX-8.10, HEX-8.2 y HEX-2.4;
-  - VER-1.7 (`todo = "deny"` y `dbg_macro = "deny"`, cuando ya no queda ningún `todo!()`);
+  - HEX-7.3, HEX-7.4, HEX-8.9, HEX-8.10, HEX-8.11, HEX-8.12, HEX-8.2 y HEX-2.4;
+  - *(P2)* HEX-7.13: con el criterio de D4, se borran `activate`, `deactivate`, `suspend`, `change_password`, `change_email` y `change_username`, que no tienen llamador de producción, con sus tests. Así HEX-7.3 solo vuelve inmutable a `confirm_registration`, y R21 se achica. Si el usuario prefiere conservar alguno, decide con `matches!` y no con `as_str()`;
+  - *(P2)* ERR-2.12: `confirm` devuelve un error propio de la transición, `InvalidVerification`, y se borra `AccountError`. El `match` de `VerifyAccountHandler` traduce ese único tipo;
+  - VER-1.7 (`todo = "deny"` y `dbg_macro = "deny"`, cuando ya no queda ningún `todo!()`). *(P2, verificado)* Después de R20a y R20b quedan 6 `todo!()`, todos de esta rebanada: `account.rs:36,40,44` (`record_event`, `pull_events`, `version`) y `account_event.rs:10,14,18`;
   - *(S1)* HEX-2.1 (parcial: `chrono` en `contexts/iam/Cargo.toml`) y HEX-8.1 (parcial: `chrono` en `shared/Cargo.toml`);
   - RS-2.2 (`account.rs` y `account_event.rs`).
 - **Cambios:**
   - `confirm(&self, …) -> Result<Self, …>`;
   - `AggregateRoot` y `ValueObject` como marcadores (HEX-8.9, HEX-8.10), con `model.rs` del template; se borra `EventRecorder`;
-  - *(S3)* los cuatro marcadores de `shared/src/domain` quedan sin ítems (`hex_8_model_markers_have_no_items`): `pub trait AggregateRoot {}` y `pub trait ValueObject: Clone + Eq {}`, como en el `model.rs` de la plantilla; `DomainEvent` se borra con `AccountEvent` (D4) o queda `pub trait DomainEvent: Clone {}` (HEX-8.11); `Entity`, que la plantilla no trae, se borra y `Account` conserva su `id()` propio (HEX-8.12). `Email`, `Username`, `HashedPassword` y `CodeValidation` pasan `new`/`value` a métodos propios (`AccountId` y `AccountStatus` ya salieron en R20), y unos 12 archivos dejan de importar el trait, incluido `account_lifecycle.rs` (adaptación mecánica: el import);
-  - **D4 decidida: se retira el andamiaje muerto.** Se borran `AccountEvent` (`model/account/events/`), `record_event`/`pull_events` (sus 3 `todo!()`) y `version`, porque no tienen comportamiento ni uso. No se agrega `take_events`. `DomainEvent` se borra del kernel si nada lo implementa; si el template lo trae como marcador en `model.rs`, queda vacío, sin `chrono`;
-  - ~~el trait `Clock` en `shared/src/clock.rs`~~ **(P1, por D4) `Clock` no entra en R21.** Su primer uso iba a ser el instante de los eventos, que se retiran. Se copia del template (con `SystemClockAdapter`) en la primera rebanada que necesite la hora, con su test;
-  - *(S1)* `chrono` sale de `contexts/iam/Cargo.toml` y de `shared/Cargo.toml`: después de este cambio, ninguno de los dos lo usa.
+  - *(S3, revalidado en P2)* los cuatro marcadores de `shared/src/domain` quedan sin ítems (`hex_8_model_markers_have_no_items`), como en `kernel/src/model.rs` de rc.3, que define exactamente `pub trait ValueObject: Clone + Eq {}`, `pub trait AggregateRoot {}` y `pub trait DomainEvent: Clone {}`:
+    - `AggregateRoot` y `ValueObject` quedan como en la plantilla, en un `shared/src/model.rs` (la disposición de `kernel/src`, para que R29 sea un `git mv`);
+    - `DomainEvent`: D4 borra `AccountEvent`, su única implementación. Se deja `pub trait DomainEvent: Clone {}`, como en la plantilla, en lugar de borrarlo, para que el kernel coincida con ella (HEX-8.11). Sin `chrono`;
+    - `Entity` (HEX-8.12): la plantilla no lo trae (fricción de §6, sin reportar). Se borra, y `Account` conserva su `id()` propio. Si S4 trae `Entity` en `model.rs`, se vuelve a agregar como marcador, sin ítems;
+    - *(P2, verificado)* `Email`, `Username`, `HashedPassword` y `CodeValidation` pasan `new`/`value` a métodos propios (`AccountId` y `AccountStatus` ya salieron en R20a y R20b). Importan el trait 17 archivos, contando `value_object.rs`. Después de R20 quedan 15, incluido `account_lifecycle.rs` (adaptación mecánica: el import);
+  - **D4 decidida: se retira el andamiaje muerto.** Se borran `AccountEvent` (`model/account/events/`), `record_event`/`pull_events` (sus 3 `todo!()`) y `version`, porque no tienen comportamiento ni uso. No se agrega `take_events`;
+  - **(P1, por D4) `Clock` no entra en R21.** *(P2)* La plantilla rc.3 lo tiene en `kernel/src/clock.rs`, y `infrastructure/system` trae `SystemClockAdapter`. No se copian: sin eventos nada pide la hora, y un trait sin uso no tiene test que lo exija. Entran con la primera rebanada que necesite la hora. R29 no los necesita: ningún test de `tools/architecture` exige que el kernel defina `Clock`;
+  - *(S1)* `chrono` sale de `contexts/iam/Cargo.toml` y de `shared/Cargo.toml`. *(P2, verificado)* Sus únicos usos son `account_event.rs:1` y `shared/src/domain/domain_event.rs:1`; JWT no lo usa.
 - **Línea base: −7** *(S3; S1: −3)*: `hex_2_core` `contexts/iam/Cargo.toml#dependencies.chrono` y `shared/Cargo.toml#dependencies.chrono`, `hex_8_kernel_depends` `shared/Cargo.toml#dependencies.chrono`, y las 4 de `hex_8_model_markers_have_no_items` (`aggregate_root.rs`, `domain_event.rs`, `entity.rs`, `value_object.rs`). **Cierra `hex_8_model_markers_have_no_items`.**
 - **Rojo:**
   - `confirm_returns_the_active_account_and_leaves_the_original_untouched`;
   - el trinquete de las 3 entradas de `chrono` y de las 4 de los marcadores. Sin eventos (D4) no hay `create_records_registered`.
-- **Tamaño:** M/L *(S3; antes M: los marcadores tocan 6 value objects y sus llamadores)*.
+- **Tamaño:** M/L *(S3; antes M: los marcadores tocan 4 value objects y sus llamadores)*. *(P2)* Si pasa de unas 500 líneas, se parte en dos PRs, como R10: **R21a**, los marcadores, D4 y `chrono` (−7), y **R21b**, el agregado inmutable (HEX-7.3), sin cambios en la línea base. R21a va primero, porque R25 necesita `chrono` fuera de `shared`.
 
 **R22. Dominio de `communities`.**
-- **IDs:** HEX-2.6, HEX-7.6 (communities), HEX-7.8, HEX-7.9 y *(R16b)* RS-2.6 (`impl FromStr for OwnerId`).
+- **IDs:** HEX-2.6, HEX-7.6 (communities), HEX-7.8, HEX-7.9 y *(R16b)* RS-2.6 (`impl FromStr for OwnerId`). *(P2)* HEX-2.7 (`OwnerId` sin `uuid`), HEX-7.14 (communities: se borran `CommunityId::from_uuid`/`from_str` e `InvalidCommunityId`, que nunca tuvieron llamador de producción, en lugar de convertirlos en `FromStr`), TDD-2.9 (el dueño en la batería) y RS-1.5 (`http` sin uso).
+- **Precondición (P2):** R20a hecha. Crea `infrastructure/uuid`, que R22 cablea para communities.
 - **Cambios:**
-  - `CommunityId` sobre `String`, con `IdGenerator`;
+  - `CommunityId` sobre `String`, con `IdGenerator` inyectado en `CreateCommunityHandler`. `as_uuid().to_string()` en `create_community/handler.rs:82` pasa a `as_str()`;
+  - *(P2)* `OwnerId` deja de usar el crate `uuid`. Valida a mano, con std, la forma con guiones (8-4-4-4-12 dígitos hexadecimales) y rechaza el nil, con los mismos `InvalidOwnerId { Nil, WrongFormat }` (D2 a). Con eso, nada de communities usa `uuid`, que sale del manifiesto. **Diferencia que la rebanada tiene que decidir con el usuario:** `Uuid::parse_str` también acepta la forma sin guiones, con llaves y `urn:uuid:`. Con el validador nuevo, esas formas pasan a `WrongFormat`. Ningún token emitido por iam las usa (el sujeto es el `next_id()` de `UuidIdGeneratorAdapter`, con guiones), y ningún test de `app/tests/` las fija. Si el usuario prefiere conservarlas, el validador también las acepta;
   - **D4 decidida:** se borran `MembershipPolicy` (`domain/services/`, que queda vacío), el campo `membership_policy` de `Community` con su getter, y `MembershipPolicyChanged` (`model/community/events/`). No tienen comportamiento ni uso. HEX-7.8 se resuelve borrando, no moviendo;
-  - se quitan los `allow`, incluido el de `OwnerId::from_str` (RS-2.6).
-- **Rojo:** handler `creates_with_the_generated_id`.
-- **Riesgo:** `create_returns_200_with_id…`, que exige un UUID de 36 caracteres; lo cumple el adaptador UUID.
-- **Tamaño:** S (antes S/M: D4 retira en lugar de implementar).
+  - se quitan los `allow`: `should_implement_trait` de `community_id.rs` (se borra el método, HEX-7.14) y de `owner_id.rs` (RS-2.6, `impl FromStr for OwnerId`), y `module_inception` de `model/community/mod.rs`;
+  - *(P2, TDD-2.9)* `Community::owner_id() -> &OwnerId` (el campo `_owner_id` pasa a `owner_id`); `snapshot` de la batería de `CommunityRepository` suma el dueño, y `create_community_successfully` lo afirma;
+  - *(P2, RS-1.5)* `http` sale de `contexts/communities/Cargo.toml`: no tiene ningún uso desde R17.
+- **Línea base: −2** *(P2; antes sin cambios)*: `hex_2_core_depends_only_on_std_and_the_kernel contexts/communities/Cargo.toml#dependencies.uuid 2` y `…#dependencies.http 2`.
+- **Rojo:**
+  - handler `creates_with_the_generated_id`;
+  - dominio: `owner_id_rejects_non_uuid`, `owner_id_rejects_nil` y `owner_id_accepts_a_uuid` siguen en verde con el validador nuevo. Se suman casos de forma: un grupo corto, un carácter no hexadecimal y los guiones en otro lugar. Si el usuario elige rechazar las otras formas, se suma `owner_id_rejects_the_simple_form`;
+  - el trinquete de `uuid` y de `http`;
+  - batería: con el dueño en `snapshot`, un doble que guarde otro dueño la pone en rojo (por mutación del Fake, como en R16b).
+- **Riesgo:** `create_returns_200_with_id…`, que exige un UUID de 36 caracteres; lo cumple el adaptador UUID. `create_with_non_uuid_subject_returns_400` y `create_with_nil_uuid_subject_returns_400` no cambian.
+- **Tamaño:** S/M *(P2; antes S: suma `OwnerId` sin `uuid`)*.
 
 #### Fase 5: puertos async (paralelizables entre sí)
 
 **R23. iam async.** **R24. communities async.**
-- **IDs:** RS-3.1.
-- **Cambios:**
-  - `BoxFuture` en `shared/src/future.rs`;
-  - todos los puertos de entrada y de salida del contexto;
-  - `block_on` de std en `application/testing.rs` para los tests de application;
-  - *(desde R7)* las baterías de `application/testing/contracts/` pasan a `async fn`, y sus macros reciben `run` (`block_on` para el Fake y el adaptador en memoria), como en el template;
-  - *(S3)* con la receta "Puerto todavía síncrono" del README del stack: con D12 b) (decidida), las 4 baterías ya llegan con la forma async (R16b), y R23/R24 solo agregan los `.await` en los helpers y borran el `#![expect(clippy::unused_async)]`, que `unfulfilled_lint_expectations` obliga a quitar. La macro y las invocaciones del doble y de los adaptadores en memoria no cambian; Argon2 y JWT pasan su `run` a un runtime real;
-  - Argon2 con `spawn_blocking` en el adaptador.
-- **Rojo:** batería async del adaptador Argon2 bajo `#[tokio::test]` (infra).
-- **Tests:** refactor sin cambio de comportamiento.
-- **Caracterización:** lifecycle se adapta (`.await`).
-- **Tamaño:** M cada una.
+- **IDs:** RS-3.1. *(P2)* R23 además TDD-2.10.
+- **Lo que queda después de R16b (revalidado en P2):** R16b dejó las 4 baterías (3 de iam y 1 de communities) con la forma final, con `run: block_on` en sus 9 invocaciones y `#![expect(clippy::unused_async)]`. `block_on` ya está en `application/testing.rs` de cada contexto. Queda:
+  - `BoxFuture` en `shared/src/future.rs`, copiado de `kernel/src/future.rs` de rc.3 (std solo). Lo agrega la primera de las dos que se haga;
+  - los puertos salientes pasan a `BoxFuture<'_, Result<…, Fault>>`. R23: `AccountRepository`, `PasswordHashingService`, `AccessTokenService` y el `VerificationCodeService` de R20b. R24: `CommunityRepository`. `IdGenerator` es una capacidad del kernel y sigue síncrona, como en la plantilla;
+  - los puertos entrantes pasan a `BoxFuture`. R23: los 5 de iam (register, verify, authenticate, identify y verify_access_token). R24: `CreateCommunityUseCase`;
+  - handlers, dobles y adaptadores en memoria, con `Box::pin(async move { … })`;
+  - en las baterías, los `.await` de los helpers y de las llamadas directas al puerto, y se borra el `#![expect(clippy::unused_async)]`, que `unfulfilled_lint_expectations` obliga a quitar. La macro y sus invocaciones no cambian;
+  - los tests de handler pasan a `block_on(handler.execute(…))`;
+  - los `fold` de `infrastructure/http` y el middleware de `app` hacen `.await`. Con eso desaparece el `poll` con `Waker::noop()` de `infrastructure/http/testing.rs`, que hoy depende de que todo future esté listo en el primer `poll`. Los tests de endpoint corren con `block_on`;
+  - `app/src/containers/` no cambia de forma: sigue exponiendo `Arc<dyn …UseCase>`;
+  - *(P2)* los comentarios de módulo de `application/testing/contracts.rs` de cada contexto (l.3-6) todavía dicen que R23/R24 pasan los casos a `async fn` y agregan `run`, cosa que ya hizo R16b: se corrigen;
+  - *(P2, TDD-2.10, solo R23)* `SpyPasswordHashingAdapter` gana `failing()` y `failing_on(op)`, delegando en el Fixed interno.
+- **Lo que no puede ir aquí (P2):** el plan ponía en R23 Argon2 con `spawn_blocking`, el `run` de Argon2 y JWT sobre un runtime real y una batería bajo `#[tokio::test]`. Los tres necesitan `tokio` en `contexts/iam/Cargo.toml`. En legacy, domain y application comparten ese manifiesto, y `hex_2_core_depends_only_on_std_and_the_kernel` cuenta también las `[dev-dependencies]`: sería una entrada nueva, que la línea base no admite. **Pasan a R28**, al manifiesto de `iam-infrastructure`. Hasta entonces, Argon2 bloquea el hilo del runtime dentro del future, como hoy, y sus baterías siguen con `run: block_on`.
+- **Rojo:** ninguno nuevo. Es un refactor sin cambio de comportamiento: los mismos tests por nombre antes y después (`cargo test --workspace -- --list`). El rojo se ve por mutación, como en R16b (un handler que no hace `.await` de un puerto no compila; uno que descarta el `Result` pone en rojo su `fails_with_unexpected_when_<operación>_fails`).
+- **Caracterización:** lifecycle se adapta (`block_on` o `.await`).
+- **Contrato HTTP:** sin cambios.
+- **Tamaño:** R23, M; R24, S *(P2; antes M cada una: communities tiene un puerto de cada lado)*.
 
 #### Fase 6 y 7: kernel y estructura
 
 **R25. `shared` sin dependencias.**
-- **IDs:** HEX-8.1 (el resto: `serde`; `chrono` sale en R21, desde S1). HEX-8.2 ya quedó resuelto en R21.
-- **Cambios:** `ApiErrorResponse` se copia temporalmente a cada `infrastructure/http`; R30 lo elimina.
+- **IDs:** HEX-8.1 (el resto: `serde`; `chrono` sale en R21, desde S1). HEX-8.2 ya quedó resuelto en R21. *(P2)* HEX-8.8: el tipo de transporte sale del kernel en esta rebanada, así que el hallazgo se resuelve aquí. R30 borra las copias.
+- **Cambios:** `ApiErrorResponse` se copia temporalmente a cada `infrastructure/http`; R30 lo elimina. *(P2)* Lo importan 7 archivos: en iam, `unexpected.rs` y los 4 `fold` (`register_account.rs`, `verify_account.rs`, `authenticate_account.rs`, `identify_account.rs`); en communities, `unexpected.rs` y `create_community.rs`. Va una copia por contexto, en `infrastructure/http/api_error_response.rs`, con `serde`, que ya está en los dos manifiestos de contexto. Se borra `shared/src/infrastructure/` entero, que solo contiene ese archivo, y `serde` sale de `shared/Cargo.toml`.
+- **Revalidado en P2 contra rc.3:** el kernel de la plantilla (`kernel/Cargo.toml`) no tiene dependencias, así que la rebanada sigue siendo correcta. No puede esperar a R30 y borrar `ApiErrorResponse` sin copiarlo: R30 necesita `edge/http`, y un contexto legacy no puede depender de un crate Edge (§5.2), así que R30 va después de R27 y R28, y R29 necesita a `shared` sin entradas.
+- **Precondición:** R21 hecha (saca `chrono`). Si no, `shared/Cargo.toml` conserva una dependencia y `hex_8_kernel_depends_only_on_std` no se cierra.
 - **Línea base: −2.** *(S1: con las claves por dependencia, son `hex_8_kernel_depends` y `hex_2_core` de `shared/Cargo.toml#dependencies.serde`. Las de `chrono` las cierra R21.)* **Cierra `hex_8_kernel_depends_only_on_std`.**
+- **Rojo:** el trinquete de las 2 entradas. Ningún cuerpo de error cambia: lo fijan `assert_error` y los tests de endpoint por brazo.
+- **Contrato HTTP:** sin cambios.
 - **Tamaño:** S.
 
 **R26. `edge/http` e `infrastructure/stderr`.**
-- **IDs:** ERR-4.7 (parcial), ERR-1.8 y ERR-4.12.
+- **IDs:** ERR-4.7 (parcial), ERR-1.8 y ERR-4.12. *(P2)* RS-1.6: `serde` y `tower` salen de `[dependencies]` de `app`.
 - **Cambios:**
   - crates nuevos con `Problem`, `unexpected()`, `AuthenticatedAccount` y `StderrFaultReporterAdapter`, más los tests del template;
   - `CatchPanicLayer` en `app/src/server.rs`;
   - *(P1)* `AppConfig::load()` propaga el `ConfigError` con `?` en lugar de `process::exit` (ERR-1.8), y `main` reporta el `Fault` de arranque con el `FaultReporter`, que muestra la causa (ERR-4.12).
-- **Línea base:** sin cambios. Solo depende de ellos `app`, que es Bootstrap.
+- **Revalidado en P2 contra rc.3:** la plantilla trae los tres crates que esta rebanada copia: `edge/http` (`problem.rs` con `Problem`, `CONTENT_TYPE_PROBLEM` y `unexpected(fault, reporter)`, e `identity.rs` con `AuthenticatedAccount`), `infrastructure/stderr` (`StderrFaultReporterAdapter`, que ya recorre la cadena `source()`, como pedía S1) e `infrastructure/system` (`SystemClockAdapter`). Siguen siendo correctos:
+  - en legacy, `edge-http` e `infrastructure-stderr` dependen de `shared` en lugar de `kernel`, como `infrastructure-uuid` en R20;
+  - `infrastructure/system` **no** se copia: depende de `Clock`, que por D4 no tiene uso (R21);
+  - el `unexpected()` de la plantilla responde `Problem::internal()` sin `code` ni `detail`. D5 pide conservar `code: INTERNAL_ERROR` y el mensaje de D7 en el 500. R26 copia la plantilla tal cual, y R30 resuelve la diferencia (ver allí);
+  - `CatchPanicLayer` necesita la feature `catch-panic` de `tower-http`, que hoy tiene solo `trace` en `[workspace.dependencies]`.
+- **Línea base:** sin cambios. Solo depende de ellos `app`, que es Bootstrap. Con el primer `FaultReporter` de producción, `hex_8_capability_adapters_are_shared_infrastructure` revisa un adaptador más, en `infrastructure/stderr`, donde la regla lo admite.
 - **Rojo:**
   - `serializes_as_problem_json_with_extension_code`;
   - `unexpected_reports_the_fault_and_hides_the_detail`;
@@ -969,7 +1041,18 @@ En todas, el contrato HTTP se mantiene.
 - **Contrato HTTP: cambia (sin cobertura previa).** Un panic responde 500 en lugar de cortar la conexión.
 - **Tamaño:** M.
 
-> **Punto de replanificación P3 (después de R26, antes de R27).** Ver §5.9. R26 corre en paralelo desde R5, así que P3 se hace cuando están hechas R22, R24, R25 y R26, las precondiciones de la separación. Es la última revisión antes de las rebanadas L.
+**S4. Sincronizar con el próximo release de ai-harness (nueva en P2).**
+- **Objetivo:** `/craft-backend:adoption sincronizar <tag>` con el primer release de ai-harness posterior a `v1.0.0-rc.3`, antes de separar crates. R27 y R28 mueven casi todo el código y son las primeras rebanadas en las que el modo no legacy de `tools/architecture` actúa sobre crates por capa. Conviene hacerlas con las reglas, la plantilla y las skills al día, y con las fricciones de §6 ya respondidas.
+- **Cuándo:** después de R26 y antes de P3, para que P3 revalide R27 y R28 con el resultado. Si al llegar a P3 no hay un release nuevo, P3 decide si se espera o si se sigue con rc.3, y lo anota aquí.
+- **Precondición:** las fricciones de la lista "Sin reportar todavía" de §6 ya están reportadas, así el release puede traer su corrección.
+- **Regla (§5.1, "La línea base solo crece en una sincronización con el harness"):** PR propio, sin código de producción, con el análisis de la línea base vieja frente a la nueva en cuatro grupos (se mantienen, cambian de clave, desaparecen y nuevas), cada entrada con su ID del inventario y su rebanada. Si una entrada desaparece sin un cambio de formato que lo explique, el PR se detiene. El resumen va en §5.10, como S1 a S3.
+- **Además:**
+  - revisar si el release cambia `material-exempt.txt` o los conjuntos que revisa: la exención de `hex_8_capability_adapters_…` ya se borró en R20;
+  - comparar `edge/http`, `infrastructure/*`, `kernel/src` y el `model.rs` de la plantilla con lo que copiaron R20, R21 y R26, y anotar las diferencias para R27 a R30;
+  - pasar a "Estado en el harness" de §6 la versión que cierra cada fricción.
+- **Tamaño:** S (solo `tools/architecture` y este documento).
+
+> **Punto de replanificación P3 (después de R26 y S4, antes de R27).** Ver §5.9. R26 corre en paralelo desde R5, así que P3 se hace cuando están hechas R22, R24, R25, R26 y S4, las precondiciones de la separación. Es la última revisión antes de las rebanadas L.
 
 **R27. Separar `communities` en crates por capa.**
 - **IDs:**
@@ -979,8 +1062,8 @@ En todas, el contrato HTTP se mantiene.
   - ERR-4.8 (`Option<Extension<AuthenticatedAccount>>`);
   - HEX-8.6 (se borra `VerifiedIdentity`; el middleware de `app` inserta `AuthenticatedAccount`).
 - **Estructura:** `contexts/communities/{domain,application,infrastructure,api}`, con `CommunitiesApi`.
-- **Precondición del trinquete:** de `contexts/communities/src`, en la línea base solo quedan `requests/create.rs` y `responses/created.rs`. Se renombran en este mismo PR.
-- **Línea base: −7** *(S1; antes −4)*: las 4 `hex_2_core` de `contexts/communities/Cargo.toml` (`axum`, `http`, `serde`, `uuid`), la `hex_2_frameworks` (`axum`, n = 3), porque el manifiesto desaparece, y los dos `hex_6`.
+- **Precondición del trinquete:** de `contexts/communities/src`, en la línea base solo quedan `requests/create.rs` y `responses/created.rs`. Se renombran en este mismo PR. *(P2)* Y de `contexts/communities/Cargo.toml`, solo `axum` y `serde` (`hex_2_core`) y `axum` (`hex_2_frameworks`), que en la estructura nueva solo declara `communities-api`. Ver §5.6, "Precondiciones de R27 y R28".
+- **Línea base: −5** *(P2; S1: −7; antes −4)*: las 2 `hex_2_core` de `contexts/communities/Cargo.toml` que quedan (`axum`, `serde`; `uuid` y `http` salen en R22), la `hex_2_frameworks` (`axum`, n = 3), porque el manifiesto desaparece, y los dos `hex_6`.
 - **Rojo:** `communities-api/tests/create_community.rs`: `responds_401_without_authenticated_account`.
 - **Riesgo:** ~~el test de contratos HEX-4 se activa en este PR~~. Desde S1 ya actúa en legacy. El riesgo que queda es que un crate nuevo (`communities-application`) declare más dependencias de las que pide su capa.
 - **Contrato HTTP:** sin cambios.
@@ -989,16 +1072,18 @@ En todas, el contrato HTTP se mantiene.
 **R28. Separar `iam` y crear `IamApi::protect`.**
 - **IDs:**
   - RS-1.1, HEX-2.1;
-  - HEX-1.6, HEX-1.7, HEX-1.9;
+  - HEX-1.6, HEX-1.9; ~~HEX-1.7~~ ya resuelto en R19 (11f8c92), que borró el mapper;
   - HEX-6.1 (iam);
-  - TDD-1.8 (test de arranque del señuelo).
+  - TDD-1.8 (test de arranque del señuelo);
+  - *(P2)* RS-3.1, el resto: `spawn_blocking` en Argon2 (de R23).
 - **Cambios:**
   - el middleware sale de `app` y va a `iam-api`;
   - `app` compone `iam.protect(communities.protected())`;
   - lifecycle se muda a `contexts/iam/infrastructure/tests/`;
   - *(P1)* `IamApi` recibe sus adaptadores desde `app`, así que el arranque admite un hasher que falle: test `startup_fails_when_the_decoy_hash_fails` (TDD-1.8).
-- **Precondición:** de `contexts/iam/src`, en la línea base solo quedan los 7 `hex_6`.
-- **Línea base: −14** *(S1; antes −9)*: las 6 `hex_2_core` de `contexts/iam/Cargo.toml` (`argon2`, `axum`, `jsonwebtoken`, `rand`, `serde`, `uuid`; `chrono` sale en R21), la `hex_2_frameworks` (`axum`, n = 3) y los 7 `hex_6`. **Cierra `hex_2_core…`, `hex_2_server_frameworks…` y `hex_6_transport…`.**
+  - *(P2, desde R23)* Argon2 con `spawn_blocking` en `iam-infrastructure`, que puede declarar `tokio`; sus baterías y las de JWT pasan su `run` a un runtime real (`#[tokio::test]` o un `run` con `Runtime::block_on`). En legacy no se podía: `tokio` en `contexts/iam/Cargo.toml` habría sido una entrada nueva de `hex_2_core`. Rojo: la batería async de Argon2 bajo el runtime.
+- **Precondición:** de `contexts/iam/src`, en la línea base solo quedan los 7 `hex_6`. *(P2)* Y de `contexts/iam/Cargo.toml`, solo `argon2`, `axum`, `jsonwebtoken`, `rand` y `serde` (`hex_2_core`) y `axum` (`hex_2_frameworks`), que en la estructura nueva solo declaran `iam-infrastructure` e `iam-api`. Ver §5.6, "Precondiciones de R27 y R28".
+- **Línea base: −13** *(P2; S1: −14; antes −9)*: las 5 `hex_2_core` de `contexts/iam/Cargo.toml` que quedan (`argon2`, `axum`, `jsonwebtoken`, `rand`, `serde`; `uuid` sale en R20a y `chrono` en R21), la `hex_2_frameworks` (`axum`, n = 3) y los 7 `hex_6`. **Cierra `hex_2_core…`, `hex_2_server_frameworks…` y `hex_6_transport…`.**
 - **Rojo:** `iam-api/tests/authenticate.rs`: `protect_rejects_missing_token_with_401` y `protect_inserts_authenticated_account`.
 - **Riesgo:** `unknown_route_without_token_returns_401`. Si `protect` deja de envolver el fallback, la respuesta pasa a 404 y es un cambio de contrato que el usuario decide.
 - **Tamaño:** L.
@@ -1012,13 +1097,44 @@ En todas, el contrato HTTP se mantiene.
 - **Línea base:** vacía.
 - **Tamaño:** S.
 
-**R30. Problem Details.**
-- **IDs:** ERR-4.6, ERR-4.7 (resto: los `fold` usan `unexpected(fault, reporter)`) y HEX-8.8.
-- **Cambios:** todas las respuestas de error y los 401 pasan a `application/problem+json`, con `code` como miembro de extensión. Se borra el `ApiErrorResponse` interino.
-- **Rojo:** tests HTTP con el formato nuevo.
-- **Contrato HTTP: cambia todo el cuerpo de error.** Se modifican `assert_error` (`app/tests/common/mod.rs`) y las aserciones `raw_body == ""` de los 401 (ver D5).
+**R29b. `app/` pasa a `apps/server` (nueva en P2; D9).**
+- **IDs:** ninguno (D9).
+- **Precondición:** R29 hecha.
+- **Cambios:** `git mv app apps/server`, con `members` del `Cargo.toml` raíz, la ruta de `app` en `[workspace.dependencies]` si figura, `.github/workflows/` y las rutas de este documento y de §5.1 (`app/tests/`, `app/tests/common/`). El nombre del paquete se decide en la rebanada: el de la plantilla (`apps/server/Cargo.toml`) o `app`, si cambiarlo obliga a tocar los `use app::…` de los tests de caracterización.
+- **Línea base:** sin cambios. `tools/architecture` clasifica `app/` y `apps/*` como Bootstrap.
+- **Red de seguridad:** `app/tests/` se mueve entero, sin cambiar ningún escenario ni aserto. Si hay que cambiar imports por el nombre del paquete, es adaptación mecánica (§5.1).
+- **Rojo:** ninguno. Es un movimiento sin cambio de comportamiento; se verifica con los mismos tests, por nombre, antes y después (`cargo test --workspace -- --list`).
+- **Contrato HTTP:** sin cambios.
+- **Tamaño:** XS (salvo los archivos movidos).
+
+**R30. Problem Details (D5 decidida).**
+- **IDs:** ERR-4.6, ERR-4.7 (resto: los `fold` usan `unexpected(fault, reporter)`) y ERR-4.13. *(P2)* HEX-8.8 se resuelve en R25, que saca `ApiErrorResponse` del kernel; aquí se borran sus copias.
+- **Cambios (D5):**
+  - todas las respuestas de error pasan a `application/problem+json` con el `Problem` de `edge/http` (R26): `title` genérico por status, el mensaje de cliente de hoy en `detail` y `code` como miembro de extensión, con los mismos valores de `codes.rs`;
+  - los 401 del middleware pasan de cuerpo vacío a `Problem::unauthorized()`;
+  - el 500 conserva `code: INTERNAL_ERROR` y el mensaje de D7 en `detail`. El `unexpected()` de la plantilla no los pone. Se propone que el `unexpected()` de cada `{ctx}-api` reporte el `Fault` y responda `Problem` con esos dos datos, sin cambiar `edge/http`. Si S4 trae una forma oficial, se usa esa;
+  - se borran los `ApiErrorResponse` interinos de cada contexto (R25);
+  - ERR-4.13: con el `Problem`, `Validation` lleva un motivo cerrado, y la hoja `InvalidOwner` se puede fundir en `Validation { field: "owner_id", reason }`.
+- **Rojo:** tests HTTP con el formato nuevo, un test por hoja en cada `{ctx}-api`, y `assert_error` con el formato nuevo contra el código de antes.
+- **Contrato HTTP: cambia todo el cuerpo de error (D5).** Se modifican `assert_error` (`app/tests/common/mod.rs`, o `apps/server/tests/common/mod.rs` después de R29b) para que lea `code` y `detail` del Problem y afirme el `content-type`, y las dos aserciones `raw_body == ""` de los 401 (`communities_api.rs:47` y `auth_api.rs:643`), que pasan a afirmar el cuerpo Problem. Cambian el cuerpo y el `content-type`, no los status ni los `code`.
 - **D1:** aquí se revisa si verificar una cuenta ya verificada pasa de 400 `IAM_ACCOUNT_INVALID_VERIFICATION` a 409. Si cambia, es una decisión del usuario y una fila más de §5.5.
-- **Tamaño:** M.
+- **Tamaño:** M/L *(P2; antes M)*. Toca los 5 `fold`, el middleware y todos los asertos de cuerpo de error de `app/tests/`. Si el diff pasa de unas 500 líneas, se parte en dos PRs, como R10: (a) `iam`, con el middleware y `assert_error`, y (b) `communities`.
+
+**R31. El username no distingue mayúsculas (nueva en P2; D13 b).**
+- **IDs:** D13. No hay un hallazgo en el inventario: es una decisión de producto, como D10.
+- **Precondición:** R30 hecha, para que el cambio de contrato se escriba una sola vez con el formato Problem.
+- **Cambios:**
+  - `Username` conserva la forma con la que se registró (recortada) y expone una clave de comparación sin mayúsculas. Por ejemplo, `Username::key()`: el valor en minúsculas, con `to_lowercase` de std;
+  - el puerto busca y compara por la clave: `find_by_username` recibe el `Username` y el adaptador compara claves; la batería suma `finds_by_username_in_any_casing` y `save_keeps_the_registered_casing`;
+  - el alta rechaza un username que ya existe con otra combinación de mayúsculas (`Conflict { resource: "username" }`);
+  - authenticate e identify encuentran la cuenta con cualquier combinación, e identify responde el username tal como se registró.
+- **Rojo:**
+  - dominio: `usernames_that_differ_only_in_casing_have_the_same_key` y `username_keeps_its_registered_casing`;
+  - handler: `fails_with_conflict_when_username_differs_only_in_casing`, `authenticates_with_a_username_in_another_casing` e `identifies_with_a_username_in_another_casing`;
+  - HTTP: los de §5.5.
+- **Contrato HTTP: cambia (§5.5).** `POST /auth/register` con un username que solo difiere en mayúsculas de uno existente, de 201 a 409 `IAM_ACCOUNT_USERNAME_ALREADY_EXISTS`. `POST /auth/authenticate` e `/auth/identify` con el username en otras mayúsculas, de 401 `IAM_LOGIN_FAILED` y 404 a la respuesta de esa cuenta. `identify` responde el username registrado, no el enviado.
+- **Riesgo:** D6. Authenticate tiene que seguir sin revelar si la cuenta existe: el camino del señuelo no cambia.
+- **Tamaño:** S/M.
 
 ### 5.4 Dependencias y paralelismo
 
@@ -1028,13 +1144,13 @@ R1 ─┬─ R2 ─────────────────────�
     └─ R5 ─┬─ R7 (+R18) ──────┬─ R17 ──┤
            │        R16 ──────┘        │
            ├─ R8 ─ R9 ─ R10 ─[P1]─ R11 ─ R12
-           │             └─ R13, R14(+R2), R15 ┴─ R19 ─[P2]─┬─ R20 ─ R21 ─ R23 ─┐
-           │                                                └─ R22 ─ R24 ───────┤
-           └─ R26 (desde R5, paralela a las fases 3 a 5)                        │
-                                     R25 (tras R19, R21) ───────────────────────┤
-                                           [P3] ─ R27 (R22, R24, R25, R26) ─ R28 (R10, R23) ─ R29, R30
+           │             └─ R13, R14(+R2), R15 ┴─ R19 ─[P2]─ R20a ─┬─ R20b ─ R21 ─ R23 ─┐
+           │                                                       └─ R22 ─ R24 ────────┤
+           └─ R26 (desde R5, paralela a las fases 3 a 5)                               │
+                                     R25 (tras R21) ───────────────────────────────────┤
+                          S4 (tras R26) ─[P3]─ R27 (R22, R24, R25, R26) ─ R28 (R20b, R21, R23) ─┬─ R29 ─ R29b
+                                                                                                └─ R30 ─ R31
 ```
-
 - R8, R9 y R10 se pueden hacer en paralelo, pero tocan los mismos handlers de iam. Conviene ir en serie para no tener conflictos.
 - R18 (eliminar `ListPublicCommunities`, D3) no depende de nada más que R1 y va antes de R7.
 - R7 y R16 son paralelas a toda la rama iam.
@@ -1042,6 +1158,9 @@ R1 ─┬─ R2 ─────────────────────�
 - R13, R14 y R15 son paralelas entre sí después de R11. R14 necesita R2, R9 y R10.
 - *(P1)* R12b va después de R12, R13 y R14, y antes de R19. No bloquea a R15 ni a R16.
 - R23 y R24 son paralelas. R26 se puede hacer desde R5 en adelante.
+- *(P2)* R20a va primero en la fase 4: crea `infrastructure/uuid`, que usan R20b (por `AccountFactory::create`) y R22. R20b y R22 son paralelas después de R20a. Si R21 se parte, R21a va antes que R21b, y R25 depende de R21a.
+- *(P2)* S4 va después de R26 y antes de P3. P3 ahora espera también a S4.
+- *(P2)* R29 y R30 son paralelas después de R28, como antes. R29b (D9) va después de R29, y R31 (D13), después de R30.
 - *(S3)* R13b (D11 a) no bloquea a nadie; cierra antes de R17 para que R17 cierre `hex_4_use_case_signatures_…`. R16b (D12 b) va después de R16 y antes de R20.
 
 ### 5.5 Cambios de contrato HTTP (todos explícitos)
@@ -1069,7 +1188,10 @@ R1 ─┬─ R2 ─────────────────────�
 | PR #40 (P1) | Arranque: un `JWT_SECRET` vacío o de menos de 32 bytes ya no arranca el servidor (ERR-4.9). No es una respuesta HTTP | ninguno |
 | R26 | Panic: 500 en lugar de conexión cortada | ninguno |
 | R28 | Solo si cambia el fallback: ruta desconocida sin token, de 401 a 404 | `unknown_route_without_token_returns_401` |
-| R30 | Problem Details en todos los errores y en los 401 | `assert_error`, los `raw_body == ""` |
+| R25 | Ninguno: `ApiErrorResponse` se copia a cada contexto, idéntico | ninguno |
+| R29b | Ninguno: `app/` pasa a `apps/server` (D9) | ninguno: los tests se mueven sin cambiar (adaptación mecánica, si hace falta, de los imports) |
+| R30 | D5: Problem Details en todos los errores y en los 401 (`application/problem+json`, `title` genérico por status, el mensaje de hoy en `detail`, `code` como miembro de extensión con los mismos valores; los 401 del middleware, con cuerpo). Los status y los `code` no cambian | `assert_error` (`app/tests/common/mod.rs`) y los dos `raw_body == ""` (`communities_api.rs:47`, `auth_api.rs:643`) |
+| R31 | D13 b: el username no distingue mayúsculas. El alta con un username que solo difiere en mayúsculas pasa de 201 a 409 `IAM_ACCOUNT_USERNAME_ALREADY_EXISTS`; authenticate e identify con el username en otras mayúsculas encuentran la cuenta (de 401 `IAM_LOGIN_FAILED` y de 404, a la respuesta de la cuenta); identify responde el username registrado | **Nuevos:** `register_rejects_same_username_with_different_casing_with_409`, `authenticate_finds_the_account_with_a_username_in_another_casing` e `identify_with_a_username_in_another_casing_returns_the_registered_username`. Ningún test de `app/tests/` ni de `account_lifecycle.rs` fija hoy que el username distingue mayúsculas (buscado en P2), así que no cambia ninguno |
 
 ### 5.6 Cierre de cada test de arquitectura
 
@@ -1092,12 +1214,55 @@ Desde S1 la columna cuenta entradas con el formato nuevo (una por dependencia en
 | `hex_4_use_case_implementations_are_handlers` | 0 | 6 | R17: en cero (R18, R11, R13 a R15, R17); R18: −1 (a603969); R11: −1 (1482280); R13: −1 (2d16725); R14: −1 (09fb976); R15: −1 (cf2b905); R17: −1 (4a04532) |
 | `hex_8_kernel_traits_are_model_markers_or_listed_capabilities` | 0 | 2 | R19: en cero (R4, R10, R19); R4: −2 (80c00e4); R10b: −1 (3c1a6bb); R19: −1 (11f8c92) |
 | `hex_8_kernel_depends_only_on_std` | 2 | 1 | R25 (R21 −1 `chrono`, R25 −1 `serde`) |
-| `hex_2_core_depends_only_on_std_and_the_kernel` | 13 (24) | 3 | R28 (R21 −2 `chrono`, R25 −1, R27 −4, R28 −6) |
+| `hex_2_core_depends_only_on_std_and_the_kernel` | 13 (24) | 3 | R28 *(P2)*: R20a −1 (`uuid` de iam), R21 −2 (`chrono`), R22 −2 (`uuid` y `http` de communities), R25 −1 (`serde` de `shared`), R27 −2 (`axum`, `serde`), R28 −5 (`argon2`, `axum`, `jsonwebtoken`, `rand`, `serde`). Antes de P2: R21 −2, R25 −1, R27 −4, R28 −6 |
 | `hex_2_server_frameworks_only_at_the_edge` | 2 (6) | 2 | R28 (R27, R28) |
 | `hex_6_transport_types_carry_the_transport_name` | 9 | 9 | R28 (R27, R28) |
 | `hex_4_use_case_contracts_do_not_expose_domain_types` | 0 | 0 | R17: en cero (58958bc, `VerifiedIdentity` en `create_community_use_case.rs`). Desde S1 actúa también en legacy; desde S3, `shared::domain` cuenta como dominio |
 | `hex_4_use_case_signatures_are_their_own_contract` | 0 | — (nuevo en S3) | R17: en cero (R13b −1, R14 −1, R15 −1, R17 −1); R13b: −1 (d37fe10); R14: −1 (7932c45); R15: −1 (2c37b03); R17: −1 (58958bc) |
 | `hex_8_model_markers_have_no_items` | 4 | — (nuevo en S3) | R21 |
+
+**P2 (2026-11-26, sobre `0eaab25`): sin cambios en la línea base; cambia el reparto.** `cargo test -p architecture` pasa en verde, también con `ARCH_REQUIRE_MATERIAL=1`, así que las 30 entradas siguen violando con su `n` exacta (el trinquete falla si una deja de violar o viola menos). Coinciden con la columna "Entradas hoy".
+
+**Conciliación (P2): las 30 entradas con su ID y su rebanada.**
+
+| # | Entrada | ID | Rebanada (P2) | Antes de P2 |
+|---|---|---|---|---|
+| 1 | `hex_2_core` `contexts/communities/Cargo.toml#dependencies.axum` 2 | HEX-2.5 | R27 | R27 |
+| 2 | `hex_2_core` `contexts/communities/Cargo.toml#dependencies.http` 2 | HEX-2.5, RS-1.5 | **R22** | R27 |
+| 3 | `hex_2_core` `contexts/communities/Cargo.toml#dependencies.serde` 2 | HEX-2.5 | R27 | R27 |
+| 4 | `hex_2_core` `contexts/communities/Cargo.toml#dependencies.uuid` 2 | HEX-2.5, HEX-2.6, HEX-2.7 | **R22** | R27 |
+| 5 | `hex_2_core` `contexts/iam/Cargo.toml#dependencies.argon2` 2 | HEX-2.1 | R28 | R28 |
+| 6 | `hex_2_core` `contexts/iam/Cargo.toml#dependencies.axum` 2 | HEX-2.1 | R28 | R28 |
+| 7 | `hex_2_core` `contexts/iam/Cargo.toml#dependencies.chrono` 2 | HEX-2.1, HEX-2.4 | R21 | R21 |
+| 8 | `hex_2_core` `contexts/iam/Cargo.toml#dependencies.jsonwebtoken` 2 | HEX-2.1 | R28 | R28 |
+| 9 | `hex_2_core` `contexts/iam/Cargo.toml#dependencies.rand` 2 | HEX-2.1, HEX-2.3 | R28 (R20b saca `rand` del dominio; Argon2 lo sigue usando) | R28 |
+| 10 | `hex_2_core` `contexts/iam/Cargo.toml#dependencies.serde` 2 | HEX-2.1 | R28 | R28 |
+| 11 | `hex_2_core` `contexts/iam/Cargo.toml#dependencies.uuid` 2 | HEX-2.1, HEX-2.2 | **R20a** | R28 |
+| 12 | `hex_2_core` `shared/Cargo.toml#dependencies.chrono` | HEX-8.1, HEX-8.2 | R21 | R21 |
+| 13 | `hex_2_core` `shared/Cargo.toml#dependencies.serde` | HEX-8.1, HEX-8.8 | R25 | R25 |
+| 14 | `hex_2_server_frameworks` `contexts/communities/Cargo.toml#dependencies.axum` 3 | HEX-2.5, HEX-1.9 | R27 | R27 |
+| 15 | `hex_2_server_frameworks` `contexts/iam/Cargo.toml#dependencies.axum` 3 | HEX-2.1, HEX-1.9 | R28 | R28 |
+| 16–17 | `hex_6` `contexts/communities/src/infrastructure/http/{requests/create,responses/created}.rs` | HEX-6.1 | R27 | R27 |
+| 18–24 | `hex_6` `contexts/iam/src/infrastructure/http/{requests/{identify,sign_in,sign_up,verify},responses/{identified,signed_in,signed_up}}.rs` | HEX-6.1 | R28 | R28 |
+| 25 | `hex_8_kernel_depends` `shared/Cargo.toml#dependencies.chrono` | HEX-8.1 | R21 | R21 |
+| 26 | `hex_8_kernel_depends` `shared/Cargo.toml#dependencies.serde` | HEX-8.1 | R25 | R25 |
+| 27 | `hex_8_model_markers` `shared/src/domain/aggregate_root.rs` | HEX-8.9 | R21 | R21 |
+| 28 | `hex_8_model_markers` `shared/src/domain/domain_event.rs` | HEX-8.11 (y HEX-8.2) | R21 | R21 |
+| 29 | `hex_8_model_markers` `shared/src/domain/entity.rs` | HEX-8.12 | R21 | R21 |
+| 30 | `hex_8_model_markers` `shared/src/domain/value_object.rs` | HEX-8.10 | R21 | R21 |
+
+**Entradas que no cumplían (P2).** Las 30 tenían un ID y una rebanada en el plan, así que ninguna incumplía de forma. Tres tenían una rebanada que no las resolvía, o que las resolvía tarde:
+- **#4, `uuid` de communities (R27):** R22 solo nombraba `CommunityId`. Con `OwnerId` todavía sobre `uuid` (HEX-2.7, sin ID hasta P2), R27 habría creado `communities-domain/Cargo.toml` con `uuid`, una entrada nueva que la línea base no admite. **Pasa a R22.**
+- **#2, `http` de communities (R27):** no tiene ningún uso desde R17 (RS-1.5). No es un error del plan, pero se puede cerrar antes. **Pasa a R22.**
+- **#11, `uuid` de iam (R28):** desde R20a no tiene uso; por §5.1 ("Una dependencia, una entrada"), la rebanada que lo quita del manifiesto borra la entrada. **Pasa a R20a.**
+
+**Precondiciones de R27 y R28 (P2).** Lo que quedaría de cada contexto al llegar, con la secuencia de P2:
+
+- **R27 (`communities`), después de R22, R24, R25, R26 y S4.** En `contexts/communities/src` quedan solo las 2 entradas `hex_6` (#16 y #17, `requests/create.rs` y `responses/created.rs`), que R27 renombra a `CreateCommunityHttpRequest` y `CreateCommunityHttpResponse` al moverlas a `communities-api`. Del manifiesto quedan `axum` y `serde` (#1 y #3) y `axum` en `hex_2_frameworks` (#14). Desaparecen con el manifiesto, y en la estructura nueva solo los declara `communities-api`, donde las dos reglas lo admiten (verificado en P2: `axum`, `http` y `serde` solo aparecen en `infrastructure/http`, y `application` no usa ningún crate externo). **Cumple, con la condición de que R22 saque `uuid` (#4) y `http` (#2).** Sin R22, `communities-domain` nacería con `uuid` por `OwnerId`.
+- **R28 (`iam`), después de R20a, R20b, R21, R23, R25, R26 y S4.** En `contexts/iam/src` quedan solo los 7 `hex_6` (#18 a #24), que R28 renombra al moverlos a `iam-api`. Del manifiesto quedan `argon2`, `axum`, `jsonwebtoken`, `rand` y `serde` (#5, #6, #8, #9 y #10) y `axum` en `hex_2_frameworks` (#15). En la estructura nueva, `argon2`, `jsonwebtoken` y `rand` solo los declara `iam-infrastructure` (`argon2_password_hashing.rs` usa `rand::rngs::OsRng`, y desde R20b, `RandVerificationCodeAdapter`). `axum` lo declara `iam-api`, y `serde`, `iam-api` (los DTOs) e `iam-infrastructure` (los claims de JWT). **Cumple, con tres condiciones:** que R20a saque `uuid` (#11); que R20b saque `rand` del dominio (`code_validation.rs`), porque si no, `iam-domain` nacería con `rand`, y que R21 saque `chrono` (#7). Además, `tokio` (`spawn_blocking`, de R23) entra recién aquí, en `iam-infrastructure`.
+- **`shared/` al llegar a R27:** quedan 0 entradas. R21 cierra #12, #25 y #27 a #30, y R25 cierra #13 y #26. Es la precondición de R29.
+
+**Suma por rebanada desde P2 (30):** R20a −1, R21 −7, R22 −2, R25 −2, R27 −5 y R28 −13.
 
 En total quedan 30 entradas (45 violaciones) después de R19 (32 y 55 después de R17; 36 y 61 después de R16 y de R16b, que no cambia la línea base; 37 y 65 después de R15; 39 y 68 después de R14 y de R12b, que no cambia la línea base; 41 y 70 después de R13b; 42 y 72 después de S3; 31 y 49 después de R13; 32 y 50 después de R11 y de R12, que no cambia la línea base; 33 y 51 después de R10b; 34 y 52 después de R10a; 37 y 55 después de R9; 40 y 58 después de R8; 43 y 61 después de R7; 46 y 64 después de R18; 47 y 65 en S1), que desaparecen entre R15 y R28. Después de R29, `baseline.txt` queda solo con la cabecera.
 
@@ -1125,16 +1290,12 @@ Decididas en P1 (2026-11-23):
 - **D4. Eventos (R21, R22): decidido, se retira el andamiaje muerto.** `AccountEvent`, `take_events` (que nunca se escribió: hoy son `record_event`/`pull_events` con `todo!()`) y `MembershipPolicy`, con `MembershipPolicyChanged`, se borran porque no tienen comportamiento ni uso (HEX-7.4, HEX-7.9). Se implementarán cuando algo consuma los eventos. Efecto: R21 sin `create_records_registered` y sin `Clock`; R22 borra en lugar de mover (HEX-7.8).
 - **D8. Hallazgos históricos (TDD-1.5 a TDD-1.7): decidido.** Quedan `descartado (histórico; TDD-1 rige desde R1)`.
 
-Abiertas:
+Abiertas: ninguna desde P2.
 
-- **D5. Forma de Problem Details (R30).** Si se conserva `code` con los mismos valores, qué texto va en `detail`, y si los 401 llevan cuerpo.
-- **D9. Mover `app/` a `apps/server`, como en el template.** Fuera del inventario; opcional después de R29.
+- ~~**D5. Forma de Problem Details (R30).**~~ Decidida en P2 (abajo).
+- ~~**D9. Mover `app/` a `apps/server`.**~~ Decidida en P2 (abajo).
 - ~~**D10. `identify` no normaliza el email.**~~ Decidida en R12b (abajo).
-- **D13. El username distingue mayúsculas (registrada en R15).** `Username` recorta los espacios pero no cambia las mayúsculas (D10), así que `Ana` y `ana` son dos cuentas distintas en el alta, y authenticate e identify con `ANA` no encuentran a `ana`. Opciones:
-  - a) dejarlo así: el username distingue mayúsculas, como hoy;
-  - b) unicidad sin distinguir mayúsculas, conservando la forma original para mostrarla: el alta rechaza `Ana` si existe `ana`, las búsquedas lo encuentran con cualquier combinación, e identify responde el username tal como se registró;
-  - c) normalizar a minúsculas, como el email: se guarda y se responde en minúsculas.
-  b) y c) cambian el contrato HTTP (el alta pasa de 201 a 409 para un username que solo difiere en mayúsculas, y authenticate e identify encuentran la cuenta; en c, además, identify responde el username en minúsculas) y **no tienen rebanada asignada**. a) no cambia nada.
+- ~~**D13. El username distingue mayúsculas.**~~ Decidida en P2 (abajo).
 
 Decididas en R12b (2026-11-25):
 
@@ -1144,6 +1305,20 @@ Decididas en S3 (2026-11-25):
 
 - **D11. `VerifyAccount` sin datos (HEX-4.5, R13b): decidido, opción a).** `VerifyAccountResponse` vacío en `commands/verify_account/response.rs`, en la rebanada R13b. El `fold` de `infrastructure/http/verify_account.rs` no lo serializa y sigue respondiendo 200 con cuerpo `null`: sin cambio de contrato. Se descarta b) (esperar a que el harness acepte `()`); la fricción de §6 se reporta igual. *Planteo:* R13 respondió `()`, y `hex_4_use_case_signatures_are_their_own_contract` de `v1.0.0-rc.3` exige un `VerifyAccountResponse`.
 - **D12. Baterías async antes de R23/R24: decidido, opción b).** Una rebanada aparte, R16b, da a las 4 baterías la forma final de la receta "Puerto todavía síncrono" con los puertos todavía síncronos. Va después de R16 (para no tocar dos veces la batería de `CommunityRepository`) y antes de R20 (que crea una batería nueva con esa forma). R23 y R24 solo agregan los `.await` y borran el `#![expect(clippy::unused_async)]`. Se descarta a) (R23 y R24 reescriben las baterías junto con los puertos).
+
+Decididas en P2 (2026-11-26):
+
+- **D5. Forma de Problem Details (R30): decidido.**
+  - `application/problem+json` (RFC 9457), con `code` como miembro de extensión y **los mismos valores de hoy**, byte a byte: los de `infrastructure/http/codes.rs` e `INTERNAL_ERROR` (D7).
+  - `title` genérico por status, como el `Problem` de `edge/http` de la plantilla: `Invalid request` (400), `Unauthorized` (401), `Not found` (404), `Conflict` (409) y `Unexpected error` (500).
+  - `detail` lleva el mensaje de cliente de hoy (el `message` de `{code,message}`), sin cambiarlo.
+  - Los 401 llevan cuerpo Problem. Los del middleware, que hoy van con cuerpo vacío, pasan a `Problem::unauthorized()`. Hoy no tienen código, así que van sin `code`, salvo que R30 proponga uno y el usuario lo acepte. El 401 `IAM_LOGIN_FAILED` de authenticate ya tiene cuerpo y conserva su `code`.
+  - Efecto: R30 modifica `assert_error` (`app/tests/common/mod.rs`) para que lea `code` y `detail` del cuerpo Problem y afirme el `content-type`, y reemplaza las aserciones `raw_body == ""` de los 401 por el cuerpo Problem. Son cambios de contrato (§5.1, §5.5), no adaptaciones.
+  - El 500 conserva `code: INTERNAL_ERROR` y el mensaje de D7 en `detail`. El `unexpected()` de la plantilla (rc.3) responde `Problem::internal()` sin `code` ni `detail`, así que R26 o R30 tienen que agregarlos (ver R30).
+  - *Planteo:* si se conservaba `code`, qué iba en `detail` y si los 401 llevaban cuerpo.
+- **D9. `app/` pasa a `apps/server`, como en la plantilla: decidido.** Se hace en una rebanada XS propia, **R29b**, después de R29. Fuera del inventario: ningún ID lo exige. `tools/architecture` clasifica `app/` y `apps/*` como Bootstrap, así que la línea base no cambia.
+- **D13. El username distingue mayúsculas (registrada en R15): decidido, opción b).** La unicidad del username no distingue mayúsculas, y se conserva la forma original para mostrarla. El alta rechaza `Ana` si existe `ana` (409 `IAM_ACCOUNT_USERNAME_ALREADY_EXISTS`); verify no cambia (busca por email); authenticate e identify encuentran la cuenta con cualquier combinación de mayúsculas, e identify responde el username tal como se registró. Va en una rebanada propia, **R31**, después de R30, con cambio de contrato (§5.5). Se descartan a) (dejarlo así) y c) (normalizar a minúsculas, que cambiaría también lo que responde identify).
+  - *Planteo:* `Username` recorta los espacios, pero no cambia las mayúsculas (D10), así que `Ana` y `ana` eran dos cuentas distintas, y authenticate e identify con `ANA` no encontraban a `ana`.
 
 ### 5.8 Registro de rebanadas
 
@@ -1158,7 +1333,8 @@ Una fila por rebanada fusionada. **Tokens** es el consumo de la sesión que hizo
 | R5 | #30 | `e76c162`, `29890cb`, `446726b` | `nightly-2026-11-19` | $3.06 (opus-5-5: 4.6k input, 27.6k output, 4.1m cache read, 220.0k cache write; 6m 32s API, 12h 21m wall, casi todo inactividad entre turnos) | sí (ver PR) | Línea base sin cambios. Copia de ai-harness `97a8f29`; `Clock` pasa a R21. 194 tests, fmt y clippy en verde localmente. |
 | R6 | #29 | `991e672` | `nightly-2026-11-19` | $1.37 (opus-5-5: 447 input, 16.6k output, 1.6m cache read, 98.0k cache write; 3m 17s API, 4m 26s wall) | sí (ver PR) | Línea base sin cambios. `Cargo.lock` solo pierde `anyhow`; features efectivas idénticas. 188 tests, fmt y clippy en verde localmente. Commit aparte `45fe532` con `/slice`. |
 | S1 | #31 | `79185ff`, `c8dbed3` | `nightly-2026-11-19` | $3.81 (opus-5-5: 5.6k input, 56.1k output, 6.1m cache read, 207.1k cache write; 10m 3s API, 23m 29s wall) | sí (ver PR) | Fuera del plan: `tools/architecture` desde ai-harness `v1.0.0-rc.1`. Re-línea base 36 → 47 entradas, solo por cambio de formato (§5.10). Sin código de producción. |
-| S2 | #33 | `75e262d` | `nightly-2026-11-19` | no registrado: #33 no trae el `/cost` (revisado en P1) | no: no toca código de producción | Fuera del plan: `tools/architecture` desde ai-harness `v1.0.0-rc.2`. Línea base 47 → 47, idéntica (§5.10). 233 tests, fmt y clippy en verde localmente. |
+| #32 (ritual) | #32 | ver PR | `nightly-2026-11-19` | $0.85 (opus-5-5: ~0.1k input, 9.7k output, 2.4m cache read, 21.3k cache write; 1m 52s API, 5m 39s wall). Es la diferencia entre el `/cost` acumulado de la sesión ($4.66) y los $3.81 de S1, según el cuerpo de #32 (agregado en P2) | no: no toca código de producción | Fuera del plan: `/slice` pasa a `/craft-backend:adoption R<n>`, y las reglas propias del proyecto, a §5.1. Misma sesión que S1. |
+| S2 | #33 | `75e262d` | `nightly-2026-11-19` | no registrado: #33 no trae el `/cost` (revisado en P1 y otra vez en P2) | no: no toca código de producción | Fuera del plan: `tools/architecture` desde ai-harness `v1.0.0-rc.2`. Línea base 47 → 47, idéntica (§5.10). 233 tests, fmt y clippy en verde localmente. |
 | R18 | #34 | `a603969` | `nightly-2026-11-19` | $1.80 (opus-5-5: 2.0k input, 20.9k output, 2.0m cache read, 131.8k cache write; 3m 54s API, 4m 46s wall) | sí (ver PR) | Línea base −1 (`hex_4_handlers` de `list_public_communities.rs`): 47 → 46. `find_by_id` y `AuthContext` se borran aquí (sin usos). 233 tests, fmt y clippy en verde localmente. Primera rebanada con `/craft-backend:adoption`. |
 | R7 | #35 | `692bc7c`, `9eacddc`, `6b808a2`, `ba15189` | `nightly-2026-11-19` | $3.98 (opus-5-5: 5.2k input, 51.8k output, 6.9m cache read, 211.8k cache write; 9m 11s API, 11m 37s wall) | sí (ver PR) | Línea base −3 (`hex_5` del puerto, del doble y del adaptador en memoria): 46 → 43. Adaptador `InMemoryCommunityAdapter` y no `InMemoryCommunityRepositoryAdapter` como pedía el encargo (HEX-5). 244 tests, fmt y clippy en verde localmente. |
 | R8 | #36 | `ebd0819`, `de6c308`, `9a90d8a`, `cc3d60c` | `nightly-2026-11-19` | $5.53 (opus-5-5: 27.3k input, 72.8k output, 10.0m cache read, 276.3k cache write; 12m 41s API, 42m 2s wall) | sí (ver PR) | Línea base −3 (`hex_5` del puerto, del doble y del adaptador en memoria): 43 → 40. Fallas por operación con `FakeAccountAdapter::failing_on` (el primer Stub, de respuesta fija, no pasaba la batería). 267 tests, fmt y clippy en verde localmente. |
@@ -1178,14 +1354,37 @@ Una fila por rebanada fusionada. **Tokens** es el consumo de la sesión que hizo
 | R16b | #51 | `d3ab538`, `fdc1941`, `c0d0102` | `nightly-2026-11-19` | $4.01 (opus-5-5: 4.7k input, 35.5k output, 7.3m cache read, 247.1k cache write; 7m 16s API, 8h 19m wall, casi todo inactividad entre turnos) | sí (ver PR) | Línea base sin cambios (36). Las 4 baterías con la forma async de la receta "Puerto todavía síncrono" (D12 b), con los puertos síncronos; los mismos 55 casos por nombre. Inventariadas RS-2.6 y TDD-2.8 (notas del revisor de R16). 422 tests, fmt y clippy en verde localmente. |
 | R17 | #52 | `4a04532`, `60caf6f`, `9614aaa`, `58958bc`, `838b923` | `nightly-2026-11-19` | $6.12 (opus-5-5: 15.5k input, 79.5k output, 10.8m cache read, 318.9k cache write; 14m 14s API, 32m 34s wall) | sí (ver PR) | Línea base −4: 36 → 32 entradas (61 → 55 violaciones); cierra `hex_4_use_case_implementations_…`, `hex_4_use_case_signatures_…` y `hex_4_use_case_contracts_…`. HEX-1.8 cierra con el mapper en su ruta, sin `crate::domain`. Sin cambio de contrato: `app/tests/` intacto. Hoja nueva `InvalidOwner { Nil, WrongFormat }` (D2 a). 434 tests, fmt y clippy en verde localmente. |
 | R19 | #53 | `0a3c49a`, `11f8c92` | `nightly-2026-11-19` | $2.79 (opus-5-5: 12.7k input, 27.7k output, 4.5m cache read, 182.9k cache write; 7m 6s API, 13m 50s wall) | sí (ver PR) | Línea base −2: 32 → 30 entradas (55 → 45 violaciones); cierra `hex_1_driving_adapters_see_only_use_cases` y `hex_8_kernel_traits_…`. Sin cambio de contrato: `app/tests/` intacto. `reconstitute` (ERR-1.5) adelantado de R20 a pedido del usuario: era el último llamador de `SystemError` fuera de los mappers. 429 tests, fmt y clippy en verde localmente. |
+| P2 | (este PR, docs) | ver PR | `nightly-2026-11-19` | pendiente | sí: auditoría completa (ver §5.9) | Punto de replanificación después de R19. Solo documentación. |
+
+**Costos que no se pueden completar (revisado en P2).** Se buscó el `/cost` en el cuerpo y los comentarios de #18 a #53, y en los mensajes de commit. Solo apareció el de #32 (arriba). Siguen sin registro:
+- R1 (#24, #25);
+- S2 (#33);
+- la sesión de S3 que hizo `50eb601` y `6072679`.
+
+Tampoco tienen fila los PRs anteriores al plan (#18 a #23: caracterización, trinquete, CI y seguridad de la rebanada 0), que no registraron costo.
+
+**Subtotales por fase (P2).** Solo suman las filas con costo registrado.
+
+| Fase | Rebanadas con costo | Sin registro | Subtotal |
+|---|---|---|---|
+| 0: base | R2 | R1 | $2.67 |
+| 1: limpieza en el lugar | R3, R4, R5, R6 | — | $6.71 |
+| 2: puertos salientes | R7, R8, R9, R10a, R10b | — | $21.76 |
+| 3: contratos por caso de uso | R11, R12, R12b, R13, R13b, R14, R15, R16, R16b, R17, R18, R19 | — | $47.70 |
+| Sincronizaciones | S1, S3 (parcial) | S2, primera sesión de S3 | $4.90 |
+| P1 (con #40) | P1 | — | $4.32 |
+| Fuera del plan | #32 | — | $0.85 |
+| **Total** | | | **$88.91** |
+
+R18 se cuenta en la fase 3, donde está en §5.3, aunque se hizo antes que R7. En promedio, la fase 2 costó $4.35 por rebanada y la fase 3, $3.98. En la fase 3, R11, R14 y R17 (M) costaron entre $5.03 y $6.12. R19, también M, costó $2.79, porque fue casi todo borrado. Las S y XS, entre $1.80 y $4.44.
 
 ### 5.9 Puntos de replanificación
 
-Hay tres: **P1** después de R10 *(hecho, 2026-11-23: ver abajo)*, **P2** después de R19 y **P3** después de R26 (antes de R27). En cada uno, antes de abrir la rebanada siguiente:
+Hay tres: **P1** después de R10 *(hecho, 2026-11-23: ver abajo)*, **P2** después de R19 *(hecho, 2026-11-26: ver abajo)* y **P3** después de R26 y S4 (antes de R27). En cada uno, antes de abrir la rebanada siguiente:
 
 1. Auditoría completa con `craft-backend:architecture-reviewer` y actualización de la cabecera del documento (fecha, commit, conteos).
 2. `cargo test -p architecture`, y comparar las entradas que quedan en `baseline.txt` con la columna "Entradas hoy" de §5.6 menos lo ya cerrado. Si no coinciden, explicar la diferencia antes de seguir.
-3. Revisar las decisiones abiertas de §5.7 que bloquean las rebanadas siguientes: D1 (R13) y D2 (R16, si todavía no se hizo) en P1; D4 (R21, R22) en P2, y D5 (R30) en P3.
+3. Revisar las decisiones abiertas de §5.7 que bloquean las rebanadas siguientes: D1 (R13) y D2 (R16, si todavía no se hizo) en P1; D4 (R21, R22) en P2, y D5 (R30) en P3. *(P2: D5, D9 y D13 ya se decidieron en P2.)*
 4. Comparar tamaño y tokens reales de §5.8 con lo estimado, y partir las rebanadas que vienen si alguna quedó más grande de lo previsto.
 5. Reescribir en este documento lo que cambie del plan (secuencia, IDs, línea base) en un PR de solo documentación, antes de seguir.
 
@@ -1195,6 +1394,21 @@ Hay tres: **P1** después de R10 *(hecho, 2026-11-23: ver abajo)*, **P2** despu�
 3. D1, D2, D4 y D8 decididas (§5.7) y propagadas a R13, R16, R21, R22 y R30.
 4. Tamaños: R10 se partió en dos (R10a pasó de 700 líneas) y costó $7.79 en total, frente a $3.98–$5.53 de R7 a R9. Con los tests de repositorio ya escritos, R13 baja a S y R22 a S. R12b es nueva (S). Ninguna de las que vienen se parte.
 5. R11 a R17 revalidadas contra el código: nombres, `failing_on`, el `?` sin la secuencia de R10a y el puente `SystemError::Unexpected` (texto antes de R11). `ARCH_REQUIRE_MATERIAL=1` queda condicionado en R11 (ver allí).
+
+**P2 (2026-11-26, sobre `0eaab25`).** PR propio, solo documentación: no cambia código, `baseline.txt` ni `material-exempt.txt`.
+1. Auditoría completa de todo el repo con `craft-backend:architecture-reviewer` (no sobre un diff). **Ningún hallazgo de severidad alta.** 11 hallazgos nuevos (§2): 3 de severidad media (HEX-2.7, VER-1.8, TDD-2.9) y 8 de baja (HEX-7.13, HEX-7.14, VER-1.9, ERR-2.12, TDD-2.10, TDD-2.11, RS-1.5, RS-1.6). Ninguno abierto quedó resuelto del todo de paso. Parciales: HEX-7.5 (R12 y R19 dejaron `create` con un `AccountDraft`), HEX-2.5 (el uso de `http` desapareció en R17, 58958bc; queda el manifiesto, RS-1.5) y HEX-8.6 (`AuthContext`, a603969). IDs desactualizados que se corrigieron: HEX-1.4 (el mapper ya no existe), HEX-7.3, HEX-7.5, HEX-7.6, VER-1.7, ERR-3.4 (líneas), RS-2.2 (el `todo!()` de communities ya no existe; quedan 10), TDD-2.7 (sin rebanada: R20b), HEX-8.10 (11 archivos más 6 `impl`), HEX-1.7 en los IDs de R28 (ya resuelto), y la cabecera, las prioridades y la nota de §5 sobre `reconstitute`. Se asignó rebanada a los 12 hallazgos que solo decían `abierto`.
+2. `cargo test -p architecture` en verde, también con `ARCH_REQUIRE_MATERIAL=1`. Las 30 entradas coinciden con §5.6, y cada una tiene un ID y una rebanada (tabla en §5.6). Ninguna incumplía de forma, pero tres tenían una rebanada que no las resolvía o las resolvía tarde (`uuid` y `http` de communities, `uuid` de iam). Pasan a R22 y R20a.
+3. R20 a R26 revalidadas contra el código y contra la plantilla `v1.0.0-rc.3` (§5.3):
+   - **R20** se parte en R20a (el id, `infrastructure/uuid`, la tercera exención y `uuid` de iam, −1) y R20b (`VerificationCodeService`, `create`/`restore`, `from_str` con sus 26 llamadas de los helpers, `restored_account_preserves_status`, TDD-2.7). ERR-1.5 ya salió en R19;
+   - **R21** conserva su alcance (−7). `Entity` se borra, `DomainEvent` queda como el marcador de la plantilla, y `Clock` sigue fuera por D4, aunque rc.3 lo trae en el kernel. Suma HEX-7.13 (se borran 6 métodos sin uso, así que HEX-7.3 se achica) y ERR-2.12. Si pasa de 500 líneas, se parte en R21a y R21b;
+   - **R22** pasa de S a S/M y de 0 a −2: `OwnerId` sin `uuid` (HEX-2.7), `http` (RS-1.5), el dueño en la batería (TDD-2.9) y el borrado de `CommunityId::from_str` (HEX-7.14). Depende de R20a;
+   - **R23 y R24:** después de R16b les quedan los puertos, los `.await` y el `#![expect]`. `spawn_blocking` y el runtime real de Argon2 y JWT pasan a R28, porque `tokio` en legacy sería una entrada nueva. R24 baja a S;
+   - **R25** sigue siendo correcta con rc.3 (el kernel de la plantilla no tiene dependencias), y resuelve HEX-8.8, que antes era de R30;
+   - **R26** sigue siendo correcta con rc.3: copia `edge/http` e `infrastructure/stderr`, y no `infrastructure/system` (D4). Suma RS-1.6 y la feature `catch-panic`.
+4. Precondiciones de R27 y R28 (§5.6): con la secuencia de P2, solo quedan las entradas que esas rebanadas resuelven al mover. R27 baja de −7 a −5 y R28 de −14 a −13.
+5. S4 (sincronización con el próximo release de ai-harness) entra antes de P3, con la regla de §5.1. §6 tiene la lista de fricciones sin reportar (9), que se reportan antes de S4.
+6. D5, D9 y D13 decididas (§5.7). Efectos: R30 con el formato de D5 (M/L, partible), R29b nueva (XS, D9) y R31 nueva (S/M, D13 b, con cambio de contrato). §5.5 suma R25, R29b, R30 y R31.
+7. §5.8: el costo de #32 ($0.85) estaba en su PR y no tenía fila. R1, S2 y la primera sesión de S3 siguen sin registro. Subtotales por fase: $88.91 en total. R10 (M/L) costó $7.79 y R17 (M) $6.12; R20 era M/L, por eso se parte.
 
 ### 5.10 Sincronizaciones con el harness
 
@@ -1342,14 +1556,29 @@ Lo que el harness no cubrió o cubrió mal durante la adopción. Cada fricción 
 | 2026-11-23 | P1 | `ARCH_REQUIRE_MATERIAL=1` convierte en fallo un conjunto vacío, y la plantilla la activa porque ejercita cada regla. En una adopción, dos conjuntos quedan vacíos de forma legítima y permanente: los errores declarados de puertos (`err_1_application_errors_…`), que el propio harness elimina al pasar los puertos a `Fault`, y los `EventSubscriber` (`hex_4_event_subscribers_…`), si el proyecto no tiene eventos. La variable no admite excluir una regla. | R11 no puede activarla tal cual (§5.3, R11). | Resuelta en craft-backend 1.0.0-rc.3 (v1.0.0-rc.3): `tools/architecture/material-exempt.txt` exime un conjunto vacío para siempre, con motivo obligatorio, y pide borrar la exención si el conjunto deja de estar vacío (1.0.0-rc.2.1). Las escribe el usuario (§5.10, S3) |
 | 2026-11-23 | P1 | Reglas expresables como test que `tools/architecture` no tiene: contratos con el dominio del kernel o un segundo argumento en `execute` (VER-1.3), `api → domain` en legacy (VER-1.4), firmas de los puertos entrantes (VER-1.5), marcadores sin ítems (VER-1.6). Antes: `expect("invariante: …")` (R9), adaptadores driving sin `ports::outbound` y DTOs en `ports/outbound/dtos/` (R10a, R10b), `package =` y `workspace = true` en los manifiestos (R6). | Las violaciones quedan sin trinquete y dependen del revisor. | Resuelta en craft-backend 1.0.0-rc.3 (v1.0.0-rc.3), con reglas nuevas: VER-1.3 y VER-1.5, `hex_4_use_case_signatures_are_their_own_contract` y el dominio del kernel en `hex_4_use_case_contracts_…` (1.0.0-rc.2.6); VER-1.4 y el adaptador driving sin `ports::outbound`, `hex_1_driving_adapters_see_only_use_cases`; los DTOs, `hex_6_outbound_port_types_live_in_dtos` (1.0.0-rc.2.7); VER-1.6, `hex_8_model_markers_have_no_items`, y `expect("invariante: …")`, `rs_2_expect_names_the_invariant` (1.0.0-rc.2.8). La de `package =` y `workspace = true` (R6) ya estaba en craft-backend 1.0.0-rc.1 (v1.0.0-rc.1, 85e68ca) |
 | 2026-11-23 | S2 | El paso 4 de `sincronizar` pide escribir "una entrada por cada violación reportada", pero nada vuelca el informe al formato de `baseline.txt`. Además, `cargo test -p architecture` se corta en el primer binario que falla, y sin `--no-fail-fast` el informe queda incompleto. | Hubo que correrlo con `--no-fail-fast` y pasar el informe a entradas con un script propio, que también cuenta las `n` (§5.10). | Resuelta en craft-backend 1.0.0-rc.3 (v1.0.0-rc.3): `ARCH_BASELINE_PRINT=1` imprime las entradas con su conteo, y el llenado y `sincronizar` piden `--no-fail-fast` (1.0.0-rc.2.4). S3 las volcó sin script propio |
-| 2026-11-24 | R11 | En Rust, cambiar la firma de un caso de uso a `Failure<{Verb}{Noun}Error>` hace que los tests nuevos sobre la variante no compilen hasta que el contrato existe: el único rojo previo es de compilación, que `tdd` excluye ("no por un error de compilación ajeno"). La skill no dice cómo ver el rojo de un cambio de contrato, ni de los tests que fijan comportamiento existente. | El rojo se vio por mutación de producción en el árbol de trabajo y se anotó en cada commit (3ff0ae1, d0dd8cb), como en R8 y R9. | sin reportar |
-| 2026-11-24 | R11 | El `fold` del template (`create_community.rs`) cae en `_ => codes::INVALID_REQUEST` (400) ante un `field` desconocido: inventa un código de cliente para algo que solo pasa si handler y borde se desincronizan, un bug (ERR-1). | R11 lo manda al 500 de D7, con tests, para no inventar un código en la fase 3. | sin reportar |
-| 2026-11-25 | S3 | `hex_4_use_case_signatures_are_their_own_contract` no contempla un caso de uso sin datos: exige un `{Verb}{Noun}Response` aunque `execute` no devuelva nada, y ni las skills ni el README dicen si se responde `()` o un `Response` vacío. Una sola causa cuenta como 2 violaciones (el tipo que falta y la firma), y el mensaje dice ``responde `un tipo que no es una ruta` `` en lugar de nombrar `()`. | R13 respondió `()`, con el acuerdo del revisor, y S3 suma 2 violaciones en `verify_account_use_case.rs` (HEX-4.5, D11, R13b). | sin reportar |
-| 2026-11-25 | S3 | `MODEL_MARKERS` de `tools/architecture` incluye `Entity`, pero el `model.rs` del kernel de la plantilla solo define `ValueObject`, `AggregateRoot` y `DomainEvent`. No queda claro si `Entity` es un marcador admitido o un resto que hay que borrar. | HEX-8.12 propone borrarlo en R21, siguiendo la plantilla. | sin reportar |
-| 2026-11-25 | S3 | En legacy, `hex_1_driving_adapters_see_only_use_cases` solo mira `crate::domain`: un adaptador driving que nombra el dominio de otro contexto (`iam::domain::…` en el mapper de communities) pasa. Lo cubre solo `hex_1_dependencies_point_inward`, por el `Cargo.toml`. | Ninguno hoy: HEX-1.4 sigue en la entrada `hex_1` de HEX-1.1, y R16 quita la dependencia. | sin reportar |
-| 2026-11-25 | R13b | El hook `post-edit` corre los tests de arquitectura después de cada archivo editado. Al crear `response.rs` antes de cambiar la firma del puerto, bloqueó con la violación que el paso siguiente iba a cerrar: un cambio que abarca varios archivos pasa por estados intermedios en rojo. | Ninguno: el siguiente paso lo corrigió. Pero el aviso se lee como un error del cambio, no como un estado intermedio. | sin reportar |
-| 2026-11-26 | R17 | Un value object que el dominio rechaza por varios motivos, cada uno con su código de cliente (D2 a: `OwnerId` nil o mal formado), no cabe en la hoja `Validation { field }` de la plantilla, y las skills no dicen si se agrega un motivo a la hoja o una hoja propia. | R17 agregó la hoja local `InvalidOwner { Nil, WrongFormat }` (ver ERR-4.13). | sin reportar |
-| 2026-11-26 | R17 | Ningún test de `tools/architecture` verifica que el `fold` de un adaptador driving sea exhaustivo: un comodín `_ =>` sobre el enum del contrato pasaría (propuesta del revisor de R17). | Lo fijan hoy solo los tests de endpoint por brazo. | sin reportar |
+| 2026-11-24 | R11 | En Rust, cambiar la firma de un caso de uso a `Failure<{Verb}{Noun}Error>` hace que los tests nuevos sobre la variante no compilen hasta que el contrato existe: el único rojo previo es de compilación, que `tdd` excluye ("no por un error de compilación ajeno"). La skill no dice cómo ver el rojo de un cambio de contrato, ni de los tests que fijan comportamiento existente. | El rojo se vio por mutación de producción en el árbol de trabajo y se anotó en cada commit (3ff0ae1, d0dd8cb), como en R8 y R9. | sin reportar (lista de P2) |
+| 2026-11-24 | R11 | El `fold` del template (`create_community.rs`) cae en `_ => codes::INVALID_REQUEST` (400) ante un `field` desconocido: inventa un código de cliente para algo que solo pasa si handler y borde se desincronizan, un bug (ERR-1). | R11 lo manda al 500 de D7, con tests, para no inventar un código en la fase 3. R13, R15 y R17 hicieron lo mismo (`an_unmapped_…_returns_500`). **Argumento (P2):** un `field` o `resource` que el borde no conoce no es un error del cliente. El cliente mandó una petición que el handler tradujo a una hoja con un nombre que el `fold` no mapea: es un defecto del servidor, y le corresponde un 500 (árbol B), que además se reporta. Un 400 genérico le dice al cliente que corrija algo que no puede corregir, y esconde el bug detrás de un código que parece de negocio. | sin reportar (lista de P2) |
+| 2026-11-25 | S3 | `hex_4_use_case_signatures_are_their_own_contract` no contempla un caso de uso sin datos: exige un `{Verb}{Noun}Response` aunque `execute` no devuelva nada, y ni las skills ni el README dicen si se responde `()` o un `Response` vacío. Una sola causa cuenta como 2 violaciones (el tipo que falta y la firma), y el mensaje dice ``responde `un tipo que no es una ruta` `` en lugar de nombrar `()`. | R13 respondió `()`, con el acuerdo del revisor, y S3 suma 2 violaciones en `verify_account_use_case.rs` (HEX-4.5, D11, R13b). | sin reportar (lista de P2) |
+| 2026-11-25 | S3 | `MODEL_MARKERS` de `tools/architecture` incluye `Entity`, pero el `model.rs` del kernel de la plantilla solo define `ValueObject`, `AggregateRoot` y `DomainEvent`. No queda claro si `Entity` es un marcador admitido o un resto que hay que borrar. | HEX-8.12 propone borrarlo en R21, siguiendo la plantilla. | sin reportar (lista de P2) |
+| 2026-11-25 | S3 | En legacy, `hex_1_driving_adapters_see_only_use_cases` solo mira `crate::domain`: un adaptador driving que nombra el dominio de otro contexto (`iam::domain::…` en el mapper de communities) pasa. Lo cubre solo `hex_1_dependencies_point_inward`, por el `Cargo.toml`. | Ninguno hoy: HEX-1.4 sigue en la entrada `hex_1` de HEX-1.1, y R16 quita la dependencia. | sin reportar (lista de P2) |
+| 2026-11-25 | R13b | El hook `post-edit` corre los tests de arquitectura después de cada archivo editado. Al crear `response.rs` antes de cambiar la firma del puerto, bloqueó con la violación que el paso siguiente iba a cerrar: un cambio que abarca varios archivos pasa por estados intermedios en rojo. | Ninguno: el siguiente paso lo corrigió. Pero el aviso se lee como un error del cambio, no como un estado intermedio. | sin reportar (lista de P2) |
+| 2026-11-26 | R17 | Un value object que el dominio rechaza por varios motivos, cada uno con su código de cliente (D2 a: `OwnerId` nil o mal formado), no cabe en la hoja `Validation { field }` de la plantilla, y las skills no dicen si se agrega un motivo a la hoja o una hoja propia. | R17 agregó la hoja local `InvalidOwner { Nil, WrongFormat }` (ver ERR-4.13). | sin reportar (lista de P2) |
+| 2026-11-26 | R17 | Ningún test de `tools/architecture` verifica que el `fold` de un adaptador driving sea exhaustivo: un comodín `_ =>` sobre el enum del contrato pasaría (propuesta del revisor de R17). | Lo fijan hoy solo los tests de endpoint por brazo. | sin reportar (lista de P2). Es VER-1.9 desde P2 |
+| 2026-11-26 | P2 | En legacy, `hex_2_core_depends_only_on_std_and_the_kernel` cuenta por manifiesto: un `use` nuevo de un crate prohibido en domain o application no cambia ninguna entrada si el paquete ya figura en la línea base (VER-1.8). | `use uuid::Uuid` entró en `owner_id.rs` en R16 sin que fallara nada (HEX-2.7), y lo encontró recién la auditoría de P2. | sin reportar (lista de P2) |
+
+### Sin reportar todavía (P2, 2026-11-26)
+
+Se reportan a ai-harness antes de S4, para que el release que S4 sincroniza pueda traer la corrección. Al reportarlas, cada fila de la tabla pasa de `sin reportar` al enlace del issue.
+
+1. **El hook `post-edit` en estados intermedios (R13b).** Corre los tests de arquitectura después de cada archivo editado y bloquea con una violación que el paso siguiente del mismo cambio va a cerrar. Propuesta: que el aviso diga que puede ser un estado intermedio, o que el bloqueo se aplique al cerrar el turno y no en cada edición.
+2. **`()` en `hex_4_use_case_signatures_are_their_own_contract` (S3).** No contempla un caso de uso sin datos: cuenta 2 violaciones por una sola causa y dice ``responde `un tipo que no es una ruta` `` en lugar de nombrar `()`. El proyecto lo resolvió con un `Response` vacío (D11 a), pero el harness tiene que decir cuál de las dos formas es la canónica.
+3. **`Entity` sin definir en la plantilla (S3).** `MODEL_MARKERS` lo admite, pero el `model.rs` del kernel no lo trae. O se agrega a la plantilla como marcador, o se saca de `MODEL_MARKERS`.
+4. **`hex_1_driving_adapters_see_only_use_cases` ciego a otros contextos (S3).** En legacy solo mira `crate::domain`: un adaptador driving que nombra `iam::domain::…` pasa. Propuesta: que también cuente el dominio de otros contextos del workspace.
+5. **La hoja `InvalidOwner` (R17).** Un value object con varios motivos de rechazo, cada uno con su código de cliente, no cabe en `Validation { field }`, y las skills no dicen si se agrega un motivo cerrado a la hoja o una hoja propia (ver ERR-4.13).
+6. **Ningún test contra el comodín `_ =>` en los `fold` (R17, VER-1.9).** Un `fold` con comodín sobre el enum del contrato pasa todos los tests de arquitectura; hoy solo lo fijan los tests de endpoint por brazo.
+7. **El código genérico para nombres desconocidos (R11).** El `fold` de la plantilla responde `_ => codes::INVALID_REQUEST` (400) a un `field` desconocido. Es un defecto del servidor (handler y borde desincronizados), no del cliente: le corresponde un 500 del árbol B, que además se reporta. Ver el argumento en la fila de R11.
+8. **El rojo de un cambio de contrato (R11).** No estaba en el encargo de P2, pero tampoco se reportó. En Rust, los tests nuevos sobre la variante no compilan hasta que el contrato existe, y `tdd` excluye el rojo de compilación. La skill no dice cómo ver el rojo, ni el de los tests que fijan comportamiento existente. El proyecto lo resuelve por mutación anotada en el commit.
+9. **`hex_2_core` cuenta por manifiesto en legacy (P2, VER-1.8).** Un `use` nuevo de un crate prohibido en domain o application pasa en verde si el paquete ya tiene entrada. Propuesta: un test de imports por capa virtual en legacy, con línea base por archivo.
 
 ## Método
 
