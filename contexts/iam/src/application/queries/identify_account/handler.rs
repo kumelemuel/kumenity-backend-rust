@@ -4,9 +4,7 @@ use crate::{
             inbound::identify_account_use_case::IdentifyAccountUseCase,
             outbound::account_repository::AccountRepository,
         },
-        queries::identify_account::{
-            query::IdentifyAccountQuery, response::IdentifyAccountResponse,
-        },
+        queries::identify_account::{IdentifyAccountQuery, IdentifyAccountResponse},
     },
     domain::{
         errors::{AccountError, EmailError, UsernameError},
@@ -16,17 +14,17 @@ use crate::{
 use shared::{domain::value_object::ValueObject, error::SystemError};
 use std::sync::Arc;
 
-pub struct IdentifyAccount {
+pub struct IdentifyAccountHandler {
     account_repository: Arc<dyn AccountRepository>,
 }
 
-impl IdentifyAccount {
+impl IdentifyAccountHandler {
     pub fn new(account_repository: Arc<dyn AccountRepository>) -> Self {
         Self { account_repository }
     }
 }
 
-impl IdentifyAccountUseCase for IdentifyAccount {
+impl IdentifyAccountUseCase for IdentifyAccountHandler {
     fn execute(&self, cmd: IdentifyAccountQuery) -> Result<IdentifyAccountResponse, SystemError> {
         // Looked up normalized, as the registration stores it (D10): by email
         // if the identifier is one, then by username. One that is neither
@@ -64,9 +62,7 @@ mod tests {
     use crate::{
         application::{
             ports::inbound::identify_account_use_case::IdentifyAccountUseCase,
-            queries::identify_account::{
-                identify_account::IdentifyAccount, query::IdentifyAccountQuery,
-            },
+            queries::identify_account::{IdentifyAccountHandler, IdentifyAccountQuery},
             testing::{AccountOperation, FakeAccountAdapter},
         },
         domain::{
@@ -89,7 +85,7 @@ mod tests {
     #[test]
     fn fails_with_unexpected_when_find_by_email_fails() {
         let repo = Arc::new(FakeAccountAdapter::empty().failing_on(AccountOperation::FindByEmail));
-        let use_case = IdentifyAccount::new(repo);
+        let use_case = IdentifyAccountHandler::new(repo);
 
         let result = use_case.execute(IdentifyAccountQuery {
             identify: "dummy@example.com".to_string(),
@@ -105,7 +101,7 @@ mod tests {
     fn fails_with_unexpected_when_find_by_username_fails() {
         let repo =
             Arc::new(FakeAccountAdapter::empty().failing_on(AccountOperation::FindByUsername));
-        let use_case = IdentifyAccount::new(repo);
+        let use_case = IdentifyAccountHandler::new(repo);
 
         let result = use_case.execute(query());
 
@@ -119,7 +115,7 @@ mod tests {
     fn fails_when_account_not_found() {
         let repo = Arc::new(FakeAccountAdapter::empty());
 
-        let use_case = IdentifyAccount::new(repo);
+        let use_case = IdentifyAccountHandler::new(repo);
 
         let result = use_case.execute(IdentifyAccountQuery {
             identify: "not-exists@example.com".to_string(),
@@ -134,7 +130,7 @@ mod tests {
     #[test]
     fn identifies_with_an_email_that_differs_only_in_case_or_surrounding_spaces() {
         for identify in ["Dummy@Example.COM", "  dummy@example.com  "] {
-            let use_case = IdentifyAccount::new(registered());
+            let use_case = IdentifyAccountHandler::new(registered());
 
             let result = use_case.execute(IdentifyAccountQuery {
                 identify: identify.to_string(),
@@ -151,7 +147,7 @@ mod tests {
     /// D10, with the username.
     #[test]
     fn identifies_with_surrounding_spaces_in_the_username() {
-        let use_case = IdentifyAccount::new(registered());
+        let use_case = IdentifyAccountHandler::new(registered());
 
         let result = use_case.execute(IdentifyAccountQuery {
             identify: "  dummy  ".to_string(),
@@ -166,7 +162,7 @@ mod tests {
     /// Neither an email nor a username: answered like an unknown account.
     #[test]
     fn fails_with_not_found_when_identifier_is_malformed() {
-        let use_case = IdentifyAccount::new(registered());
+        let use_case = IdentifyAccountHandler::new(registered());
 
         let result = use_case.execute(IdentifyAccountQuery {
             identify: "a b".to_string(),
@@ -188,7 +184,7 @@ mod tests {
             AccountFactory::dummy_account_with_status("registered:123123".to_string()),
         ]));
 
-        let use_case = IdentifyAccount::new(repo);
+        let use_case = IdentifyAccountHandler::new(repo);
 
         let result = use_case.execute(IdentifyAccountQuery {
             identify: "dummy@example.com".to_string(),

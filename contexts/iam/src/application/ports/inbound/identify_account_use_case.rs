@@ -1,5 +1,5 @@
 use crate::application::queries::identify_account::{
-    query::IdentifyAccountQuery, response::IdentifyAccountResponse,
+    IdentifyAccountQuery, IdentifyAccountResponse,
 };
 use shared::error::SystemError;
 

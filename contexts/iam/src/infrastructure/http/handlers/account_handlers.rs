@@ -1,7 +1,7 @@
 use crate::{
     application::{
         ports::inbound::identify_account_use_case::IdentifyAccountUseCase,
-        queries::identify_account::query::IdentifyAccountQuery,
+        queries::identify_account::IdentifyAccountQuery,
     },
     infrastructure::http::{
         errors::error_mapper::map_application_error, requests::identify::IdentifyRequest,

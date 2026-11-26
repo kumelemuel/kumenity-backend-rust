@@ -1,4 +1,4 @@
-use crate::application::queries::identify_account::query::IdentifyAccountQuery;
+use crate::application::queries::identify_account::IdentifyAccountQuery;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]

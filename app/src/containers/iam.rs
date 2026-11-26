@@ -15,8 +15,7 @@ use iam::{
             outbound::password_hashing_service::PasswordHashingService,
         },
         queries::{
-            identify_account::identify_account::IdentifyAccount,
-            verify_access_token::VerifyAccessTokenHandler,
+            identify_account::IdentifyAccountHandler, verify_access_token::VerifyAccessTokenHandler,
         },
     },
     infrastructure::{
@@ -59,7 +58,7 @@ impl IamContainer {
             decoy_hash,
         );
         let verify_account = VerifyAccountHandler::new(account_repository.clone());
-        let identify_account = IdentifyAccount::new(account_repository.clone());
+        let identify_account = IdentifyAccountHandler::new(account_repository.clone());
         let verify_access_token = VerifyAccessTokenHandler::new(access_tokens);
 
         Ok(Self {
