@@ -18,7 +18,6 @@
 #
 # Los IDs de hallazgo (HEX-1.1…) están en docs/harness-adoption.md.
 
-hex_1_driving_adapters_see_only_use_cases contexts/communities/src/infrastructure/http/errors/error_mapper.rs 2
 hex_1_driving_adapters_see_only_use_cases contexts/iam/src/infrastructure/http/errors/error_mapper.rs 9
 hex_2_core_depends_only_on_std_and_the_kernel contexts/communities/Cargo.toml#dependencies.axum 2
 hex_2_core_depends_only_on_std_and_the_kernel contexts/communities/Cargo.toml#dependencies.http 2
@@ -35,9 +34,6 @@ hex_2_core_depends_only_on_std_and_the_kernel shared/Cargo.toml#dependencies.chr
 hex_2_core_depends_only_on_std_and_the_kernel shared/Cargo.toml#dependencies.serde
 hex_2_server_frameworks_only_at_the_edge contexts/communities/Cargo.toml#dependencies.axum 3
 hex_2_server_frameworks_only_at_the_edge contexts/iam/Cargo.toml#dependencies.axum 3
-hex_4_use_case_contracts_do_not_expose_domain_types contexts/communities/src/application/ports/inbound/create_community_use_case.rs
-hex_4_use_case_implementations_are_handlers contexts/communities/src/application/commands/create_community/create_community.rs
-hex_4_use_case_signatures_are_their_own_contract contexts/communities/src/application/ports/inbound/create_community_use_case.rs 2
 hex_6_transport_types_carry_the_transport_name contexts/communities/src/infrastructure/http/requests/create.rs
 hex_6_transport_types_carry_the_transport_name contexts/communities/src/infrastructure/http/responses/created.rs
 hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/http/requests/identify.rs

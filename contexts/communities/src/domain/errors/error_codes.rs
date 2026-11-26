@@ -1,13 +1,10 @@
+// Codes of `InvalidCommunityId` and of the dead `CommunityError` (HEX-7.12),
+// still fed to `ErrorLayout` until R19. The codes `CreateCommunity` answers
+// live in `infrastructure/http/codes.rs` since R17 (ERR-4.4).
 pub const COMMUNITIES_INVALID_COMMUNITY_ID: &str = "COMMUNITIES_INVALID_COMMUNITY_ID";
-pub const COMMUNITIES_INVALID_COMMUNITY_NAME: &str = "COMMUNITIES_INVALID_COMMUNITY_NAME";
-pub const COMMUNITIES_INVALID_COMMUNITY_SLUG: &str = "COMMUNITIES_INVALID_COMMUNITY_SLUG";
 pub const COMMUNITIES_NOT_OWNER: &str = "COMMUNITIES_NOT_OWNER";
 pub const COMMUNITIES_NOT_MEMBER: &str = "COMMUNITIES_NOT_MEMBER";
 pub const COMMUNITIES_ALREADY_MEMBER: &str = "COMMUNITIES_ALREADY_MEMBER";
 pub const COMMUNITIES_CANNOT_REMOVE_OWNER: &str = "COMMUNITIES_CANNOT_REMOVE_OWNER";
 pub const COMMUNITIES_INSUFFICIENT_PERMISSIONS: &str = "COMMUNITIES_INSUFFICIENT_PERMISSIONS";
 pub const COMMUNITIES_INVALID_STATE: &str = "COMMUNITIES_INVALID_STATE";
-// D2 a): `OwnerId` keeps the codes the characterization tests fix for
-// `/communities/create`, even though they carry the `IAM_` prefix.
-pub const IAM_INVALID_ACCOUNT_ID: &str = "IAM_INVALID_ACCOUNT_ID";
-pub const IAM_INVALID_ACCOUNT_ID_FORMAT: &str = "IAM_INVALID_ACCOUNT_ID_FORMAT";

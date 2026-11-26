@@ -1,5 +1,9 @@
-pub mod command;
-// HEX-4.1: el handler pasa a `handler.rs` (docs/harness-adoption.md)
-#[allow(clippy::module_inception)]
-pub mod create_community;
-pub mod response;
+mod command;
+mod error;
+mod handler;
+mod response;
+
+pub use command::CreateCommunityCommand;
+pub use error::CreateCommunityError;
+pub use handler::CreateCommunityHandler;
+pub use response::CreateCommunityResponse;

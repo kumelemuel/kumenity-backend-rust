@@ -1,4 +1,4 @@
-use crate::application::commands::create_community::response::CreateCommunityResponse;
+use crate::application::commands::create_community::CreateCommunityResponse;
 use serde::Serialize;
 
 #[derive(Serialize)]
