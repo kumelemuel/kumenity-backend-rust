@@ -1,6 +1,5 @@
 pub mod authenticate_account;
 pub mod codes;
-pub mod errors;
 pub mod identify_account;
 pub mod register_account;
 pub mod requests;

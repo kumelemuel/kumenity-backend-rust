@@ -7,8 +7,7 @@ use axum::{
 use shared::{Fault, infrastructure::http::api_error_response::ApiErrorResponse};
 
 /// Tree B (ERR-1): generic 500 (D7), without exposing the `Fault` detail to
-/// the client. Used by the `fold` of `CreateCommunity` and by the legacy
-/// mapper (until R19).
+/// the client. Used by the `fold` of `CreateCommunity`.
 pub fn unexpected(fault: &Fault) -> Response {
     // INTERIM until R26 (ERR-4.7): there is no `FaultReporter` wired yet. So
     // that the 500 is not silent (ERR-1.4), the detail goes to stderr, where

@@ -7,7 +7,7 @@ use crate::domain::{
     },
     services::password_policy::PasswordPolicy,
 };
-use shared::{domain::value_object::ValueObject, error::SystemError};
+use shared::domain::value_object::ValueObject;
 
 /// What a registration asks for, already checked against the rules of the
 /// domain: the password policy, and the username and email as normalized
@@ -66,22 +66,6 @@ impl AccountFactory {
             password,
             status,
         ))
-    }
-
-    pub fn reconstitute(
-        id: String,
-        username: String,
-        email: String,
-        hashed_password: String,
-        status: String,
-    ) -> Result<Account, SystemError> {
-        let id = AccountId::from_str(id.as_str())?;
-        let username = Username::new(username)?;
-        let email = Email::new(email)?;
-        let password = HashedPassword::new(hashed_password)?;
-        let status = AccountStatus::from_str(status.as_str())?;
-
-        Ok(Account::new(id, username, email, password, status))
     }
 }
 
@@ -175,24 +159,25 @@ mod tests {
 
     impl AccountFactory {
         pub(crate) fn dummy_account() -> Account {
-            AccountFactory::reconstitute(
-                AccountId::generate().as_uuid().to_string(),
-                "john_doe".to_string(),
-                "john@example.com".to_string(),
-                "$2b$12$12345678901234567890123456789012345673434534534534346346346346346890123456789012".to_string(),
-                "registered:123123".to_string()
-            )
-                .unwrap()
+            Self::account("john_doe", "john@example.com", "registered:123123")
         }
 
         pub fn dummy_account_with_status(status: String) -> Account {
-            AccountFactory::reconstitute(
-                AccountId::generate().as_uuid().to_string(),
-                "dummy".to_string(),
-                "dummy@example.com".to_string(),
-                "$2b$12$12345678901234567890123456789012345673434534534534346346346346346890123456789012".to_string(),
-                status,
-            ).unwrap()
+            Self::account("dummy", "dummy@example.com", &status)
+        }
+
+        fn account(username: &str, email: &str, status: &str) -> Account {
+            Account::new(
+                AccountId::generate(),
+                Username::new(username.to_string()).expect("invariante: username de prueba válido"),
+                Email::new(email.to_string()).expect("invariante: email de prueba válido"),
+                HashedPassword::new(DUMMY_HASH.to_string())
+                    .expect("invariante: hash de prueba válido"),
+                AccountStatus::from_str(status).expect("invariante: estado de prueba válido"),
+            )
         }
     }
+
+    const DUMMY_HASH: &str =
+        "$2b$12$12345678901234567890123456789012345673434534534534346346346346346890123456789012";
 }
