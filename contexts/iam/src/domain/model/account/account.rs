@@ -1,5 +1,5 @@
 use crate::domain::{
-    errors::{AccountError, AccountStatusError},
+    errors::{AccountError, AccountStatusError, CannotAuthenticate},
     model::account::{
         account_id::AccountId, account_status::AccountStatus, code_validation::CodeValidation,
         email::Email, events::account_event::AccountEvent, hashed_password::HashedPassword,
@@ -82,8 +82,13 @@ impl Account {
         &self.status
     }
 
-    pub fn can_authenticate(&self) -> bool {
-        self.status.can_authenticate()
+    /// Only an active account signs in (HEX-7.2).
+    pub fn authenticate(&self) -> Result<(), CannotAuthenticate> {
+        if self.status.can_authenticate() {
+            Ok(())
+        } else {
+            Err(CannotAuthenticate)
+        }
     }
 
     pub fn change_password(&mut self, new_password: HashedPassword) {
@@ -145,6 +150,29 @@ mod tests {
         let user = AccountFactory::dummy_account();
 
         assert!(matches!(user.status(), AccountStatus::Registered { .. }));
+    }
+
+    #[test]
+    fn registered_account_cannot_authenticate() {
+        let account = AccountFactory::dummy_account();
+
+        assert_eq!(account.authenticate(), Err(CannotAuthenticate));
+    }
+
+    #[test]
+    fn non_active_accounts_cannot_authenticate() {
+        for status in ["suspended", "deactivated", "deleted"] {
+            let account = AccountFactory::dummy_account_with_status(status.to_string());
+
+            assert_eq!(account.authenticate(), Err(CannotAuthenticate), "{status}");
+        }
+    }
+
+    #[test]
+    fn active_account_can_authenticate() {
+        let account = AccountFactory::dummy_account_with_status("active".to_string());
+
+        assert_eq!(account.authenticate(), Ok(()));
     }
 
     #[test]

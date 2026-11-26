@@ -1,11 +1,11 @@
 use crate::application::commands::authenticate_account::{
-    command::AuthenticateAccountCommand, response::AuthenticateAccountResponse,
+    AuthenticateAccountCommand, AuthenticateAccountError, AuthenticateAccountResponse,
 };
-use shared::error::SystemError;
+use shared::Failure;
 
 pub trait AuthenticateAccountUseCase: Send + Sync {
     fn execute(
         &self,
         command: AuthenticateAccountCommand,
-    ) -> Result<AuthenticateAccountResponse, SystemError>;
+    ) -> Result<AuthenticateAccountResponse, Failure<AuthenticateAccountError>>;
 }

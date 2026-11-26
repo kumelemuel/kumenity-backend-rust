@@ -1,27 +1,33 @@
-use crate::application::{
-    commands::authenticate_account::{
-        command::AuthenticateAccountCommand, response::AuthenticateAccountResponse,
-    },
-    errors::authenticate_account::AuthenticateAccountError,
-    ports::{
-        inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
-        outbound::{
-            access_token_service::AccessTokenService, account_repository::AccountRepository,
-            password_hashing_service::PasswordHashingService,
+use super::{AuthenticateAccountCommand, AuthenticateAccountError, AuthenticateAccountResponse};
+use crate::{
+    application::{
+        errors::{cannot_authenticate::CannotAuthenticate, login_failed::LoginFailed},
+        ports::{
+            inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
+            outbound::{
+                access_token_service::AccessTokenService, account_repository::AccountRepository,
+                password_hashing_service::PasswordHashingService,
+            },
         },
     },
+    domain::errors::CannotAuthenticate as AccountCannotAuthenticate,
 };
-use shared::{domain::value_object::ValueObject, error::SystemError};
+use shared::{Failure, domain::value_object::ValueObject};
 use std::sync::Arc;
 
-pub struct AuthenticateAccount {
+/// Orchestrates (HEX-7): loads the account, checks the password, asks the
+/// aggregate whether it can sign in and issues the token.
+///
+/// An unknown username and a wrong password are the same answer,
+/// `LoginFailed`, and cost the same (D6).
+pub struct AuthenticateAccountHandler {
     account_repository: Arc<dyn AccountRepository>,
     password_hasher: Arc<dyn PasswordHashingService>,
     access_tokens: Arc<dyn AccessTokenService>,
     decoy_hash: String,
 }
 
-impl AuthenticateAccount {
+impl AuthenticateAccountHandler {
     pub fn new(
         account_repository: Arc<dyn AccountRepository>,
         password_hasher: Arc<dyn PasswordHashingService>,
@@ -37,15 +43,15 @@ impl AuthenticateAccount {
     }
 }
 
-impl AuthenticateAccountUseCase for AuthenticateAccount {
+impl AuthenticateAccountUseCase for AuthenticateAccountHandler {
     fn execute(
         &self,
         cmd: AuthenticateAccountCommand,
-    ) -> Result<AuthenticateAccountResponse, SystemError> {
+    ) -> Result<AuthenticateAccountResponse, Failure<AuthenticateAccountError>> {
+        // `?` propagates every `Fault` as tree B.
         let Some(account) = self
             .account_repository
-            .find_by_username(cmd.username.as_str())
-            .map_err(SystemError::Unexpected)?
+            .find_by_username(cmd.username.as_str())?
         else {
             // Pay the same hashing cost as a wrong password, so the response
             // time does not reveal whether the username exists. Only the
@@ -53,28 +59,26 @@ impl AuthenticateAccountUseCase for AuthenticateAccount {
             // dropping the call); a `Fault` propagates like the real one.
             std::hint::black_box(
                 self.password_hasher
-                    .verify(cmd.password.as_str(), &self.decoy_hash)
-                    .map_err(SystemError::Unexpected)?,
+                    .verify(cmd.password.as_str(), &self.decoy_hash)?,
             );
-            return Err(AuthenticateAccountError::LoginFailed.into());
+            return Err(Failure::expected(LoginFailed));
         };
 
         if !self
             .password_hasher
-            .verify(cmd.password.as_str(), account.password().value())
-            .map_err(SystemError::Unexpected)?
+            .verify(cmd.password.as_str(), account.password().value())?
         {
-            return Err(AuthenticateAccountError::LoginFailed.into());
+            return Err(Failure::expected(LoginFailed));
         }
 
-        if !account.can_authenticate() {
-            return Err(AuthenticateAccountError::CannotAuthenticate.into());
-        }
+        // Domain error → flat leaf of the contract (ERR-2).
+        account
+            .authenticate()
+            .map_err(|AccountCannotAuthenticate| Failure::expected(CannotAuthenticate))?;
 
         let token = self
             .access_tokens
-            .issue(&account.id().as_uuid().to_string())
-            .map_err(SystemError::Unexpected)?;
+            .issue(&account.id().as_uuid().to_string())?;
 
         Ok(AuthenticateAccountResponse { token })
     }
@@ -82,19 +86,13 @@ impl AuthenticateAccountUseCase for AuthenticateAccount {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::{
         application::{
-            commands::authenticate_account::{
-                authenticate_account::AuthenticateAccount, command::AuthenticateAccountCommand,
-            },
-            errors::error_codes::{IAM_CANNOT_AUTHENTICATE, IAM_LOGIN_FAILED},
-            ports::{
-                inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
-                outbound::{
-                    access_token_service::AccessTokenService,
-                    dtos::access_token_payloads::AccessTokenVerdict,
-                    password_hashing_service::PasswordHashingService,
-                },
+            ports::outbound::{
+                access_token_service::AccessTokenService,
+                dtos::access_token_payloads::AccessTokenVerdict,
+                password_hashing_service::PasswordHashingService,
             },
             testing::{
                 AccessTokenOperation, FakeAccessTokenAdapter, FakeAccountAdapter,
@@ -105,9 +103,6 @@ mod tests {
             account::Account, account_factory::AccountFactory, account_id::AccountId,
         },
     };
-    use shared::error::SystemError;
-    use std::sync::Arc;
-
     const PASSWORD: &str = "dummy-password";
 
     fn hash_of(password: &str) -> String {
@@ -139,7 +134,7 @@ mod tests {
     fn verifies_against_the_decoy_hash_when_account_does_not_exist() {
         let hasher = Arc::new(SpyPasswordHashingAdapter::new());
         let decoy_hash = hash_of("decoy");
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::empty()),
             hasher.clone(),
             Arc::new(FakeAccessTokenAdapter::new()),
@@ -158,7 +153,7 @@ mod tests {
     fn fails_with_login_failed_when_account_does_not_exist() {
         // The decoy is the hash of the password sent, so its verification
         // answers `true`: the handler has to discard the outcome.
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::empty()),
             Arc::new(SpyPasswordHashingAdapter::new()),
             Arc::new(FakeAccessTokenAdapter::new()),
@@ -167,14 +162,20 @@ mod tests {
 
         let result = use_case.execute(command("ghost", "any_password"));
 
-        let err = result.expect_err("Expected error");
-
-        assert_eq!(err.code(), IAM_LOGIN_FAILED);
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(AuthenticateAccountError::LoginFailed(
+                    LoginFailed
+                )))
+            ),
+            "{result:?}"
+        );
     }
 
     #[test]
     fn fails_with_unexpected_when_find_by_username_fails() {
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::failing()),
             Arc::new(FixedPasswordHashingAdapter::new()),
             Arc::new(FakeAccessTokenAdapter::new()),
@@ -183,15 +184,12 @@ mod tests {
 
         let result = use_case.execute(command("dummy", PASSWORD));
 
-        assert!(
-            matches!(result, Err(SystemError::Unexpected(_))),
-            "{result:?}"
-        );
+        assert!(matches!(result, Err(Failure::Unexpected(_))), "{result:?}");
     }
 
     #[test]
     fn fails_with_unexpected_when_verify_fails() {
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
             Arc::new(
                 FixedPasswordHashingAdapter::new().failing_on(PasswordHashingOperation::Verify),
@@ -202,15 +200,12 @@ mod tests {
 
         let result = use_case.execute(command("dummy", PASSWORD));
 
-        assert!(
-            matches!(result, Err(SystemError::Unexpected(_))),
-            "{result:?}"
-        );
+        assert!(matches!(result, Err(Failure::Unexpected(_))), "{result:?}");
     }
 
     #[test]
     fn fails_with_unexpected_when_decoy_verify_fails() {
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::empty()),
             Arc::new(
                 FixedPasswordHashingAdapter::new().failing_on(PasswordHashingOperation::Verify),
@@ -221,15 +216,12 @@ mod tests {
 
         let result = use_case.execute(command("ghost", PASSWORD));
 
-        assert!(
-            matches!(result, Err(SystemError::Unexpected(_))),
-            "{result:?}"
-        );
+        assert!(matches!(result, Err(Failure::Unexpected(_))), "{result:?}");
     }
 
     #[test]
     fn fails_with_unexpected_when_issue_fails() {
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
             Arc::new(FixedPasswordHashingAdapter::new()),
             Arc::new(FakeAccessTokenAdapter::new().failing_on(AccessTokenOperation::Issue)),
@@ -238,15 +230,12 @@ mod tests {
 
         let result = use_case.execute(command("dummy", PASSWORD));
 
-        assert!(
-            matches!(result, Err(SystemError::Unexpected(_))),
-            "{result:?}"
-        );
+        assert!(matches!(result, Err(Failure::Unexpected(_))), "{result:?}");
     }
 
     #[test]
     fn fails_with_incorrect_password() {
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
             Arc::new(FixedPasswordHashingAdapter::new()),
             Arc::new(FakeAccessTokenAdapter::new()),
@@ -255,14 +244,47 @@ mod tests {
 
         let result = use_case.execute(command("dummy", "wrong_password"));
 
-        let err = result.expect_err("Expected error");
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(AuthenticateAccountError::LoginFailed(
+                    LoginFailed
+                )))
+            ),
+            "{result:?}"
+        );
+    }
 
-        assert_eq!(err.code(), IAM_LOGIN_FAILED);
+    /// The password before the status: an inactive account with a wrong
+    /// password is `LoginFailed`, so the answer does not reveal that the
+    /// account exists and is not active (D6).
+    #[test]
+    fn fails_with_login_failed_when_an_inactive_account_gets_a_wrong_password() {
+        let use_case = AuthenticateAccountHandler::new(
+            Arc::new(FakeAccountAdapter::containing([dummy_account(
+                "registered:123123",
+            )])),
+            Arc::new(FixedPasswordHashingAdapter::new()),
+            Arc::new(FakeAccessTokenAdapter::new()),
+            hash_of("decoy"),
+        );
+
+        let result = use_case.execute(command("dummy", "wrong_password"));
+
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(AuthenticateAccountError::LoginFailed(
+                    LoginFailed
+                )))
+            ),
+            "{result:?}"
+        );
     }
 
     #[test]
     fn fails_when_account_cannot_authenticate() {
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::containing([dummy_account(
                 "registered:123123",
             )])),
@@ -273,9 +295,15 @@ mod tests {
 
         let result = use_case.execute(command("dummy", PASSWORD));
 
-        let err = result.expect_err("Expected error");
-
-        assert_eq!(err.code(), IAM_CANNOT_AUTHENTICATE);
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(
+                    AuthenticateAccountError::CannotAuthenticate(CannotAuthenticate)
+                ))
+            ),
+            "{result:?}"
+        );
     }
 
     #[test]
@@ -283,7 +311,7 @@ mod tests {
         let account = dummy_account("active");
         let account_id = account.id().as_uuid().to_string();
         let tokens = Arc::new(FakeAccessTokenAdapter::new());
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::containing([account])),
             Arc::new(FixedPasswordHashingAdapter::new()),
             tokens.clone(),

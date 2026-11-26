@@ -1,5 +1,4 @@
 use crate::{
-    application::errors::error_codes::{IAM_CANNOT_AUTHENTICATE, IAM_LOGIN_FAILED},
     domain::errors::error_codes::{
         IAM_ACCOUNT_INVALID_VERIFICATION, IAM_ACCOUNT_NOT_FOUND, IAM_INVALID_ACCOUNT_ID,
         IAM_INVALID_ACCOUNT_ID_FORMAT, IAM_INVALID_ACCOUNT_STATUS_TRANSITION,
@@ -39,7 +38,6 @@ pub fn map_application_error(error: SystemError) -> Response {
 fn status_from_error_code(code: &str) -> StatusCode {
     match code {
         IAM_ACCOUNT_NOT_FOUND => StatusCode::NOT_FOUND,
-        IAM_LOGIN_FAILED | IAM_CANNOT_AUTHENTICATE => StatusCode::UNAUTHORIZED,
         IAM_INVALID_ACCOUNT_ID
         | IAM_INVALID_ACCOUNT_ID_FORMAT
         | IAM_INVALID_ACCOUNT_STATUS_TRANSITION
@@ -93,13 +91,6 @@ mod tests {
     #[test]
     fn account_not_found_maps_to_not_found() {
         assert_eq!(status_for(IAM_ACCOUNT_NOT_FOUND), StatusCode::NOT_FOUND);
-    }
-
-    #[test]
-    fn failed_authentication_maps_to_unauthorized() {
-        for code in [IAM_LOGIN_FAILED, IAM_CANNOT_AUTHENTICATE] {
-            assert_eq!(status_for(code), StatusCode::UNAUTHORIZED, "{code}");
-        }
     }
 
     #[test]

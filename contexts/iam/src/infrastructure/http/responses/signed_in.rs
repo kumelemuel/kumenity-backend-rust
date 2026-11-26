@@ -1,4 +1,4 @@
-use crate::application::commands::authenticate_account::response::AuthenticateAccountResponse;
+use crate::application::commands::authenticate_account::AuthenticateAccountResponse;
 use serde::Serialize;
 
 #[derive(Serialize)]

@@ -27,3 +27,10 @@ pub const IAM_INVALID_CODE_VALIDATION: &str = "IAM_INVALID_CODE_VALIDATION";
 pub const IAM_INVALID_CODE_VALIDATION_MESSAGE: &str = "The verification code is invalid.";
 pub const IAM_ACCOUNT_INVALID_VERIFICATION: &str = "IAM_ACCOUNT_INVALID_VERIFICATION";
 pub const IAM_ACCOUNT_INVALID_VERIFICATION_MESSAGE: &str = "Verification process is invalid.";
+
+// `POST /auth/authenticate` (AuthenticateAccount).
+pub const IAM_LOGIN_FAILED: &str = "IAM_LOGIN_FAILED";
+pub const IAM_LOGIN_FAILED_MESSAGE: &str = "The username or password is incorrect.";
+pub const IAM_CANNOT_AUTHENTICATE: &str = "IAM_CANNOT_AUTHENTICATE";
+pub const IAM_CANNOT_AUTHENTICATE_MESSAGE: &str =
+    "This account is not allowed to sign in at the moment.";
