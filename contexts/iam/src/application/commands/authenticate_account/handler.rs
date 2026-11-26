@@ -255,6 +255,33 @@ mod tests {
         );
     }
 
+    /// The password before the status: an inactive account with a wrong
+    /// password is `LoginFailed`, so the answer does not reveal that the
+    /// account exists and is not active (D6).
+    #[test]
+    fn fails_with_login_failed_when_an_inactive_account_gets_a_wrong_password() {
+        let use_case = AuthenticateAccountHandler::new(
+            Arc::new(FakeAccountAdapter::containing([dummy_account(
+                "registered:123123",
+            )])),
+            Arc::new(FixedPasswordHashingAdapter::new()),
+            Arc::new(FakeAccessTokenAdapter::new()),
+            hash_of("decoy"),
+        );
+
+        let result = use_case.execute(command("dummy", "wrong_password"));
+
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(AuthenticateAccountError::LoginFailed(
+                    LoginFailed
+                )))
+            ),
+            "{result:?}"
+        );
+    }
+
     #[test]
     fn fails_when_account_cannot_authenticate() {
         let use_case = AuthenticateAccountHandler::new(
