@@ -1,13 +1,16 @@
 use super::{AuthenticateAccountCommand, AuthenticateAccountResponse};
-use crate::application::{
-    errors::authenticate_account::AuthenticateAccountError,
-    ports::{
-        inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
-        outbound::{
-            access_token_service::AccessTokenService, account_repository::AccountRepository,
-            password_hashing_service::PasswordHashingService,
+use crate::{
+    application::{
+        errors::authenticate_account::AuthenticateAccountError,
+        ports::{
+            inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
+            outbound::{
+                access_token_service::AccessTokenService, account_repository::AccountRepository,
+                password_hashing_service::PasswordHashingService,
+            },
         },
     },
+    domain::errors::CannotAuthenticate,
 };
 use shared::{domain::value_object::ValueObject, error::SystemError};
 use std::sync::Arc;
@@ -65,9 +68,9 @@ impl AuthenticateAccountUseCase for AuthenticateAccountHandler {
             return Err(AuthenticateAccountError::LoginFailed.into());
         }
 
-        if !account.can_authenticate() {
-            return Err(AuthenticateAccountError::CannotAuthenticate.into());
-        }
+        account
+            .authenticate()
+            .map_err(|_: CannotAuthenticate| AuthenticateAccountError::CannotAuthenticate)?;
 
         let token = self
             .access_tokens
