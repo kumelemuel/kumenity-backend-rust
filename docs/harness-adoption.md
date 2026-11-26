@@ -1354,7 +1354,7 @@ Una fila por rebanada fusionada. **Tokens** es el consumo de la sesión que hizo
 | R16b | #51 | `d3ab538`, `fdc1941`, `c0d0102` | `nightly-2026-11-19` | $4.01 (opus-5-5: 4.7k input, 35.5k output, 7.3m cache read, 247.1k cache write; 7m 16s API, 8h 19m wall, casi todo inactividad entre turnos) | sí (ver PR) | Línea base sin cambios (36). Las 4 baterías con la forma async de la receta "Puerto todavía síncrono" (D12 b), con los puertos síncronos; los mismos 55 casos por nombre. Inventariadas RS-2.6 y TDD-2.8 (notas del revisor de R16). 422 tests, fmt y clippy en verde localmente. |
 | R17 | #52 | `4a04532`, `60caf6f`, `9614aaa`, `58958bc`, `838b923` | `nightly-2026-11-19` | $6.12 (opus-5-5: 15.5k input, 79.5k output, 10.8m cache read, 318.9k cache write; 14m 14s API, 32m 34s wall) | sí (ver PR) | Línea base −4: 36 → 32 entradas (61 → 55 violaciones); cierra `hex_4_use_case_implementations_…`, `hex_4_use_case_signatures_…` y `hex_4_use_case_contracts_…`. HEX-1.8 cierra con el mapper en su ruta, sin `crate::domain`. Sin cambio de contrato: `app/tests/` intacto. Hoja nueva `InvalidOwner { Nil, WrongFormat }` (D2 a). 434 tests, fmt y clippy en verde localmente. |
 | R19 | #53 | `0a3c49a`, `11f8c92` | `nightly-2026-11-19` | $2.79 (opus-5-5: 12.7k input, 27.7k output, 4.5m cache read, 182.9k cache write; 7m 6s API, 13m 50s wall) | sí (ver PR) | Línea base −2: 32 → 30 entradas (55 → 45 violaciones); cierra `hex_1_driving_adapters_see_only_use_cases` y `hex_8_kernel_traits_…`. Sin cambio de contrato: `app/tests/` intacto. `reconstitute` (ERR-1.5) adelantado de R20 a pedido del usuario: era el último llamador de `SystemError` fuera de los mappers. 429 tests, fmt y clippy en verde localmente. |
-| P2 | (este PR, docs) | ver PR | `nightly-2026-11-19` | pendiente | sí: auditoría completa (ver §5.9) | Punto de replanificación después de R19. Solo documentación. |
+| P2 | #54 (docs) | ver PR | `nightly-2026-11-19` | $10.61 (opus-5-5: 82.7k input, 114.3k output, 21.9m cache read, 564.1k cache write; 24m 6s API, 35m 42s wall). Incluye la auditoría completa del revisor | sí: auditoría completa (ver §5.9) | Punto de replanificación después de R19. Solo documentación. |
 
 **Costos que no se pueden completar (revisado en P2).** Se buscó el `/cost` en el cuerpo y los comentarios de #18 a #53, y en los mensajes de commit. Solo apareció el de #32 (arriba). Siguen sin registro:
 - R1 (#24, #25);
@@ -1373,8 +1373,9 @@ Tampoco tienen fila los PRs anteriores al plan (#18 a #23: caracterización, tri
 | 3: contratos por caso de uso | R11, R12, R12b, R13, R13b, R14, R15, R16, R16b, R17, R18, R19 | — | $47.70 |
 | Sincronizaciones | S1, S3 (parcial) | S2, primera sesión de S3 | $4.90 |
 | P1 (con #40) | P1 | — | $4.32 |
+| P2 | P2 | — | $10.61 |
 | Fuera del plan | #32 | — | $0.85 |
-| **Total** | | | **$88.91** |
+| **Total** | | | **$99.52** |
 
 R18 se cuenta en la fase 3, donde está en §5.3, aunque se hizo antes que R7. En promedio, la fase 2 costó $4.35 por rebanada y la fase 3, $3.98. En la fase 3, R11, R14 y R17 (M) costaron entre $5.03 y $6.12. R19, también M, costó $2.79, porque fue casi todo borrado. Las S y XS, entre $1.80 y $4.44.
 
@@ -1408,7 +1409,7 @@ Hay tres: **P1** después de R10 *(hecho, 2026-11-23: ver abajo)*, **P2** despu�
 4. Precondiciones de R27 y R28 (§5.6): con la secuencia de P2, solo quedan las entradas que esas rebanadas resuelven al mover. R27 baja de −7 a −5 y R28 de −14 a −13.
 5. S4 (sincronización con el próximo release de ai-harness) entra antes de P3, con la regla de §5.1. §6 tiene la lista de fricciones sin reportar (9), que se reportan antes de S4.
 6. D5, D9 y D13 decididas (§5.7). Efectos: R30 con el formato de D5 (M/L, partible), R29b nueva (XS, D9) y R31 nueva (S/M, D13 b, con cambio de contrato). §5.5 suma R25, R29b, R30 y R31.
-7. §5.8: el costo de #32 ($0.85) estaba en su PR y no tenía fila. R1, S2 y la primera sesión de S3 siguen sin registro. Subtotales por fase: $88.91 en total. R10 (M/L) costó $7.79 y R17 (M) $6.12; R20 era M/L, por eso se parte.
+7. §5.8: el costo de #32 ($0.85) estaba en su PR y no tenía fila. R1, S2 y la primera sesión de S3 siguen sin registro. Subtotales por fase: $88.91 hasta R19, y $99.52 con P2 ($10.61, la auditoría completa incluida). R10 (M/L) costó $7.79 y R17 (M) $6.12; R20 era M/L, por eso se parte.
 
 ### 5.10 Sincronizaciones con el harness
 
