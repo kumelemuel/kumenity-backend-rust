@@ -1,4 +1,4 @@
-use crate::application::commands::create_community::command::CreateCommunityCommand;
+use crate::application::commands::create_community::CreateCommunityCommand;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]

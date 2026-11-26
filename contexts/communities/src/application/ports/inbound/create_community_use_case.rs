@@ -1,5 +1,5 @@
 use crate::application::commands::create_community::{
-    command::CreateCommunityCommand, response::CreateCommunityResponse,
+    CreateCommunityCommand, CreateCommunityResponse,
 };
 use shared::{domain::model::verified_identity::VerifiedIdentity, error::SystemError};
 

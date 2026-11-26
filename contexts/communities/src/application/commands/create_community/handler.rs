@@ -1,8 +1,6 @@
+use super::{CreateCommunityCommand, CreateCommunityResponse};
 use crate::{
     application::{
-        commands::create_community::{
-            command::CreateCommunityCommand, response::CreateCommunityResponse,
-        },
         errors::community_creation::CommunityCreationError,
         ports::{
             inbound::create_community_use_case::CreateCommunityUseCase,
@@ -17,11 +15,11 @@ use crate::{
 use shared::{domain::model::verified_identity::VerifiedIdentity, error::SystemError};
 use std::sync::Arc;
 
-pub struct CreateCommunity {
+pub struct CreateCommunityHandler {
     community_repository: Arc<dyn CommunityRepository>,
 }
 
-impl CreateCommunity {
+impl CreateCommunityHandler {
     pub fn new(community_repository: Arc<dyn CommunityRepository>) -> Self {
         Self {
             community_repository,
@@ -29,7 +27,7 @@ impl CreateCommunity {
     }
 }
 
-impl CreateCommunityUseCase for CreateCommunity {
+impl CreateCommunityUseCase for CreateCommunityHandler {
     fn execute(
         &self,
         data: CreateCommunityCommand,
@@ -65,9 +63,7 @@ impl CreateCommunityUseCase for CreateCommunity {
 mod tests {
     use crate::{
         application::{
-            commands::create_community::{
-                command::CreateCommunityCommand, create_community::CreateCommunity,
-            },
+            commands::create_community::{CreateCommunityCommand, CreateCommunityHandler},
             errors::error_codes::COMMUNITIES_SLUG_ALREADY_EXISTS,
             ports::inbound::create_community_use_case::CreateCommunityUseCase,
             testing::{CommunityOperation, FakeCommunityAdapter},
@@ -97,7 +93,7 @@ mod tests {
     fn create_community_successfully() {
         let repo = Arc::new(FakeCommunityAdapter::empty());
 
-        let use_case = CreateCommunity::new(repo);
+        let use_case = CreateCommunityHandler::new(repo);
 
         let result = use_case.execute(valid_input(), valid_auth_context());
 
@@ -108,7 +104,7 @@ mod tests {
     fn fails_when_name_is_invalid() {
         let repo = Arc::new(FakeCommunityAdapter::empty());
 
-        let use_case = CreateCommunity::new(repo);
+        let use_case = CreateCommunityHandler::new(repo);
 
         let input = CreateCommunityCommand {
             slug: "Community-Test".to_string(),
@@ -127,7 +123,7 @@ mod tests {
     fn fails_when_slug_is_invalid() {
         let repo = Arc::new(FakeCommunityAdapter::empty());
 
-        let use_case = CreateCommunity::new(repo);
+        let use_case = CreateCommunityHandler::new(repo);
 
         let input = CreateCommunityCommand {
             slug: "".to_string(),
@@ -146,7 +142,7 @@ mod tests {
     fn fails_with_unexpected_when_repository_fails() {
         let repo = Arc::new(FakeCommunityAdapter::failing());
 
-        let use_case = CreateCommunity::new(repo);
+        let use_case = CreateCommunityHandler::new(repo);
 
         let result = use_case.execute(valid_input(), valid_auth_context());
 
@@ -160,7 +156,7 @@ mod tests {
     fn fails_with_unexpected_when_save_fails() {
         let repo = Arc::new(FakeCommunityAdapter::empty().failing_on(CommunityOperation::Save));
 
-        let use_case = CreateCommunity::new(repo);
+        let use_case = CreateCommunityHandler::new(repo);
 
         let result = use_case.execute(valid_input(), valid_auth_context());
 
@@ -174,7 +170,7 @@ mod tests {
     fn fails_when_slug_already_exists() {
         let repo = Arc::new(FakeCommunityAdapter::empty());
 
-        let use_case = CreateCommunity::new(repo);
+        let use_case = CreateCommunityHandler::new(repo);
 
         use_case
             .execute(valid_input(), valid_auth_context())

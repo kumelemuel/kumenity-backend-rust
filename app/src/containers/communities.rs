@@ -1,6 +1,6 @@
 use communities::{
     application::{
-        commands::create_community::create_community::CreateCommunity,
+        commands::create_community::CreateCommunityHandler,
         ports::inbound::create_community_use_case::CreateCommunityUseCase,
     },
     infrastructure::{
@@ -19,7 +19,7 @@ impl CommunitiesContainer {
     pub fn initialize() -> Self {
         let community_repository = Arc::new(InMemoryCommunityAdapter::new());
 
-        let create_community = CreateCommunity::new(community_repository.clone());
+        let create_community = CreateCommunityHandler::new(community_repository.clone());
 
         Self {
             create_community: Arc::new(create_community),

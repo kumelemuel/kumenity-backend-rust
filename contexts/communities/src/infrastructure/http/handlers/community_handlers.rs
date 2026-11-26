@@ -1,6 +1,6 @@
 use crate::{
     application::{
-        commands::create_community::command::CreateCommunityCommand,
+        commands::create_community::CreateCommunityCommand,
         ports::inbound::create_community_use_case::CreateCommunityUseCase,
     },
     infrastructure::http::{
