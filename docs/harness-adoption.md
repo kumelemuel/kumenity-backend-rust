@@ -224,7 +224,7 @@ No cuentan en el inventario. Si se confirman, pasan a él con el siguiente ID li
 - **Enumeración por `identify` y `verify` (P1).** `/auth/identify` (público) y `/auth/verify` responden 404 o 200 según exista la cuenta, e `identify` además expone el estado. Queda la enumeración que D6 cerró en el login.
 - **Código de verificación sin límite de intentos (P1).** Son 6 dígitos y nada limita los intentos.
 - **Nadie entrega el código de verificación (P1).** Ningún puerto lo envía al usuario, así que la verificación solo se completa en los tests.
-- **`identify` sin normalizar (P1).** La auditoría de P1 lo reportó como HEX-7 (identify_account.rs:30, 36). No se registra: rige D10, que lo fija con `identify_with_different_email_casing_returns_404`.
+- **`identify` sin normalizar (P1).** La auditoría de P1 lo reportó como HEX-7 (identify_account.rs:30, 36). No se registró porque D10 lo mantenía. D10 se decidió en R12b: `identify` normaliza, sin un ID propio (lo cubre D10 en R12b).
 - **`HashedPasswordError` como respuesta de cliente (400).** Solo se produce si el hasher devuelve algo raro, así que sería árbol B. Queda dentro de ERR-1.1 y no aparte.
 
 ## 5. Plan de rebanadas
@@ -714,19 +714,20 @@ En todas, el contrato HTTP se mantiene.
   - Commit `8adb31f` (`test`, a pedido del revisor): `fails_with_login_failed_when_an_inactive_account_gets_a_wrong_password`. Fija que la contraseña se verifica antes del estado: con el orden invertido, una cuenta no activa con contraseña incorrecta respondería `CannotAuthenticate` y revelaría que existe (D6). Fija comportamiento existente; rojo por mutación (`authenticate()` antes de `verify`): `Err(Expected(CannotAuthenticate(CannotAuthenticate)))`.
   - **Revisor:** sin bloqueantes. Un hallazgo de la rebanada, el orden (arriba, aplicado). Confirmó que el `if !verify` es orquestación (el puerto responde un veredicto), D6 intacto, un test de falla por cada llamada, el borrado del brazo del mapper y lifecycle solo mecánico. Lo demás ya está inventariado: HEX-7.11 (R12b), el mapper legacy para `identify` (ERR-4.4, ERR-4.5, HEX-1.7; R15, R19) y ERR-4.6 (R30).
 
-**R12b. Búsquedas normalizadas en verify y authenticate (nueva en P1).**
-- **IDs:** HEX-7.10 y HEX-7.11. Son la misma causa que HEX-7.1 (R12), en otros dos handlers. Va aparte porque cambia el contrato, y las rebanadas de la fase 3 no lo cambian.
-- **Precondición:** R12, R13 y R14 hechas (toca los handlers que esas dos migran).
+**R12b. Búsquedas normalizadas en verify, authenticate e identify (nueva en P1; identify desde D10).**
+- **IDs:** HEX-7.10, HEX-7.11 y D10. Son la misma causa que HEX-7.1 (R12), en los otros tres handlers. Va aparte porque cambia el contrato, y las rebanadas de la fase 3 no lo cambian.
+- **Precondición:** R12, R13 y R14 hechas (toca los handlers que esas dos migran). D10 decidida (§5.7).
 - **Cambios:**
-  - `VerifyAccountHandler` construye `Email` antes de `find_by_email`;
-  - `AuthenticateAccountHandler` construye `Username` antes de `find_by_username`. Si no se puede construir, es `LoginFailed` y verifica contra el señuelo, igual que una cuenta inexistente (D6).
+  - `VerifyAccountHandler` construye `Email` antes de `find_by_email`. Si no se puede construir, es `NotFound`, igual que un email desconocido;
+  - `AuthenticateAccountHandler` construye `Username` antes de `find_by_username`. Si no se puede construir, es `LoginFailed` y verifica contra el señuelo, igual que una cuenta inexistente (D6);
+  - `IdentifyAccount` (D10) busca por `Email` si el identificador se puede construir como email, y si no encuentra, por `Username`. Si no se puede construir como ninguno de los dos, es `NotFound`. El nombre del handler y su contrato siguen para R15.
 - **Línea base:** sin cambios.
+- **Caracterización previa (primer commit de código, sin tocar producción):** un test por endpoint que fija que un identificador mal formado responde como hoy, en verde contra `main`: `verify_with_malformed_email_returns_404`, `authenticate_with_malformed_username_returns_401_login_failed` e `identify_with_malformed_identifier_returns_404`.
 - **Rojo:**
-  - handler y HTTP: `verifies_with_an_email_that_differs_only_in_case`;
-  - handler y HTTP: `authenticates_with_surrounding_spaces_in_the_username`;
-  - handler: `invalid_username_fails_with_login_failed_and_verifies_against_the_decoy`.
-- **Contrato HTTP: cambia (sin cobertura previa).** Verificar con el email en otras mayúsculas pasa de 404 a 200; un username con espacios alrededor pasa de 401 `IAM_LOGIN_FAILED` a 200. Ningún test de caracterización fija ninguno de los dos (§5.5).
-- **Fuera de alcance:** `identify` (D10).
+  - handler: `verifies_with_an_email_that_differs_only_in_case_or_surrounding_spaces`, `authenticates_with_surrounding_spaces_in_the_username`, `identifies_with_an_email_that_differs_only_in_case_or_surrounding_spaces` e `identifies_with_surrounding_spaces_in_the_username`;
+  - HTTP (`app/tests/auth_api.rs`): los de §5.5;
+  - handler, ya en verde contra `main` (fijan lo que no cambia; rojo por mutación): `verifies_against_the_decoy_hash_when_identifier_is_malformed`, `fails_with_login_failed_when_identifier_is_malformed`, y los `NotFound` por formato inválido de verify e identify.
+- **Contrato HTTP: cambia (§5.5).** El email en otras mayúsculas o con espacios alrededor encuentra la cuenta en verify e identify, y el username con espacios alrededor la encuentra en authenticate e identify. Autenticar con el email sigue siendo 401 `IAM_LOGIN_FAILED` (`authenticate_by_email_returns_401` no cambia): authenticate busca solo por username.
 - **Tamaño:** S.
 
 **R15. `IdentifyAccount`.**
@@ -735,7 +736,7 @@ En todas, el contrato HTTP se mantiene.
 - **Línea base: −2** *(S3; antes −1)*: `hex_4_handlers` de `identify_account.rs` y `hex_4_use_case_signatures_are_their_own_contract` de `identify_account_use_case.rs` (`SystemError`, ERR-2.1).
 - **Rojo:** `fails_with_not_found_for_unknown_identifier`, sobre la variante. Reemplaza a `fails_when_account_not_found`.
 - **Sin rojo nuevo:** los `fails_with_unexpected_when_find_by_{email,username}_fails` ya existen (R8).
-- **Caracterización:** `identify_with_different_email_casing_returns_404` no cambia (D10). La auditoría de P1 lo volvió a señalar (§4).
+- **Caracterización:** ~~`identify_with_different_email_casing_returns_404` no cambia (D10).~~ Desde R12b (D10 decidida) es `identify_with_different_email_casing_returns_200`, y R15 no lo cambia.
 - **Tamaño:** S.
 
 **R16. Cortar `communities → iam`.**
@@ -999,7 +1000,7 @@ R1 ─┬─ R2 ─────────────────────�
 | R12 (hecho) | Duplicado por mayúsculas o espacios: de 201 a 409 | `register_accepts_same_email_with_different_casing` → `register_rejects_same_email_with_different_casing_with_409`; `register_accepts_same_username_with_surrounding_spaces` → `register_rejects_same_username_with_surrounding_spaces_with_409` |
 | R12 (hecho) | Username inválido + email tomado: de 409 `IAM_ACCOUNT_EMAIL_ALREADY_EXISTS` a 400 `IAM_INVALID_USERNAME`. Es el cambio de orden anotado en P1: primero el formato, después el conflicto | `register_with_invalid_username_and_taken_email_returns_409` (lo agrega R12 en su primer commit, `3146a43`) pasa a `register_rejects_invalid_username_before_checking_taken_email` |
 | R12 (hecho) | Contraseña corta o email inválido + un valor ya tomado: de 409 a 400 (la validación va antes que el conflicto). Sin cobertura previa | ninguno. Lo fijan `fails_with_validation_on_short_password_before_checking_taken_email` y `fails_with_validation_on_invalid_username_before_checking_taken_email` (handler) |
-| R12b | Verificar con el email en otras mayúsculas: de 404 a 200. Autenticar con espacios alrededor del username: de 401 `IAM_LOGIN_FAILED` a 200. Sin cobertura previa | ninguno (se agregan los tests HTTP de R12b) |
+| R12b | D10: los tres endpoints que buscan una cuenta normalizan el identificador como el alta. `POST /auth/verify` con el email en otras mayúsculas o con espacios alrededor encuentra la cuenta (de 404 `IAM_ACCOUNT_NOT_FOUND` a la respuesta de esa cuenta: 200, o 400 si el código no sirve). `POST /auth/authenticate` con espacios alrededor del username, de 401 `IAM_LOGIN_FAILED` a la respuesta de esa cuenta. `POST /auth/identify` con el email en otras mayúsculas o con espacios alrededor, o con el username con espacios alrededor, de 404 a 200. Sin cambio: un identificador mal formado sigue respondiendo como una cuenta inexistente (404 en verify e identify, 401 `IAM_LOGIN_FAILED` con el señuelo en authenticate), y autenticar con el email sigue siendo 401 | **Cambia:** `identify_with_different_email_casing_returns_404` → `identify_with_different_email_casing_returns_200`. **Nuevos, del cambio:** `verify_finds_the_account_with_different_email_casing`, `verify_finds_the_account_with_surrounding_spaces_in_the_email`, `authenticate_finds_the_account_with_surrounding_spaces_in_the_username` e `identify_with_surrounding_spaces_returns_200`. **Nuevos, de lo que no cambia** (verdes contra `main`): `verify_with_malformed_email_returns_404`, `authenticate_with_malformed_username_returns_401_login_failed` e `identify_with_malformed_identifier_returns_404`. Ningún otro test de `app/tests/` cambia |
 | R16 | Ninguno: D2 decidida, opción a) (se conservan `IAM_INVALID_ACCOUNT_ID(_FORMAT)`) | ninguno |
 | R13 (hecho) | Ninguno: D1 decidida (verificar dos veces sigue siendo 400 `IAM_ACCOUNT_INVALID_VERIFICATION`; el 409 se revisa con R30). Los códigos, mensajes y el 200 con cuerpo `null` se conservan byte a byte | ninguno |
 | R13b (hecho) | Ninguno: `VerifyAccountResponse` vacío no se serializa; sigue el 200 con cuerpo `null` (D11 a) | ninguno |
@@ -1066,7 +1067,11 @@ Abiertas:
 
 - **D5. Forma de Problem Details (R30).** Si se conserva `code` con los mismos valores, qué texto va en `detail`, y si los 401 llevan cuerpo.
 - **D9. Mover `app/` a `apps/server`, como en el template.** Fuera del inventario; opcional después de R29.
-- **D10. `identify` no normaliza el email.** Lo fija `identify_with_different_email_casing_returns_404`. No es un hallazgo; se mantiene salvo que se decida lo contrario.
+- ~~**D10. `identify` no normaliza el email.**~~ Decidida en R12b (abajo).
+
+Decididas en R12b (2026-11-25):
+
+- **D10. Normalización de los identificadores (R12b): decidido, `identify` también normaliza.** La API trata igual las mayúsculas y los espacios en todos los endpoints: verify, authenticate e identify buscan la cuenta con el valor normalizado, construyendo `Email` o `Username` como el alta (R12). El email, sin espacios alrededor y en minúsculas; el username, sin espacios alrededor (`Username` no cambia las mayúsculas, así que el username sigue distinguiéndolas, como en el alta). Un identificador que no se puede construir (formato inválido) responde igual que una cuenta inexistente: `NotFound` en verify e identify, y `LoginFailed` en authenticate, que también verifica contra el señuelo (D6). No hay 400 nuevos. `identify_with_different_email_casing_returns_404` pasa a 200 (§5.5). *Antes:* D10 dejaba `identify` sin normalizar, fijado por ese test.
 
 Decididas en S3 (2026-11-25):
 
