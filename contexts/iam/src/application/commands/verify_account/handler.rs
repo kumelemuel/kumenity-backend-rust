@@ -10,7 +10,7 @@ use crate::{
         },
     },
     domain::{
-        errors::{AccountError, CodeValidationError},
+        errors::{AccountError, CodeValidationError, EmailError},
         model::account::{code_validation::CodeValidation, email::Email},
     },
 };
@@ -40,10 +40,13 @@ impl VerifyAccountUseCase for VerifyAccountHandler {
         // Looked up normalized, as the registration stores it (D10). A
         // malformed email cannot belong to any account: `NotFound`, like an
         // unknown one, never a new 400.
-        let Ok(email) = Email::new(cmd.email) else {
-            return Err(Failure::expected(NotFound {
-                resource: "account",
-            }));
+        let email = match Email::new(cmd.email) {
+            Ok(email) => email,
+            Err(EmailError::Invalid) => {
+                return Err(Failure::expected(NotFound {
+                    resource: "account",
+                }));
+            }
         };
 
         // `find_*` answers an Option; this use case requires the account

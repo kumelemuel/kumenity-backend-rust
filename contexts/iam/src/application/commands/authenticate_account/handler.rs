@@ -11,7 +11,8 @@ use crate::{
         },
     },
     domain::{
-        errors::CannotAuthenticate as AccountCannotAuthenticate, model::account::username::Username,
+        errors::{CannotAuthenticate as AccountCannotAuthenticate, UsernameError},
+        model::account::username::Username,
     },
 };
 use shared::{Failure, domain::value_object::ValueObject};
@@ -55,7 +56,7 @@ impl AuthenticateAccountUseCase for AuthenticateAccountHandler {
         // path as an unknown one. `?` propagates every `Fault` as tree B.
         let found = match Username::new(cmd.username) {
             Ok(username) => self.account_repository.find_by_username(username.value())?,
-            Err(_) => None,
+            Err(UsernameError::Invalid) => None,
         };
         let Some(account) = found else {
             // Pay the same hashing cost as a wrong password, so the response

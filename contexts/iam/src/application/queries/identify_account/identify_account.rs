@@ -9,7 +9,7 @@ use crate::{
         },
     },
     domain::{
-        errors::AccountError,
+        errors::{AccountError, EmailError, UsernameError},
         model::account::{email::Email, username::Username},
     },
 };
@@ -36,7 +36,7 @@ impl IdentifyAccountUseCase for IdentifyAccount {
                 .account_repository
                 .find_by_email(email.value())
                 .map_err(SystemError::Unexpected)?,
-            Err(_) => None,
+            Err(EmailError::Invalid) => None,
         };
         let found = match by_email {
             Some(account) => Some(account),
@@ -45,7 +45,7 @@ impl IdentifyAccountUseCase for IdentifyAccount {
                     .account_repository
                     .find_by_username(username.value())
                     .map_err(SystemError::Unexpected)?,
-                Err(_) => None,
+                Err(UsernameError::Invalid) => None,
             },
         };
         let Some(account) = found else {
