@@ -7,3 +7,7 @@ pub const COMMUNITIES_ALREADY_MEMBER: &str = "COMMUNITIES_ALREADY_MEMBER";
 pub const COMMUNITIES_CANNOT_REMOVE_OWNER: &str = "COMMUNITIES_CANNOT_REMOVE_OWNER";
 pub const COMMUNITIES_INSUFFICIENT_PERMISSIONS: &str = "COMMUNITIES_INSUFFICIENT_PERMISSIONS";
 pub const COMMUNITIES_INVALID_STATE: &str = "COMMUNITIES_INVALID_STATE";
+// D2 a): `OwnerId` keeps the codes the characterization tests fix for
+// `/communities/create`, even though they carry the `IAM_` prefix.
+pub const IAM_INVALID_ACCOUNT_ID: &str = "IAM_INVALID_ACCOUNT_ID";
+pub const IAM_INVALID_ACCOUNT_ID_FORMAT: &str = "IAM_INVALID_ACCOUNT_ID_FORMAT";
