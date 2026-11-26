@@ -335,6 +335,39 @@ async fn authenticate_unverified_account_returns_401_cannot_authenticate() {
     );
 }
 
+/// D10: the username is looked up trimmed, as the registration stores it.
+/// The account is unverified, so finding it with the right password answers
+/// CANNOT_AUTHENTICATE instead of LOGIN_FAILED.
+#[tokio::test]
+async fn authenticate_finds_the_account_with_surrounding_spaces_in_the_username() {
+    let app = app().await;
+    register(&app, "ana", "ana@example.com", PASSWORD).await;
+
+    let response = authenticate(&app, "  ana  ", PASSWORD).await;
+
+    assert_error(
+        &response,
+        StatusCode::UNAUTHORIZED,
+        "IAM_CANNOT_AUTHENTICATE",
+        "This account is not allowed to sign in at the moment.",
+    );
+}
+
+/// Not a valid username (inner space): answered like an unknown username.
+#[tokio::test]
+async fn authenticate_with_malformed_username_returns_401_login_failed() {
+    let app = app().await;
+
+    let response = authenticate(&app, "a b", PASSWORD).await;
+
+    assert_error(
+        &response,
+        StatusCode::UNAUTHORIZED,
+        "IAM_LOGIN_FAILED",
+        "The username or password is incorrect.",
+    );
+}
+
 /// Authentication looks the account up by username only.
 #[tokio::test]
 async fn authenticate_by_email_returns_401() {
@@ -374,6 +407,21 @@ async fn verify_unknown_email_returns_404() {
     );
 }
 
+/// Not a valid email: answered like an unknown email, never as a 400.
+#[tokio::test]
+async fn verify_with_malformed_email_returns_404() {
+    let app = app().await;
+
+    let response = verify(&app, "not an email", 123_456).await;
+
+    assert_error(
+        &response,
+        StatusCode::NOT_FOUND,
+        "IAM_ACCOUNT_NOT_FOUND",
+        "No account was found with the provided information.",
+    );
+}
+
 #[tokio::test]
 async fn verify_with_code_out_of_6_digit_range_returns_400() {
     let app = app().await;
@@ -389,6 +437,40 @@ async fn verify_with_code_out_of_6_digit_range_returns_400() {
             "The verification code is invalid.",
         );
     }
+}
+
+/// D10: the email is looked up normalized. The real code is not exposed, so
+/// an out-of-range code proves the account was found: the account is checked
+/// before the code, and an unknown email would be a 404.
+#[tokio::test]
+async fn verify_finds_the_account_with_different_email_casing() {
+    let app = app().await;
+    register(&app, "ana", "ana@example.com", PASSWORD).await;
+
+    let response = verify(&app, "ANA@Example.com", 0).await;
+
+    assert_error(
+        &response,
+        StatusCode::BAD_REQUEST,
+        "IAM_INVALID_CODE_VALIDATION",
+        "The verification code is invalid.",
+    );
+}
+
+/// D10, as above, with surrounding spaces.
+#[tokio::test]
+async fn verify_finds_the_account_with_surrounding_spaces_in_the_email() {
+    let app = app().await;
+    register(&app, "ana", "ana@example.com", PASSWORD).await;
+
+    let response = verify(&app, "  ana@example.com  ", 0).await;
+
+    assert_error(
+        &response,
+        StatusCode::BAD_REQUEST,
+        "IAM_INVALID_CODE_VALIDATION",
+        "The verification code is invalid.",
+    );
 }
 
 /// The real code is random and not exposed by the API. Two different codes
@@ -485,15 +567,57 @@ async fn identify_unknown_returns_404() {
     );
 }
 
-/// CURRENT BEHAVIOR: lookup is exact; the input is not normalized.
+/// Neither an email nor a username: answered like an unknown account.
 #[tokio::test]
-async fn identify_with_different_email_casing_returns_404() {
+async fn identify_with_malformed_identifier_returns_404() {
+    let app = app().await;
+
+    let response = identify(&app, "a b").await;
+
+    assert_error(
+        &response,
+        StatusCode::NOT_FOUND,
+        "IAM_ACCOUNT_NOT_FOUND",
+        "No account was found with the provided information.",
+    );
+}
+
+/// D10 (R12b): the identifier is looked up normalized, as the registration
+/// stores it. Before R12b this was a 404.
+#[tokio::test]
+async fn identify_with_different_email_casing_returns_200() {
     let app = app().await;
     register(&app, "ana", "ana@example.com", PASSWORD).await;
 
     let response = identify(&app, "ANA@example.com").await;
 
-    assert_eq!(response.status, StatusCode::NOT_FOUND);
+    assert_eq!(response.status, StatusCode::OK, "{}", response.raw_body);
+    assert_eq!(
+        response.body,
+        json!({ "username": "ana", "status": "registered" })
+    );
+}
+
+/// D10, with surrounding spaces in the email and in the username.
+#[tokio::test]
+async fn identify_with_surrounding_spaces_returns_200() {
+    let app = app().await;
+    register(&app, "ana", "ana@example.com", PASSWORD).await;
+
+    for identifier in ["  ana@example.com  ", "  ana  "] {
+        let response = identify(&app, identifier).await;
+
+        assert_eq!(
+            response.status,
+            StatusCode::OK,
+            "{identifier:?}: {}",
+            response.raw_body
+        );
+        assert_eq!(
+            response.body,
+            json!({ "username": "ana", "status": "registered" })
+        );
+    }
 }
 
 #[tokio::test]

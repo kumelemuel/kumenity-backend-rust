@@ -10,8 +10,8 @@ use crate::{
         },
     },
     domain::{
-        errors::{AccountError, CodeValidationError},
-        model::account::code_validation::CodeValidation,
+        errors::{AccountError, CodeValidationError, EmailError},
+        model::account::{code_validation::CodeValidation, email::Email},
     },
 };
 use shared::{Failure, Fault, domain::value_object::ValueObject};
@@ -20,8 +20,8 @@ use std::sync::Arc;
 /// Orchestrates (HEX-7): loads the account, builds the code, asks the
 /// aggregate to confirm the registration and saves it.
 ///
-/// The order is today's: the account first, then the code. An unknown email
-/// is `NotFound` even with a code out of range.
+/// The order is today's: the account first, then the code. An unknown or
+/// malformed email is `NotFound` even with a code out of range.
 pub struct VerifyAccountHandler {
     account_repository: Arc<dyn AccountRepository>,
 }
@@ -37,9 +37,21 @@ impl VerifyAccountUseCase for VerifyAccountHandler {
         &self,
         cmd: VerifyAccountCommand,
     ) -> Result<VerifyAccountResponse, Failure<VerifyAccountError>> {
+        // Looked up normalized, as the registration stores it (D10). A
+        // malformed email cannot belong to any account: `NotFound`, like an
+        // unknown one, never a new 400.
+        let email = match Email::new(cmd.email) {
+            Ok(email) => email,
+            Err(EmailError::Invalid) => {
+                return Err(Failure::expected(NotFound {
+                    resource: "account",
+                }));
+            }
+        };
+
         // `find_*` answers an Option; this use case requires the account
         // (ERR-1). `?` propagates the `Fault` as tree B.
-        let Some(mut account) = self.account_repository.find_by_email(cmd.email.as_str())? else {
+        let Some(mut account) = self.account_repository.find_by_email(email.value())? else {
             return Err(Failure::expected(NotFound {
                 resource: "account",
             }));
@@ -120,6 +132,32 @@ mod tests {
             Arc::new(FakeAccountAdapter::empty()),
             with("not-exists@example.com", 123123),
         );
+
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(VerifyAccountError::NotFound(NotFound {
+                    resource: "account"
+                })))
+            ),
+            "{result:?}"
+        );
+    }
+
+    /// The email is looked up normalized, as the registration stores it.
+    #[test]
+    fn verifies_with_an_email_that_differs_only_in_case_or_surrounding_spaces() {
+        for email in ["John@Example.COM", "  john@example.com  "] {
+            let result = verify_with(pending(), with(email, 123123));
+
+            assert!(result.is_ok(), "{email:?}: {result:?}");
+        }
+    }
+
+    /// A malformed email is answered like an unknown one: no new 400.
+    #[test]
+    fn fails_with_not_found_when_email_is_malformed() {
+        let result = verify_with(pending(), with("not an email", 123123));
 
         assert!(
             matches!(
