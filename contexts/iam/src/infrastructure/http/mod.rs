@@ -1,3 +1,4 @@
+pub mod authenticate_account;
 pub mod codes;
 pub mod errors;
 pub mod handlers;

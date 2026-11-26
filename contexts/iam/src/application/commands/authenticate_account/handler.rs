@@ -1,7 +1,7 @@
-use super::{AuthenticateAccountCommand, AuthenticateAccountResponse};
+use super::{AuthenticateAccountCommand, AuthenticateAccountError, AuthenticateAccountResponse};
 use crate::{
     application::{
-        errors::authenticate_account::AuthenticateAccountError,
+        errors::{cannot_authenticate::CannotAuthenticate, login_failed::LoginFailed},
         ports::{
             inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
             outbound::{
@@ -10,11 +10,16 @@ use crate::{
             },
         },
     },
-    domain::errors::CannotAuthenticate,
+    domain::errors::CannotAuthenticate as AccountCannotAuthenticate,
 };
-use shared::{domain::value_object::ValueObject, error::SystemError};
+use shared::{Failure, domain::value_object::ValueObject};
 use std::sync::Arc;
 
+/// Orchestrates (HEX-7): loads the account, checks the password, asks the
+/// aggregate whether it can sign in and issues the token.
+///
+/// An unknown username and a wrong password are the same answer,
+/// `LoginFailed`, and cost the same (D6).
 pub struct AuthenticateAccountHandler {
     account_repository: Arc<dyn AccountRepository>,
     password_hasher: Arc<dyn PasswordHashingService>,
@@ -42,11 +47,11 @@ impl AuthenticateAccountUseCase for AuthenticateAccountHandler {
     fn execute(
         &self,
         cmd: AuthenticateAccountCommand,
-    ) -> Result<AuthenticateAccountResponse, SystemError> {
+    ) -> Result<AuthenticateAccountResponse, Failure<AuthenticateAccountError>> {
+        // `?` propagates every `Fault` as tree B.
         let Some(account) = self
             .account_repository
-            .find_by_username(cmd.username.as_str())
-            .map_err(SystemError::Unexpected)?
+            .find_by_username(cmd.username.as_str())?
         else {
             // Pay the same hashing cost as a wrong password, so the response
             // time does not reveal whether the username exists. Only the
@@ -54,28 +59,26 @@ impl AuthenticateAccountUseCase for AuthenticateAccountHandler {
             // dropping the call); a `Fault` propagates like the real one.
             std::hint::black_box(
                 self.password_hasher
-                    .verify(cmd.password.as_str(), &self.decoy_hash)
-                    .map_err(SystemError::Unexpected)?,
+                    .verify(cmd.password.as_str(), &self.decoy_hash)?,
             );
-            return Err(AuthenticateAccountError::LoginFailed.into());
+            return Err(Failure::expected(LoginFailed));
         };
 
         if !self
             .password_hasher
-            .verify(cmd.password.as_str(), account.password().value())
-            .map_err(SystemError::Unexpected)?
+            .verify(cmd.password.as_str(), account.password().value())?
         {
-            return Err(AuthenticateAccountError::LoginFailed.into());
+            return Err(Failure::expected(LoginFailed));
         }
 
+        // Domain error → flat leaf of the contract (ERR-2).
         account
             .authenticate()
-            .map_err(|_: CannotAuthenticate| AuthenticateAccountError::CannotAuthenticate)?;
+            .map_err(|AccountCannotAuthenticate| Failure::expected(CannotAuthenticate))?;
 
         let token = self
             .access_tokens
-            .issue(&account.id().as_uuid().to_string())
-            .map_err(SystemError::Unexpected)?;
+            .issue(&account.id().as_uuid().to_string())?;
 
         Ok(AuthenticateAccountResponse { token })
     }
@@ -83,19 +86,13 @@ impl AuthenticateAccountUseCase for AuthenticateAccountHandler {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::{
         application::{
-            commands::authenticate_account::{
-                AuthenticateAccountCommand, AuthenticateAccountHandler,
-            },
-            errors::error_codes::{IAM_CANNOT_AUTHENTICATE, IAM_LOGIN_FAILED},
-            ports::{
-                inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
-                outbound::{
-                    access_token_service::AccessTokenService,
-                    dtos::access_token_payloads::AccessTokenVerdict,
-                    password_hashing_service::PasswordHashingService,
-                },
+            ports::outbound::{
+                access_token_service::AccessTokenService,
+                dtos::access_token_payloads::AccessTokenVerdict,
+                password_hashing_service::PasswordHashingService,
             },
             testing::{
                 AccessTokenOperation, FakeAccessTokenAdapter, FakeAccountAdapter,
@@ -106,9 +103,6 @@ mod tests {
             account::Account, account_factory::AccountFactory, account_id::AccountId,
         },
     };
-    use shared::error::SystemError;
-    use std::sync::Arc;
-
     const PASSWORD: &str = "dummy-password";
 
     fn hash_of(password: &str) -> String {
@@ -168,9 +162,15 @@ mod tests {
 
         let result = use_case.execute(command("ghost", "any_password"));
 
-        let err = result.expect_err("Expected error");
-
-        assert_eq!(err.code(), IAM_LOGIN_FAILED);
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(AuthenticateAccountError::LoginFailed(
+                    LoginFailed
+                )))
+            ),
+            "{result:?}"
+        );
     }
 
     #[test]
@@ -184,10 +184,7 @@ mod tests {
 
         let result = use_case.execute(command("dummy", PASSWORD));
 
-        assert!(
-            matches!(result, Err(SystemError::Unexpected(_))),
-            "{result:?}"
-        );
+        assert!(matches!(result, Err(Failure::Unexpected(_))), "{result:?}");
     }
 
     #[test]
@@ -203,10 +200,7 @@ mod tests {
 
         let result = use_case.execute(command("dummy", PASSWORD));
 
-        assert!(
-            matches!(result, Err(SystemError::Unexpected(_))),
-            "{result:?}"
-        );
+        assert!(matches!(result, Err(Failure::Unexpected(_))), "{result:?}");
     }
 
     #[test]
@@ -222,10 +216,7 @@ mod tests {
 
         let result = use_case.execute(command("ghost", PASSWORD));
 
-        assert!(
-            matches!(result, Err(SystemError::Unexpected(_))),
-            "{result:?}"
-        );
+        assert!(matches!(result, Err(Failure::Unexpected(_))), "{result:?}");
     }
 
     #[test]
@@ -239,10 +230,7 @@ mod tests {
 
         let result = use_case.execute(command("dummy", PASSWORD));
 
-        assert!(
-            matches!(result, Err(SystemError::Unexpected(_))),
-            "{result:?}"
-        );
+        assert!(matches!(result, Err(Failure::Unexpected(_))), "{result:?}");
     }
 
     #[test]
@@ -256,9 +244,15 @@ mod tests {
 
         let result = use_case.execute(command("dummy", "wrong_password"));
 
-        let err = result.expect_err("Expected error");
-
-        assert_eq!(err.code(), IAM_LOGIN_FAILED);
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(AuthenticateAccountError::LoginFailed(
+                    LoginFailed
+                )))
+            ),
+            "{result:?}"
+        );
     }
 
     #[test]
@@ -274,9 +268,15 @@ mod tests {
 
         let result = use_case.execute(command("dummy", PASSWORD));
 
-        let err = result.expect_err("Expected error");
-
-        assert_eq!(err.code(), IAM_CANNOT_AUTHENTICATE);
+        assert!(
+            matches!(
+                result,
+                Err(Failure::Expected(
+                    AuthenticateAccountError::CannotAuthenticate(CannotAuthenticate)
+                ))
+            ),
+            "{result:?}"
+        );
     }
 
     #[test]

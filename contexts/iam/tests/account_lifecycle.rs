@@ -9,7 +9,9 @@
 use iam::{
     application::{
         commands::{
-            authenticate_account::{AuthenticateAccountCommand, AuthenticateAccountHandler},
+            authenticate_account::{
+                AuthenticateAccountCommand, AuthenticateAccountError, AuthenticateAccountHandler,
+            },
             register_account::{RegisterAccountCommand, RegisterAccountHandler},
             verify_account::{
                 VerifyAccountCommand, VerifyAccountError, VerifyAccountHandler,
@@ -107,7 +109,7 @@ impl Iam {
         })
     }
 
-    fn sign_in(&self, password: &str) -> Result<String, shared::error::SystemError> {
+    fn sign_in(&self, password: &str) -> Result<String, Failure<AuthenticateAccountError>> {
         self.authenticate
             .execute(AuthenticateAccountCommand {
                 username: "ana".into(),
@@ -188,9 +190,13 @@ fn wrong_code_keeps_account_registered_and_unable_to_sign_in() {
         "{error:?}"
     );
     assert_eq!(iam.status_of("ana"), "registered");
-    assert_eq!(
-        iam.sign_in(PASSWORD).unwrap_err().code(),
-        "IAM_CANNOT_AUTHENTICATE"
+    let sign_in = iam.sign_in(PASSWORD).unwrap_err();
+    assert!(
+        matches!(
+            sign_in,
+            Failure::Expected(AuthenticateAccountError::CannotAuthenticate(_))
+        ),
+        "{sign_in:?}"
     );
     // The original code still works after a failed attempt.
     iam.verify_with(code).expect("verify with the right code");
@@ -205,7 +211,13 @@ fn verified_account_with_wrong_password_fails_with_login_failed() {
 
     let error = iam.sign_in("wrong-password").unwrap_err();
 
-    assert_eq!(error.code(), "IAM_LOGIN_FAILED");
+    assert!(
+        matches!(
+            error,
+            Failure::Expected(AuthenticateAccountError::LoginFailed(_))
+        ),
+        "{error:?}"
+    );
 }
 
 #[test]
