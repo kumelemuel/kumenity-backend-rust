@@ -1,9 +1,8 @@
 use crate::{
     domain::errors::error_codes::{
-        IAM_ACCOUNT_INVALID_VERIFICATION, IAM_ACCOUNT_NOT_FOUND, IAM_INVALID_ACCOUNT_ID,
-        IAM_INVALID_ACCOUNT_ID_FORMAT, IAM_INVALID_ACCOUNT_STATUS_TRANSITION,
-        IAM_INVALID_CODE_VALIDATION, IAM_INVALID_EMAIL, IAM_INVALID_HASHED_PASSWORD,
-        IAM_INVALID_USERNAME, IAM_PASSWORD_TOO_SHORT,
+        IAM_ACCOUNT_INVALID_VERIFICATION, IAM_INVALID_ACCOUNT_ID, IAM_INVALID_ACCOUNT_ID_FORMAT,
+        IAM_INVALID_ACCOUNT_STATUS_TRANSITION, IAM_INVALID_CODE_VALIDATION, IAM_INVALID_EMAIL,
+        IAM_INVALID_HASHED_PASSWORD, IAM_INVALID_USERNAME, IAM_PASSWORD_TOO_SHORT,
     },
     infrastructure::http::unexpected::unexpected,
 };
@@ -37,7 +36,6 @@ pub fn map_application_error(error: SystemError) -> Response {
 
 fn status_from_error_code(code: &str) -> StatusCode {
     match code {
-        IAM_ACCOUNT_NOT_FOUND => StatusCode::NOT_FOUND,
         IAM_INVALID_ACCOUNT_ID
         | IAM_INVALID_ACCOUNT_ID_FORMAT
         | IAM_INVALID_ACCOUNT_STATUS_TRANSITION
@@ -86,11 +84,6 @@ mod tests {
 
     fn status_for(code: &'static str) -> StatusCode {
         map_application_error(SystemError::from(ErrorWithCode(code))).status()
-    }
-
-    #[test]
-    fn account_not_found_maps_to_not_found() {
-        assert_eq!(status_for(IAM_ACCOUNT_NOT_FOUND), StatusCode::NOT_FOUND);
     }
 
     #[test]

@@ -31,9 +31,7 @@ use iam::{
                 password_hashing_service::PasswordHashingService,
             },
         },
-        queries::identify_account::{
-            identify_account::IdentifyAccount, query::IdentifyAccountQuery,
-        },
+        queries::identify_account::{IdentifyAccountHandler, IdentifyAccountQuery},
     },
     domain::model::account::account_status::AccountStatus,
     infrastructure::{
@@ -53,7 +51,7 @@ struct Iam {
     register: RegisterAccountHandler,
     verify: VerifyAccountHandler,
     authenticate: AuthenticateAccountHandler,
-    identify: IdentifyAccount,
+    identify: IdentifyAccountHandler,
 }
 
 fn iam() -> Iam {
@@ -70,7 +68,7 @@ fn iam() -> Iam {
             jwt.clone(),
             decoy_hash,
         ),
-        identify: IdentifyAccount::new(repository.clone()),
+        identify: IdentifyAccountHandler::new(repository.clone()),
         repository,
         jwt,
     }
