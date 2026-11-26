@@ -13,7 +13,6 @@ http.workspace = true
 serde.workspace = true
 uuid.workspace = true
 
-iam.workspace = true
 shared.workspace = true
 
 [lints]

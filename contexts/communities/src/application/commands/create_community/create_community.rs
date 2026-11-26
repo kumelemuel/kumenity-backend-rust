@@ -11,10 +11,9 @@ use crate::{
     },
     domain::model::community::{
         community::Community, community_id::CommunityId, community_name::CommunityName,
-        community_slug::CommunitySlug,
+        community_slug::CommunitySlug, owner_id::OwnerId,
     },
 };
-use iam::domain::model::account::account_id::AccountId;
 use shared::{domain::model::verified_identity::VerifiedIdentity, error::SystemError};
 use std::sync::Arc;
 
@@ -44,11 +43,11 @@ impl CreateCommunityUseCase for CreateCommunity {
         if existing_slug.is_some() {
             return Err(CommunityCreationError::SlugAlreadyExists.into());
         }
-        let account_id = AccountId::from_str(auth.account_id.as_str())?;
+        let owner_id = OwnerId::from_str(auth.account_id.as_str())?;
         let id = CommunityId::generate();
         let name = CommunityName::new(data.name.clone())?;
 
-        let community = Community::create(id, account_id, slug, name, data.is_public);
+        let community = Community::create(id, owner_id, slug, name, data.is_public);
 
         self.community_repository
             .save(&community)
@@ -83,13 +82,12 @@ mod tests {
             model::community::community::Community,
         },
     };
-    use iam::domain::model::account::account_id::AccountId;
     use shared::{Fault, domain::model::verified_identity::VerifiedIdentity, error::SystemError};
     use std::sync::Arc;
 
     fn valid_auth_context() -> VerifiedIdentity {
         VerifiedIdentity {
-            account_id: AccountId::generate().as_uuid().to_string(),
+            account_id: "6f1c2a4e-8b3d-4c5e-9f7a-1b2c3d4e5f60".to_string(),
         }
     }
 
