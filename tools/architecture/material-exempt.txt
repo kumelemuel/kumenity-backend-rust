@@ -1,0 +1,19 @@
+# Exenciones de material de tools/architecture (VER-1).
+#
+# Formato: `<test> | <conjunto> | <motivo>`. `<test>` es el nombre de la
+# función del test; `<conjunto>` es el texto exacto que el test informa
+# (`revisó 0 <conjunto>`, visible con `--nocapture`). El motivo es
+# obligatorio: por qué ese conjunto queda vacío para siempre en este proyecto.
+#
+# Con `ARCH_REQUIRE_MATERIAL=1`, un conjunto vacío falla, salvo que esté aquí.
+# Una exención no apaga la regla: si el conjunto deja de estar vacío, la regla
+# actúa y el test pide borrar la exención. También falla una exención de un
+# conjunto que el test no recorre, sin motivo, repetida, o de un test que no
+# existe o que no revisa material.
+#
+# Solo la agrega el usuario, a mano (el hook `pre-edit` bloquea al agente).
+# En un proyecto nuevo y en la plantilla queda vacía.
+
+err_1_application_errors_do_not_implement_std_error | errores declarados de puertos | los 4 puertos salientes devuelven Fault (R7 a R10) y ninguno declara un error; se borra si un puerto declara uno (ERR-3.4)
+hex_4_event_subscribers_are_named_and_placed | implementaciones de un EventSubscriber en application (fuera de tests) | no hay eventos que consumir; D4 retira el andamiaje
+hex_8_capability_adapters_are_shared_infrastructure | implementaciones de producción de capacidades del kernel | nada implementa IdGenerator, Clock ni FaultReporter en producción; se borra en R20, con UuidIdGeneratorAdapter
