@@ -421,6 +421,40 @@ async fn verify_with_code_out_of_6_digit_range_returns_400() {
     }
 }
 
+/// D10: the email is looked up normalized. The real code is not exposed, so
+/// an out-of-range code proves the account was found: the account is checked
+/// before the code, and an unknown email would be a 404.
+#[tokio::test]
+async fn verify_finds_the_account_with_different_email_casing() {
+    let app = app().await;
+    register(&app, "ana", "ana@example.com", PASSWORD).await;
+
+    let response = verify(&app, "ANA@Example.com", 0).await;
+
+    assert_error(
+        &response,
+        StatusCode::BAD_REQUEST,
+        "IAM_INVALID_CODE_VALIDATION",
+        "The verification code is invalid.",
+    );
+}
+
+/// D10, as above, with surrounding spaces.
+#[tokio::test]
+async fn verify_finds_the_account_with_surrounding_spaces_in_the_email() {
+    let app = app().await;
+    register(&app, "ana", "ana@example.com", PASSWORD).await;
+
+    let response = verify(&app, "  ana@example.com  ", 0).await;
+
+    assert_error(
+        &response,
+        StatusCode::BAD_REQUEST,
+        "IAM_INVALID_CODE_VALIDATION",
+        "The verification code is invalid.",
+    );
+}
+
 /// The real code is random and not exposed by the API. Two different codes
 /// cannot both be the right one, so at least one must be rejected; the
 /// account stays unverified unless one of them happened to match.
