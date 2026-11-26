@@ -18,7 +18,6 @@
 #
 # Los IDs de hallazgo (HEX-1.1…) están en docs/harness-adoption.md.
 
-hex_1_driving_adapters_see_only_use_cases contexts/iam/src/infrastructure/http/errors/error_mapper.rs 9
 hex_2_core_depends_only_on_std_and_the_kernel contexts/communities/Cargo.toml#dependencies.axum 2
 hex_2_core_depends_only_on_std_and_the_kernel contexts/communities/Cargo.toml#dependencies.http 2
 hex_2_core_depends_only_on_std_and_the_kernel contexts/communities/Cargo.toml#dependencies.serde 2
@@ -45,7 +44,6 @@ hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/h
 hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/http/responses/signed_up.rs
 hex_8_kernel_depends_only_on_std shared/Cargo.toml#dependencies.chrono
 hex_8_kernel_depends_only_on_std shared/Cargo.toml#dependencies.serde
-hex_8_kernel_traits_are_model_markers_or_listed_capabilities shared/src/error.rs
 hex_8_model_markers_have_no_items shared/src/domain/aggregate_root.rs
 hex_8_model_markers_have_no_items shared/src/domain/domain_event.rs
 hex_8_model_markers_have_no_items shared/src/domain/entity.rs

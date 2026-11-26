@@ -5,7 +5,6 @@ pub mod account_status;
 pub mod cannot_authenticate;
 pub mod code_validation;
 pub mod email;
-pub mod error_codes;
 pub mod hashed_password;
 pub mod password_policy;
 pub mod username;
