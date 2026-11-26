@@ -6,8 +6,9 @@
 //! respuesta (`Ok(false)`); un hash ilegible es una falla técnica (`Fault`).
 //!
 //! Forma async de la receta "Puerto todavía síncrono" (D12, R16b): los casos y
-//! los helpers son `async fn` y la macro recibe `run`. Los helpers llaman al
-//! puerto sin `.await` hasta R23, que lo pasa a `BoxFuture`.
+//! los helpers son `async fn` y la macro recibe `run`. Los helpers, y los casos
+//! que llaman al puerto directamente, lo hacen sin `.await` hasta R23, que lo
+//! pasa a `BoxFuture`.
 #![expect(
     clippy::unused_async,
     reason = "puerto todavía síncrono: se quita en su rebanada de asincronía"

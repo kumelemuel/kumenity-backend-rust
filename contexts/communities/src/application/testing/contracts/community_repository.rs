@@ -5,8 +5,9 @@
 //! hay casos por variante ni escenarios de la fábrica para provocarlas.
 //!
 //! Forma async de la receta "Puerto todavía síncrono" (D12, R16b): los casos y
-//! los helpers son `async fn` y la macro recibe `run`. Los helpers llaman al
-//! puerto sin `.await` hasta R24, que lo pasa a `BoxFuture`.
+//! los helpers son `async fn` y la macro recibe `run`. Los helpers, y los casos
+//! que llaman al puerto directamente, lo hacen sin `.await` hasta R24, que lo
+//! pasa a `BoxFuture`.
 #![expect(
     clippy::unused_async,
     reason = "puerto todavía síncrono: se quita en su rebanada de asincronía"
@@ -133,7 +134,7 @@ pub async fn save_replaces_the_community_with_the_same_id<R: CommunityRepository
 /// `run`: ejecuta el future de cada caso (`block_on` para el doble y el
 /// adaptador en memoria).
 ///
-/// Un caso nuevo se agrega aquí y como función arriba.
+/// Un caso nuevo se agrega aquí y como `async fn` arriba.
 #[macro_export]
 macro_rules! community_repository_contract {
     (new_adapter: $new_adapter:expr, run: $run:expr $(,)?) => {
