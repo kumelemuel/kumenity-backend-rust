@@ -71,8 +71,10 @@ fn fault(context: &str, error: password_hash::Error) -> Fault {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::application::testing::block_on;
 
     crate::password_hashing_service_contract! {
         new_service: Argon2PasswordHashingAdapter::new(),
+        run: block_on,
     }
 }

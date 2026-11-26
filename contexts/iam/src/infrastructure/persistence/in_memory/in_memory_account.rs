@@ -56,8 +56,10 @@ impl AccountRepository for InMemoryAccountAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::application::testing::block_on;
 
     crate::account_repository_contract! {
         new_adapter: InMemoryAccountAdapter::new(),
+        run: block_on,
     }
 }
