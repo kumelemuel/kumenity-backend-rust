@@ -14,7 +14,7 @@ use crate::{
         model::account::{code_validation::CodeValidation, email::Email},
     },
 };
-use shared::{Failure, Fault, domain::value_object::ValueObject};
+use shared::{Failure, domain::value_object::ValueObject};
 use std::sync::Arc;
 
 /// Orchestrates (HEX-7): loads the account, builds the code, asks the
@@ -68,10 +68,6 @@ impl VerifyAccountUseCase for VerifyAccountHandler {
                 // A wrong code and an account already verified are the same
                 // answer (D1).
                 AccountError::InvalidVerification => Failure::expected(InvalidVerification),
-                // `confirm_registration` never answers it: a bug, tree B.
-                AccountError::AccountNotFound => {
-                    Failure::Unexpected(Fault::new("confirm_registration answered AccountNotFound"))
-                }
             })?;
 
         self.account_repository.save(&account)?;
