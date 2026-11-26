@@ -1,15 +1,15 @@
 use crate::domain::{
     model::community::{
         community_id::CommunityId, community_name::CommunityName, community_slug::CommunitySlug,
+        owner_id::OwnerId,
     },
     services::membership_policy::MembershipPolicy,
 };
-use iam::domain::model::account::account_id::AccountId;
 
 #[derive(Debug, Clone)]
 pub struct Community {
     id: CommunityId,
-    _owner_id: AccountId,
+    _owner_id: OwnerId,
     slug: CommunitySlug,
     name: CommunityName,
     public: bool,
@@ -19,7 +19,7 @@ pub struct Community {
 impl Community {
     pub fn create(
         id: CommunityId,
-        _owner_id: AccountId,
+        _owner_id: OwnerId,
         slug: CommunitySlug,
         name: CommunityName,
         public: bool,

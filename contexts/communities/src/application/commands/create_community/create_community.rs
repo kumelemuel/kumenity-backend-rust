@@ -11,10 +11,9 @@ use crate::{
     },
     domain::model::community::{
         community::Community, community_id::CommunityId, community_name::CommunityName,
-        community_slug::CommunitySlug,
+        community_slug::CommunitySlug, owner_id::OwnerId,
     },
 };
-use iam::domain::model::account::account_id::AccountId;
 use shared::{domain::model::verified_identity::VerifiedIdentity, error::SystemError};
 use std::sync::Arc;
 
@@ -44,11 +43,11 @@ impl CreateCommunityUseCase for CreateCommunity {
         if existing_slug.is_some() {
             return Err(CommunityCreationError::SlugAlreadyExists.into());
         }
-        let account_id = AccountId::from_str(auth.account_id.as_str())?;
+        let owner_id = OwnerId::from_str(auth.account_id.as_str())?;
         let id = CommunityId::generate();
         let name = CommunityName::new(data.name.clone())?;
 
-        let community = Community::create(id, account_id, slug, name, data.is_public);
+        let community = Community::create(id, owner_id, slug, name, data.is_public);
 
         self.community_repository
             .save(&community)
@@ -70,26 +69,19 @@ mod tests {
                 command::CreateCommunityCommand, create_community::CreateCommunity,
             },
             errors::error_codes::COMMUNITIES_SLUG_ALREADY_EXISTS,
-            ports::{
-                inbound::create_community_use_case::CreateCommunityUseCase,
-                outbound::community_repository::CommunityRepository,
-            },
-            testing::FakeCommunityAdapter,
+            ports::inbound::create_community_use_case::CreateCommunityUseCase,
+            testing::{CommunityOperation, FakeCommunityAdapter},
         },
-        domain::{
-            errors::error_codes::{
-                COMMUNITIES_INVALID_COMMUNITY_NAME, COMMUNITIES_INVALID_COMMUNITY_SLUG,
-            },
-            model::community::community::Community,
+        domain::errors::error_codes::{
+            COMMUNITIES_INVALID_COMMUNITY_NAME, COMMUNITIES_INVALID_COMMUNITY_SLUG,
         },
     };
-    use iam::domain::model::account::account_id::AccountId;
-    use shared::{Fault, domain::model::verified_identity::VerifiedIdentity, error::SystemError};
+    use shared::{domain::model::verified_identity::VerifiedIdentity, error::SystemError};
     use std::sync::Arc;
 
     fn valid_auth_context() -> VerifiedIdentity {
         VerifiedIdentity {
-            account_id: AccountId::generate().as_uuid().to_string(),
+            account_id: "6f1c2a4e-8b3d-4c5e-9f7a-1b2c3d4e5f60".to_string(),
         }
     }
 
@@ -164,23 +156,11 @@ mod tests {
         );
     }
 
-    /// `find_by_slug` responde bien y solo `save` falla: así el test llega a
-    /// `save`, que `FakeCommunityAdapter::failing()` nunca alcanza.
-    struct StubCommunityAdapter;
-
-    impl CommunityRepository for StubCommunityAdapter {
-        fn find_by_slug(&self, _slug: &str) -> Result<Option<Community>, Fault> {
-            Ok(None)
-        }
-
-        fn save(&self, _community: &Community) -> Result<(), Fault> {
-            Err(Fault::new("stub save outage"))
-        }
-    }
-
     #[test]
     fn fails_with_unexpected_when_save_fails() {
-        let use_case = CreateCommunity::new(Arc::new(StubCommunityAdapter));
+        let repo = Arc::new(FakeCommunityAdapter::empty().failing_on(CommunityOperation::Save));
+
+        let use_case = CreateCommunity::new(repo);
 
         let result = use_case.execute(valid_input(), valid_auth_context());
 

@@ -8,10 +8,9 @@ use crate::{
     application::ports::outbound::community_repository::CommunityRepository,
     domain::model::community::{
         community::Community, community_id::CommunityId, community_name::CommunityName,
-        community_slug::CommunitySlug,
+        community_slug::CommunitySlug, owner_id::OwnerId,
     },
 };
-use iam::domain::model::account::account_id::AccountId;
 
 fn slug(value: &str) -> CommunitySlug {
     CommunitySlug::new(value.into()).expect("invariante: slug de prueba válido")
@@ -20,7 +19,8 @@ fn slug(value: &str) -> CommunitySlug {
 fn community_with_id(id: CommunityId, slug_value: &str) -> Community {
     Community::create(
         id,
-        AccountId::generate(),
+        OwnerId::from_str("6f1c2a4e-8b3d-4c5e-9f7a-1b2c3d4e5f60")
+            .expect("invariante: dueño de prueba válido"),
         slug(slug_value),
         CommunityName::new("Rust Chile".into()).expect("invariante: nombre de prueba válido"),
         true,
