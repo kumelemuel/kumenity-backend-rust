@@ -1,5 +1,5 @@
 use crate::application::commands::authenticate_account::{
-    command::AuthenticateAccountCommand, response::AuthenticateAccountResponse,
+    AuthenticateAccountCommand, AuthenticateAccountResponse,
 };
 use shared::error::SystemError;
 

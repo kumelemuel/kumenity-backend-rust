@@ -1,7 +1,5 @@
+use super::{AuthenticateAccountCommand, AuthenticateAccountResponse};
 use crate::application::{
-    commands::authenticate_account::{
-        command::AuthenticateAccountCommand, response::AuthenticateAccountResponse,
-    },
     errors::authenticate_account::AuthenticateAccountError,
     ports::{
         inbound::authenticate_account_use_case::AuthenticateAccountUseCase,
@@ -14,14 +12,14 @@ use crate::application::{
 use shared::{domain::value_object::ValueObject, error::SystemError};
 use std::sync::Arc;
 
-pub struct AuthenticateAccount {
+pub struct AuthenticateAccountHandler {
     account_repository: Arc<dyn AccountRepository>,
     password_hasher: Arc<dyn PasswordHashingService>,
     access_tokens: Arc<dyn AccessTokenService>,
     decoy_hash: String,
 }
 
-impl AuthenticateAccount {
+impl AuthenticateAccountHandler {
     pub fn new(
         account_repository: Arc<dyn AccountRepository>,
         password_hasher: Arc<dyn PasswordHashingService>,
@@ -37,7 +35,7 @@ impl AuthenticateAccount {
     }
 }
 
-impl AuthenticateAccountUseCase for AuthenticateAccount {
+impl AuthenticateAccountUseCase for AuthenticateAccountHandler {
     fn execute(
         &self,
         cmd: AuthenticateAccountCommand,
@@ -85,7 +83,7 @@ mod tests {
     use crate::{
         application::{
             commands::authenticate_account::{
-                authenticate_account::AuthenticateAccount, command::AuthenticateAccountCommand,
+                AuthenticateAccountCommand, AuthenticateAccountHandler,
             },
             errors::error_codes::{IAM_CANNOT_AUTHENTICATE, IAM_LOGIN_FAILED},
             ports::{
@@ -139,7 +137,7 @@ mod tests {
     fn verifies_against_the_decoy_hash_when_account_does_not_exist() {
         let hasher = Arc::new(SpyPasswordHashingAdapter::new());
         let decoy_hash = hash_of("decoy");
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::empty()),
             hasher.clone(),
             Arc::new(FakeAccessTokenAdapter::new()),
@@ -158,7 +156,7 @@ mod tests {
     fn fails_with_login_failed_when_account_does_not_exist() {
         // The decoy is the hash of the password sent, so its verification
         // answers `true`: the handler has to discard the outcome.
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::empty()),
             Arc::new(SpyPasswordHashingAdapter::new()),
             Arc::new(FakeAccessTokenAdapter::new()),
@@ -174,7 +172,7 @@ mod tests {
 
     #[test]
     fn fails_with_unexpected_when_find_by_username_fails() {
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::failing()),
             Arc::new(FixedPasswordHashingAdapter::new()),
             Arc::new(FakeAccessTokenAdapter::new()),
@@ -191,7 +189,7 @@ mod tests {
 
     #[test]
     fn fails_with_unexpected_when_verify_fails() {
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
             Arc::new(
                 FixedPasswordHashingAdapter::new().failing_on(PasswordHashingOperation::Verify),
@@ -210,7 +208,7 @@ mod tests {
 
     #[test]
     fn fails_with_unexpected_when_decoy_verify_fails() {
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::empty()),
             Arc::new(
                 FixedPasswordHashingAdapter::new().failing_on(PasswordHashingOperation::Verify),
@@ -229,7 +227,7 @@ mod tests {
 
     #[test]
     fn fails_with_unexpected_when_issue_fails() {
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
             Arc::new(FixedPasswordHashingAdapter::new()),
             Arc::new(FakeAccessTokenAdapter::new().failing_on(AccessTokenOperation::Issue)),
@@ -246,7 +244,7 @@ mod tests {
 
     #[test]
     fn fails_with_incorrect_password() {
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
             Arc::new(FixedPasswordHashingAdapter::new()),
             Arc::new(FakeAccessTokenAdapter::new()),
@@ -262,7 +260,7 @@ mod tests {
 
     #[test]
     fn fails_when_account_cannot_authenticate() {
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::containing([dummy_account(
                 "registered:123123",
             )])),
@@ -283,7 +281,7 @@ mod tests {
         let account = dummy_account("active");
         let account_id = account.id().as_uuid().to_string();
         let tokens = Arc::new(FakeAccessTokenAdapter::new());
-        let use_case = AuthenticateAccount::new(
+        let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::containing([account])),
             Arc::new(FixedPasswordHashingAdapter::new()),
             tokens.clone(),

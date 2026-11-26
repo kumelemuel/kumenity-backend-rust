@@ -1,6 +1,6 @@
 use crate::{
     application::{
-        commands::authenticate_account::command::AuthenticateAccountCommand,
+        commands::authenticate_account::AuthenticateAccountCommand,
         ports::inbound::{
             authenticate_account_use_case::AuthenticateAccountUseCase,
             identify_account_use_case::IdentifyAccountUseCase,

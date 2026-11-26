@@ -1,7 +1,7 @@
 use iam::{
     application::{
         commands::{
-            authenticate_account::authenticate_account::AuthenticateAccount,
+            authenticate_account::AuthenticateAccountHandler,
             register_account::RegisterAccountHandler, verify_account::VerifyAccountHandler,
         },
         ports::{
@@ -52,7 +52,7 @@ impl IamContainer {
         // Hashed once, with the same adapter and parameters as real
         // passwords, so verifying against it costs the same (D6).
         let decoy_hash = password_hasher.hash(&random_decoy_password())?;
-        let authenticate_account = AuthenticateAccount::new(
+        let authenticate_account = AuthenticateAccountHandler::new(
             account_repository.clone(),
             password_hasher.clone(),
             access_tokens.clone(),

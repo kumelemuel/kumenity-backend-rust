@@ -9,9 +9,7 @@
 use iam::{
     application::{
         commands::{
-            authenticate_account::{
-                authenticate_account::AuthenticateAccount, command::AuthenticateAccountCommand,
-            },
+            authenticate_account::{AuthenticateAccountCommand, AuthenticateAccountHandler},
             register_account::{RegisterAccountCommand, RegisterAccountHandler},
             verify_account::{
                 VerifyAccountCommand, VerifyAccountError, VerifyAccountHandler,
@@ -52,7 +50,7 @@ struct Iam {
     jwt: Arc<JwtAccessTokenAdapter>,
     register: RegisterAccountHandler,
     verify: VerifyAccountHandler,
-    authenticate: AuthenticateAccount,
+    authenticate: AuthenticateAccountHandler,
     identify: IdentifyAccount,
 }
 
@@ -64,7 +62,12 @@ fn iam() -> Iam {
     Iam {
         register: RegisterAccountHandler::new(repository.clone(), hasher.clone()),
         verify: VerifyAccountHandler::new(repository.clone()),
-        authenticate: AuthenticateAccount::new(repository.clone(), hasher, jwt.clone(), decoy_hash),
+        authenticate: AuthenticateAccountHandler::new(
+            repository.clone(),
+            hasher,
+            jwt.clone(),
+            decoy_hash,
+        ),
         identify: IdentifyAccount::new(repository.clone()),
         repository,
         jwt,
