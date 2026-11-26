@@ -1,44 +1,19 @@
-use crate::domain::errors::AccountIdError;
-use shared::domain::value_object::ValueObject;
 use uuid::Uuid;
 
+/// The id of an account, as the `IdGenerator` gives it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct AccountId(Uuid);
-
-impl ValueObject for AccountId {
-    type Value = Uuid;
-    type Error = AccountIdError;
-
-    fn new(_value: Self::Value) -> Result<Self, Self::Error> {
-        todo!()
-    }
-
-    fn value(&self) -> &Self::Value {
-        todo!()
-    }
-}
+pub struct AccountId(String);
 
 impl AccountId {
+    pub fn new(value: String) -> Self {
+        Self(value)
+    }
+
     pub fn generate() -> Self {
-        Self(Uuid::new_v4())
+        Self(Uuid::new_v4().to_string())
     }
 
-    pub fn from_uuid(uuid: Uuid) -> Result<Self, AccountIdError> {
-        if uuid.is_nil() {
-            return Err(AccountIdError::Invalid);
-        }
-
-        Ok(Self(uuid))
-    }
-
-    // Pendiente: implementar `FromStr` en lugar de un método inherente (cambia los llamadores).
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(value: &str) -> Result<Self, AccountIdError> {
-        let uuid = Uuid::parse_str(value).map_err(|_| AccountIdError::WrongFormat)?;
-        Self::from_uuid(uuid)
-    }
-
-    pub fn as_uuid(&self) -> &Uuid {
+    pub fn as_str(&self) -> &str {
         &self.0
     }
 }
@@ -46,7 +21,6 @@ impl AccountId {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use uuid::Uuid;
 
     #[test]
     fn generates_unique_ids() {
@@ -57,32 +31,9 @@ mod tests {
     }
 
     #[test]
-    fn creates_from_valid_uuid() {
-        let uuid = Uuid::new_v4();
-        let user_id = AccountId::from_uuid(uuid).unwrap();
+    fn keeps_the_given_value() {
+        let id = AccountId::new("acc-1".to_string());
 
-        assert_eq!(user_id.as_uuid(), &uuid);
-    }
-
-    #[test]
-    fn rejects_nil_uuid() {
-        let result = AccountId::from_uuid(Uuid::nil());
-
-        assert!(matches!(result, Err(AccountIdError::Invalid)));
-    }
-
-    #[test]
-    fn creates_from_valid_string() {
-        let uuid = Uuid::new_v4();
-        let user_id = AccountId::from_str(&uuid.to_string()).unwrap();
-
-        assert_eq!(user_id.as_uuid(), &uuid);
-    }
-
-    #[test]
-    fn rejects_invalid_string() {
-        let result = AccountId::from_str("not-a-uuid");
-
-        assert!(matches!(result, Err(AccountIdError::WrongFormat)));
+        assert_eq!(id.as_str(), "acc-1");
     }
 }

@@ -92,7 +92,7 @@ impl RegisterAccountUseCase for RegisterAccountHandler {
         self.account_repository.save(&account)?;
 
         Ok(RegisterAccountResponse {
-            id: account.id().as_uuid().to_string(),
+            id: account.id().as_str().to_owned(),
             username: account.username().value().to_owned(),
             email: account.email().value().to_owned(),
         })
