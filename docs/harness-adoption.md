@@ -618,7 +618,7 @@ En todas, el contrato HTTP se mantiene.
 - **Resultado (hecho, PR #42):** commits `1482280`, `7655856`, `3f25daf`, `3ff0ae1`, `9819983`, `7e51295` y `d0dd8cb`. Línea base −1 (33 → 32). 324 tests, fmt y clippy en verde localmente; `app/tests/` sin cambios.
   - Como pedía el plan: `RegisterAccountHandler` en `handler.rs` (rojo: la entrada borrada de la línea base); `unexpected()` en `infrastructure/http/unexpected.rs`, con `codes.rs`, usado por el `fold`, el mapper y el middleware de `app`; `Failure<RegisterAccountError { Validation, Conflict }>` con `?` en las 4 llamadas a puertos; `fold` exhaustivo en `infrastructure/http/register_account.rs`; `Debug` de `SignUpRequest` con `<redacted>`.
   - **`ARCH_REQUIRE_MATERIAL=1`: no se activa.** La fricción de §6 (P1) sigue sin resolver en el harness (`craft-backend` 1.0.0-rc.2), y la activación pondría en rojo `err_1_application_errors_…` y `hex_4_event_subscribers_…`.
-  - *(S3)* **Ya se puede activar.** `v1.0.0-rc.3` trae `material-exempt.txt` (P1, §6). Con las tres exenciones que escribe el usuario (§5.10, S3: `err_1_application_errors_…`, `hex_4_event_subscribers_…` y `hex_8_capability_adapters_…`, este último hasta R20), `ARCH_REQUIRE_MATERIAL=1` pasa en verde. Va en el paso `cargo test --workspace --locked` de `.github/workflows/ci.yml`, en un PR de CI propio o en la primera rebanada después de S3.
+  - *(S3)* **Ya se puede activar.** `v1.0.0-rc.3` trae `material-exempt.txt` (P1, §6). Con las tres exenciones que escribe el usuario (§5.10, S3: `err_1_application_errors_…`, `hex_4_event_subscribers_…` y `hex_8_capability_adapters_…`, este último hasta R20), `ARCH_REQUIRE_MATERIAL=1` pasa en verde. Activada en el PR de S3 (commit `53d6bd3`, `ci: require architecture material`), en el paso `cargo test --workspace --locked` de `.github/workflows/ci.yml`.
   - **Agregado:** `AccountFactory::create` devuelve `AccountCreationError` (una variante por regla), para que el handler traduzca por variante y no por `code()` (ERR-2.2). Con sus tests de dominio, incluido el orden contraseña → username → email.
   - **Agregado:** se borran `AccountError::{Email,Username}AlreadyExists`, sus constantes de dominio, el brazo `CONFLICT` del mapper y su test (`already_existing_account_maps_to_conflict`): quedaron sin productor.
   - **Desvío:** el mapper conserva `unexpected_system_error_maps_to_the_d7_body` para su brazo legacy (lo siguen usando verify, authenticate e identify hasta R19). El test original se mudó con `unexpected()`, como pedía el plan.
@@ -675,7 +675,7 @@ En todas, el contrato HTTP se mantiene.
 
 **R13b. `VerifyAccountResponse` (nueva en S3).**
 - **IDs:** HEX-4.5.
-- **Precondición:** D11 decidida (§5.7). Con la opción b), R13b no existe.
+- **Precondición:** D11 decidida (§5.7): opción a), así que R13b existe.
 - **Cambios (D11 a):** `VerifyAccountResponse` vacío en `commands/verify_account/response.rs`, y `execute -> Result<VerifyAccountResponse, Failure<VerifyAccountError>>`. El `fold` de `infrastructure/http/verify_account.rs` no lo serializa: sigue respondiendo 200 con cuerpo `null`.
 - **Línea base: −1** (`hex_4_use_case_signatures_are_their_own_contract` de `verify_account_use_case.rs`, n = 2).
 - **Rojo:** el trinquete. `a_verified_account_returns_200_with_a_null_body` fija que el cuerpo no cambia.
@@ -740,7 +740,7 @@ En todas, el contrato HTTP se mantiene.
 
 **R16b. Baterías con la forma async, con los puertos síncronos (nueva en S3; D12).**
 - **IDs:** ninguno nuevo; adelanta la parte de las baterías de RS-3.1 (R23, R24).
-- **Precondición:** D12 decidida con la opción b). R16 hecha, para no tocar dos veces la batería de `CommunityRepository` (R16 cambia `AccountId` por `OwnerId`). Antes de R20, que crea una batería nueva con esa forma.
+- **Precondición:** D12 decidida con la opción b) (§5.7). R16 hecha, para no tocar dos veces la batería de `CommunityRepository` (R16 cambia `AccountId` por `OwnerId`). Antes de R20, que crea una batería nueva con esa forma.
 - **Cambios:** las 4 baterías (`community_repository`, `account_repository`, `password_hashing_service`, `access_token_service`) pasan a la forma final de la receta "Puerto todavía síncrono": casos `pub async fn`, helpers `async fn` sin `.await`, macro con `run`, invocada con `run: block_on` en el doble, el adaptador en memoria, Argon2 y JWT, y `#![expect(clippy::unused_async, reason = "puerto todavía síncrono: se quita en su rebanada de asincronía")]`. `block_on` de std en `application/testing.rs`.
 - **Línea base:** sin cambios.
 - **Tests:** refactor de tests sin cambio de comportamiento: los mismos casos, en verde antes y después. El rojo se ve por mutación del doble, como en R7 a R10.
@@ -864,7 +864,7 @@ En todas, el contrato HTTP se mantiene.
   - todos los puertos de entrada y de salida del contexto;
   - `block_on` de std en `application/testing.rs` para los tests de application;
   - *(desde R7)* las baterías de `application/testing/contracts/` pasan a `async fn`, y sus macros reciben `run` (`block_on` para el Fake y el adaptador en memoria), como en el template;
-  - *(S3)* con la receta "Puerto todavía síncrono" del README del stack: si D12 elige la opción b), las 4 baterías ya llegan con la forma async (R16b), y R23/R24 solo agregan los `.await` en los helpers y borran el `#![expect(clippy::unused_async)]`, que `unfulfilled_lint_expectations` obliga a quitar. La macro y las invocaciones del doble y de los adaptadores en memoria no cambian; Argon2 y JWT pasan su `run` a un runtime real. Con la opción a), R23/R24 reescriben casos, macros e invocaciones de las 4 baterías;
+  - *(S3)* con la receta "Puerto todavía síncrono" del README del stack: con D12 b) (decidida), las 4 baterías ya llegan con la forma async (R16b), y R23/R24 solo agregan los `.await` en los helpers y borran el `#![expect(clippy::unused_async)]`, que `unfulfilled_lint_expectations` obliga a quitar. La macro y las invocaciones del doble y de los adaptadores en memoria no cambian; Argon2 y JWT pasan su `run` a un runtime real;
   - Argon2 con `spawn_blocking` en el adaptador.
 - **Rojo:** batería async del adaptador Argon2 bajo `#[tokio::test]` (infra).
 - **Tests:** refactor sin cambio de comportamiento.
@@ -966,7 +966,7 @@ R1 ─┬─ R2 ─────────────────────�
 - R13, R14 y R15 son paralelas entre sí después de R11. R14 necesita R2, R9 y R10.
 - *(P1)* R12b va después de R12, R13 y R14, y antes de R19. No bloquea a R15 ni a R16.
 - R23 y R24 son paralelas. R26 se puede hacer desde R5 en adelante.
-- *(S3)* R13b va después de D11 y no bloquea a nadie; cierra antes de R17 para que R17 cierre `hex_4_use_case_signatures_…`. R16b (si D12 elige b) va después de R16 y antes de R20.
+- *(S3)* R13b (D11 a) no bloquea a nadie; cierra antes de R17 para que R17 cierre `hex_4_use_case_signatures_…`. R16b (D12 b) va después de R16 y antes de R20.
 
 ### 5.5 Cambios de contrato HTTP (todos explícitos)
 
@@ -1052,10 +1052,10 @@ Abiertas:
 - **D9. Mover `app/` a `apps/server`, como en el template.** Fuera del inventario; opcional después de R29.
 - **D10. `identify` no normaliza el email.** Lo fija `identify_with_different_email_casing_returns_404`. No es un hallazgo; se mantiene salvo que se decida lo contrario.
 
-Abiertas en S3 (2026-11-25):
+Decididas en S3 (2026-11-25):
 
-- **D11. `VerifyAccount` sin datos (HEX-4.5, R13b).** R13 respondió `()`, y `hex_4_use_case_signatures_are_their_own_contract` de `v1.0.0-rc.3` exige un `VerifyAccountResponse`. a) `VerifyAccountResponse` vacío (R13b, XS, sin cambio de contrato); b) reportar al harness que la regla acepte `()` para un caso sin datos (§6) y dejar la entrada hasta la próxima sincronización. Recomendación: a), porque no depende del harness y no cambia el contrato.
-- **D12. Baterías async antes de R23/R24.** a) R23 y R24 reescriben las 4 baterías síncronas junto con los puertos; b) una rebanada aparte, R16b, les da la forma final de la receta "Puerto todavía síncrono" con los puertos todavía síncronos. **Recomendación: b).** R23 ya es M y toca todos los puertos de iam, Argon2 con `spawn_blocking` y lifecycle; sacarle las baterías deja ahí solo los `.await`. R16b es un refactor de tests sin riesgo para producción, verificable por separado (los mismos casos en verde), y deja las 4 baterías con la forma que exige rc.3 para las nuevas, como la de R20. El costo es un PR más, chico.
+- **D11. `VerifyAccount` sin datos (HEX-4.5, R13b): decidido, opción a).** `VerifyAccountResponse` vacío en `commands/verify_account/response.rs`, en la rebanada R13b. El `fold` de `infrastructure/http/verify_account.rs` no lo serializa y sigue respondiendo 200 con cuerpo `null`: sin cambio de contrato. Se descarta b) (esperar a que el harness acepte `()`); la fricción de §6 se reporta igual. *Planteo:* R13 respondió `()`, y `hex_4_use_case_signatures_are_their_own_contract` de `v1.0.0-rc.3` exige un `VerifyAccountResponse`.
+- **D12. Baterías async antes de R23/R24: decidido, opción b).** Una rebanada aparte, R16b, da a las 4 baterías la forma final de la receta "Puerto todavía síncrono" con los puertos todavía síncronos. Va después de R16 (para no tocar dos veces la batería de `CommunityRepository`) y antes de R20 (que crea una batería nueva con esa forma). R23 y R24 solo agregan los `.await` y borran el `#![expect(clippy::unused_async)]`. Se descarta a) (R23 y R24 reescriben las baterías junto con los puertos).
 
 ### 5.8 Registro de rebanadas
 
@@ -1152,7 +1152,7 @@ Con `CRAFT_BACKEND_BASELINE_INIT=1`, la línea base se vació hasta la cabecera 
 - `hex_4_event_subscribers_are_named_and_placed | implementaciones de un EventSubscriber en application (fuera de tests)`: no hay eventos que consumir; D4 retira el andamiaje.
 - `hex_8_capability_adapters_are_shared_infrastructure | implementaciones de producción de capacidades del kernel`: nada implementa `IdGenerator`, `Clock` ni `FaultReporter` en producción. Se borra en R20, con `UuidIdGeneratorAdapter`.
 
-Con las tres, `ARCH_REQUIRE_MATERIAL=1` pasa en verde y se puede activar en CI (R11).
+Con las tres, `ARCH_REQUIRE_MATERIAL=1` pasa en verde (verificado: ningún otro conjunto vacío), y queda activada en CI en `53d6bd3`.
 
 **Rebanadas que cambian:**
 - **R13b (nueva, XS):** `VerifyAccountResponse` vacío (HEX-4.5, D11), −1.
