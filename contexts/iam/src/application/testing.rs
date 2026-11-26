@@ -17,13 +17,30 @@ use crate::{
 use shared::{Fault, domain::value_object::ValueObject};
 use std::{
     collections::HashMap,
+    future::Future,
+    pin::pin,
     sync::{
         Mutex, MutexGuard,
         atomic::{AtomicU64, Ordering},
     },
+    task::{Context, Poll, Waker},
 };
 
 pub mod contracts;
+
+/// Ejecuta un future sin runtime externo.
+///
+/// Pensado para fakes que resuelven de inmediato; no sirve para IO real.
+pub fn block_on<F: Future>(future: F) -> F::Output {
+    let mut future = pin!(future);
+    let mut context = Context::from_waker(Waker::noop());
+    loop {
+        if let Poll::Ready(output) = future.as_mut().poll(&mut context) {
+            return output;
+        }
+        std::thread::yield_now();
+    }
+}
 
 /// Operación de `AccountRepository`, para hacer fallar solo esa en un
 /// `FakeAccountAdapter`.
@@ -335,6 +352,7 @@ mod tests {
 
         crate::account_repository_contract! {
             new_adapter: FakeAccountAdapter::empty(),
+            run: block_on,
         }
     }
 
@@ -347,6 +365,7 @@ mod tests {
                 service.issue_expired(account_id)
             },
             another_issuer: FakeAccessTokenAdapter::new(),
+            run: block_on,
         }
     }
 
@@ -355,6 +374,7 @@ mod tests {
 
         crate::password_hashing_service_contract! {
             new_service: FixedPasswordHashingAdapter::new(),
+            run: block_on,
         }
     }
 
@@ -363,6 +383,7 @@ mod tests {
 
         crate::password_hashing_service_contract! {
             new_service: SpyPasswordHashingAdapter::new(),
+            run: block_on,
         }
     }
 }

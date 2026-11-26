@@ -8,7 +8,7 @@ Este archivo guarda el estado entre sesiones de la adopción de los principios c
 | Plugin | `craft-backend@ai-harness` 0.12.0 |
 | Commit auditado | `d0b0eeb` (rama `ci/sync-development`); P1: `bab68c5` (`main`, después de R10b) |
 | Revisor | `craft-backend:architecture-reviewer`, auditoría completa en solo lectura |
-| Hallazgos | 118: 26 de severidad alta, 52 media, 40 baja. 94 de la auditoría inicial (RS-1.4 agregado en R2), 16 de la de P1 (ERR-4.9 a ERR-4.12, HEX-7.10 a HEX-7.12, HEX-8.10, ERR-1.8, TDD-1.8, TDD-2.6 y VER-1.3 a VER-1.7), 3 de la revisión de R11 (ERR-3.4, ERR-4.13, TDD-2.7), 1 de R12 (ERR-4.14), 1 de la revisión de R13 (ERR-2.11) y 3 de S3, la sincronización con `v1.0.0-rc.3` (HEX-4.5, HEX-8.11, HEX-8.12) |
+| Hallazgos | 120: 26 de severidad alta, 52 media, 42 baja. 94 de la auditoría inicial (RS-1.4 agregado en R2), 16 de la de P1 (ERR-4.9 a ERR-4.12, HEX-7.10 a HEX-7.12, HEX-8.10, ERR-1.8, TDD-1.8, TDD-2.6 y VER-1.3 a VER-1.7), 3 de la revisión de R11 (ERR-3.4, ERR-4.13, TDD-2.7), 1 de R12 (ERR-4.14), 1 de la revisión de R13 (ERR-2.11), 3 de S3, la sincronización con `v1.0.0-rc.3` (HEX-4.5, HEX-8.11, HEX-8.12), y 2 de la revisión de R16, inventariados en R16b (RS-2.6, TDD-2.8) |
 
 ## Cómo mantener este archivo
 
@@ -43,12 +43,12 @@ Ya resueltas: ERR-4.2 (`dbg!`), ERR-4.3 (`Debug` con el secreto), VER-1.1/RS-4.1
 | ERR-3 Semántica de adaptadores | 0 | 3 | 1 | 4 |
 | ERR-4 Transporte en el borde | 3 | 6 | 5 | 14 |
 | TDD-1 Test primero | 0 | 4 | 4 | 8 |
-| TDD-2 Tests por capa y dobles | 1 | 2 | 4 | 7 |
+| TDD-2 Tests por capa y dobles | 1 | 2 | 5 | 8 |
 | RS-1 Crate por capa | 1 | 1 | 2 | 4 |
-| RS-2 `Fault` y `panic!` | 1 | 4 | 0 | 5 |
+| RS-2 `Fault` y `panic!` | 1 | 4 | 1 | 6 |
 | RS-3 Puertos async | 0 | 1 | 0 | 1 |
 | RS-4 Tests de arquitectura | 1 | 0 | 0 | 1 |
-| **Total** | **26** | **52** | **40** | **118** |
+| **Total** | **26** | **52** | **42** | **120** |
 
 Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se repite igual en varios archivos, la fila lista todas las ubicaciones.
 
@@ -177,6 +177,7 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | TDD-2.5 | TDD-2 Doble completo | contexts/communities/src/application/ports/outbound/community_repository.rs:80 | El doble tiene `todo!()` en `get_public_list`, helpers muertos copiados de iam (líneas 59 y 68) y el campo `_activated` sin uso (línea 26). | baja | Implementar el método o quitarlo del puerto. | resuelto (a603969): `get_public_list`, los helpers muertos y `_activated` quitados |
 | TDD-2.6 | TDD-2 Doble completo | contexts/communities/src/application/commands/create_community/create_community.rs:169 | El `StubCommunityAdapter` local (ba15189) falla siempre en `save` y no puede pasar la batería de contrato. Fricción ya anotada en §6. Hallado en P1. | baja | `FakeCommunityAdapter::failing_on(CommunityOperation::Save)`, como `FakeAccountAdapter`, y borrar el Stub. | resuelto (c7cc244) |
 | TDD-2.7 | TDD-2 Doble completo | contexts/iam/src/application/commands/register_account/handler.rs (`StubPasswordHashingAdapter`) | El brazo `AccountCreationError::HashedPassword` (→ `Fault`; desde R12 (77e0ca4), el `HashedPasswordError` de `AccountFactory::create`) solo se alcanza con `StubPasswordHashingAdapter`, que incumple a propósito `hash_is_a_valid_hashed_password` y no corre la batería. La causa es la firma `hash -> Result<String, Fault>`, que admite un estado que el contrato prohíbe. Declarado con su motivo. Hallado en la revisión de R11. | baja | `PasswordHashingService::hash -> Result<HashedPassword, Fault>` y `AccountFactory::create` recibe un `HashedPassword`: desaparecen el error, el brazo y el stub. | abierto: fase 4 (se asigna en P2) |
+| TDD-2.8 | TDD-2 Prueba por llamada | contexts/communities/src/application/commands/create_community/create_community.rs:146 | `fails_with_unexpected_when_repository_fails` usa `FakeCommunityAdapter::failing()`, así que falla en la primera llamada, `find_by_slug`, pero el nombre no dice cuál. El de `save` sí la nombra (`fails_with_unexpected_when_save_fails`), y §5.1 pide `fails_with_unexpected_when_<operación>_fails` por llamada. Hallado en la revisión de R16. | baja | Renombrar a `fails_with_unexpected_when_find_by_slug_fails`, con `failing_on(CommunityOperation::FindBySlug)`, como iam desde R12b. | abierto: R17 |
 
 ### RS (rust-stack)
 
@@ -191,7 +192,8 @@ Cada fila del inventario cuenta como un hallazgo. Cuando una misma violación se
 | RS-2.3 | RS-2 `unwrap` prohibido | iam/…/authenticate_account.rs:55; verify_account.rs:30; identify_account.rs:44; account_status.rs:79 (dos veces), 81; app/src/config/jwt.rs:15; app/src/main.rs:12,14 | `unwrap` en producción. En `account_status.rs` panica ante un dato persistido; en `jwt.rs`, ante un `JWT_EXPIRATION_TIME` no numérico. | media | `let Some(..) else`, `?` o `ConfigError`. | resuelto (0415e3e, 4355c9f, ebcd593, 9315004) |
 | RS-2.4 | RS-2 `expect("invariante: …")` | iam/…/argon2_password_hasher.rs:26,32; iam/…/in_memory/account_repository.rs:28,36,44; communities/…/in_memory/community_repository.rs:31,39,47 | Los mensajes no empiezan con "invariante:". Argon2 usa `expect` para una falla técnica (línea 26) y para un hash persistido corrupto (línea 32), que deberían ser `Fault`. | media | `Fault` en Argon2; "invariante: mutex sin envenenar" en los mutex. | resuelto (6b808a2, 9a90d8a, 17ba68e, dddc146): los mutex en R7 y R8; Argon2 en R9, con sus errores como `Fault` |
 | RS-2.5 | RS-2 Lints | Cargo.toml:1-11 | Sin `[workspace.lints]` con `unwrap_used = "deny"` ni `unsafe_code`. | media | Agregarlos. | resuelto (9315004) |
-| RS-3.1 | RS-3 Puertos async | iam/…/ports/outbound/*.rs; communities/…/community_repository.rs:6; los 5 `ports/inbound/*.rs` (`list_public_communities_use_case.rs` se borró en R18 y `verify_access_token_use_case.rs` llegó en R10b) | Todos los puertos son síncronos: un adaptador con E/S real (Postgres) no cabe. Además, Argon2 bloquea el runtime dentro de handlers async. | media | `BoxFuture<'a, Result<…>>` del kernel. | abierto |
+| RS-2.6 | RS-2 Lints | contexts/communities/src/domain/model/community/owner_id.rs:12 | `OwnerId::from_str` es un método inherente bajo `#[allow(clippy::should_implement_trait)]`, copiado de `AccountId` en R16 (3646f25). Silencia el lint en lugar de implementar `FromStr`. R20 quita los de `model/account` y R22 los de `CommunityId`, pero ninguna rebanada nombraba el de `OwnerId`. Hallado en la revisión de R16. | baja | `impl FromStr for OwnerId` (`type Err = InvalidOwnerId`) y quitar el `allow`; los llamadores pasan a `.parse()` o `OwnerId::from_str` por el trait. | abierto: R22 |
+| RS-3.1 | RS-3 Puertos async | iam/…/ports/outbound/*.rs; communities/…/community_repository.rs:6; los 5 `ports/inbound/*.rs` (`list_public_communities_use_case.rs` se borró en R18 y `verify_access_token_use_case.rs` llegó en R10b) | Todos los puertos son síncronos: un adaptador con E/S real (Postgres) no cabe. Además, Argon2 bloquea el runtime dentro de handlers async. | media | `BoxFuture<'a, Result<…>>` del kernel. | abierto: R16b (d3ab538, fdc1941) dio a las 4 baterías de contrato la forma async, con `run: block_on`; los puertos pasan a `BoxFuture` en R23 y R24 |
 | RS-4.1 | RS-4 Tests de arquitectura | Cargo.toml:2-5 | No hay `cargo test -p architecture` (ver VER-1.1). | alta | `tools/architecture`. | resuelto (ad558fc) |
 
 ## 3. Reglas que se cumplen
@@ -780,9 +782,9 @@ En todas, el contrato HTTP se mantiene.
   - **Desviación del plan, de acuerdo con el revisor:** solo los dos strings `IAM_` pasan a `codes.rs`. Mover también los códigos propios de communities dejaría en cero la entrada `hex_1_driving_…` del mapper (HEX-1.8) mientras el mapper siguiera despachando por `code()` del dominio, un cierre en falso. Pasan con el `fold` de R17. Por la misma razón, los dos strings `IAM_` quedan duplicados en el dominio (`InvalidOwnerId::code()`) y en `codes.rs`: importarlos de `crate::domain` habría subido la `n` del mapper a 4.
   - `app/tests/` intacto: `create_with_non_uuid_subject_returns_400` y `create_with_nil_uuid_subject_returns_400` no cambian y siguen en verde.
   - **Línea base: −1** (`hex_1_dependencies_point_inward contexts/communities/Cargo.toml#dependencies.iam 4`): 37 → 36 entradas, 65 → 61 violaciones. **Cierra `hex_1_dependencies_point_inward`.**
-  - **Revisor:** sin hallazgos bloqueantes. Aplicados en este documento: las filas ERR-4.4 y HEX-1.8 nombran las constantes y los mensajes `IAM_` del dominio de communities, y la `n` del mapper que subestima el acoplamiento; R17 los cierra con el `fold`. Fuera de la rebanada, sin inventariar: `OwnerId::from_str` copia el `#[allow(clippy::should_implement_trait)]` de `AccountId`, y ninguna rebanada lo quita en communities (se puede implementar `FromStr`); `fails_with_unexpected_when_repository_fails` debería llamarse `…_find_by_slug_fails` (R17 puede renombrarlo).
+  - **Revisor:** sin hallazgos bloqueantes. Aplicados en este documento: las filas ERR-4.4 y HEX-1.8 nombran las constantes y los mensajes `IAM_` del dominio de communities, y la `n` del mapper que subestima el acoplamiento; R17 los cierra con el `fold`. Fuera de la rebanada: `OwnerId::from_str` copia el `#[allow(clippy::should_implement_trait)]` de `AccountId`, y ninguna rebanada lo quita en communities (se puede implementar `FromStr`); `fails_with_unexpected_when_repository_fails` debería llamarse `…_find_by_slug_fails`. *(R16b)* Inventariados como RS-2.6 (R22) y TDD-2.8 (R17).
 
-**R16b. Baterías con la forma async, con los puertos síncronos (nueva en S3; D12).**
+**R16b. Baterías con la forma async, con los puertos síncronos (nueva en S3; D12).** *Hecha (ver §5.8).*
 - **IDs:** ninguno nuevo; adelanta la parte de las baterías de RS-3.1 (R23, R24).
 - **Precondición:** D12 decidida con la opción b) (§5.7). R16 hecha, para no tocar dos veces la batería de `CommunityRepository` (R16 cambia `AccountId` por `OwnerId`). Antes de R20, que crea una batería nueva con esa forma.
 - **Cambios:** las 4 baterías (`community_repository`, `account_repository`, `password_hashing_service`, `access_token_service`) pasan a la forma final de la receta "Puerto todavía síncrono": casos `pub async fn`, helpers `async fn` sin `.await`, macro con `run`, invocada con `run: block_on` en el doble, el adaptador en memoria, Argon2 y JWT, y `#![expect(clippy::unused_async, reason = "puerto todavía síncrono: se quita en su rebanada de asincronía")]`. `block_on` de std en `application/testing.rs`.
@@ -790,11 +792,25 @@ En todas, el contrato HTTP se mantiene.
 - **Tests:** refactor de tests sin cambio de comportamiento: los mismos casos, en verde antes y después. El rojo se ve por mutación del doble, como en R7 a R10.
 - **Contrato HTTP:** sin cambios.
 - **Tamaño:** S.
+- **Resultado (hecho, ver §5.8):** commits `d3ab538` (communities), `fdc1941` (iam) y `c0d0102` (notas del revisor). Línea base sin cambios (36 entradas, 61 violaciones). 422 tests, los mismos que después de R16; fmt y clippy en verde localmente, también con `--features testing`.
+  - Las 4 baterías tienen la forma de la receta: casos `pub async fn`, helpers `async fn` que llaman al puerto sin `.await`, macro con `run` (el último parámetro, como en la plantilla) y `#![expect(clippy::unused_async, reason = "puerto todavía síncrono: se quita en su rebanada de asincronía")]`. `block_on` de std, copiado de la plantilla, en `application/testing.rs` de cada contexto. Las 9 invocaciones pasan `run: block_on`: `FakeCommunityAdapter`, `InMemoryCommunityAdapter`, `FakeAccountAdapter`, `InMemoryAccountAdapter`, `FixedPasswordHashingAdapter`, `SpyPasswordHashingAdapter`, `Argon2PasswordHashingAdapter`, `FakeAccessTokenAdapter` y `JwtAccessTokenAdapter`. Argon2 bloquea dentro del future: con `block_on` no importa, y R23 lo pasa a un runtime real con `spawn_blocking`.
+  - La forma encajó sin tocar producción: ni puertos, ni adaptadores (fuera de su `mod tests`), ni `app/`. El `#![expect]` se cumple con el clippy por defecto (`unused_async` dispara), como dice la receta.
+  - `access_token_service_contract!` conserva sus parámetros propios: `expired_token` sigue siendo una closure síncrona (`Fn(&S, &str) -> String`), porque es un gancho del adaptador y no una llamada al puerto, y `another_issuer` no cambia. `run` va después de los dos.
+  - **Refactor puro:** los mismos 55 tests de batería, por nombre, antes y después (`cargo test --workspace -- --list`, `diff` vacío): community 5 × 2, account 9 × 2, password hashing 5 × 3 y access token 6 × 2. Ningún aserto cambia; solo se agregan los `.await` a los helpers.
+  - **Rojo por mutación del doble** (sin commitear; reproduce el rojo de la rebanada que creó cada batería):
+    - `FakeCommunityAdapter::save` sin guardar: `saves_and_finds_by_slug`, `finds_each_community_by_its_own_slug` y `save_replaces_the_community_with_the_same_id`, como en R7;
+    - `FakeAccountAdapter::save` sin guardar: los 4 de R8 y `finds_by_the_normalized_email_and_username` (R12);
+    - `FixedPasswordHashingAdapter::verify` comparando el texto plano con el hash, como el doble viejo: `verify_accepts_the_hashed_password_and_rejects_another`, `corrupt_hash_is_a_fault` y `truncated_hash_is_a_fault`, en Fixed y en Spy (R9);
+    - `FakeAccessTokenAdapter::verify` siempre `Invalid`: `issued_token_is_valid_for_its_account` y `each_token_carries_its_own_account`, como en R10a.
+  - `app/tests/` y `account_lifecycle.rs` intactos.
+  - Inventariadas las dos notas del revisor de R16: RS-2.6 (`OwnerId` con `FromStr`, R22) y TDD-2.8 (el nombre del test de `find_by_slug`, R17).
+  - **Revisor:** sin hallazgos en la rebanada. Confirmó las cinco restricciones del encargo: los mismos casos y asertos, cada batería contra el doble y el adaptador, producción y puertos intactos, la forma de la plantilla, y que `run` ejecuta cada caso (lo probó rompiendo un aserto en una copia desechable, también en un caso sin ningún `.await`). Aplicadas dos notas de texto en `c0d0102`: el doc de la macro dice "como `async fn` arriba", como la plantilla, y el comentario de módulo nombra también las llamadas directas al puerto dentro de los casos, que ganan `.await` en R23/R24. Fuera de la rebanada no encontró nada nuevo.
 
 **R17. `CreateCommunity`.**
 - **IDs:**
   - HEX-4.1, HEX-4.2 (`owner_id: String` en el comando);
   - ERR-2.1, ERR-2.4, ERR-2.6 y ERR-2.10 (lo que queda: `fails_when_owner_id_is_invalid`);
+  - *(R16b)* TDD-2.8: `fails_with_unexpected_when_repository_fails` pasa a `…_find_by_slug_fails`, con `failing_on(CommunityOperation::FindBySlug)`;
   - HEX-1.8 (los códigos salen de domain);
   - ERR-4.4 y ERR-4.5 (communities).
 - **Cambios:** como R11, el `unexpected()` del mapper de communities sale a `infrastructure/http/unexpected.rs`, con su test.
@@ -891,11 +907,11 @@ En todas, el contrato HTTP se mantiene.
 - **Tamaño:** M/L *(S3; antes M: los marcadores tocan 6 value objects y sus llamadores)*.
 
 **R22. Dominio de `communities`.**
-- **IDs:** HEX-2.6, HEX-7.6 (communities), HEX-7.8 y HEX-7.9.
+- **IDs:** HEX-2.6, HEX-7.6 (communities), HEX-7.8, HEX-7.9 y *(R16b)* RS-2.6 (`impl FromStr for OwnerId`).
 - **Cambios:**
   - `CommunityId` sobre `String`, con `IdGenerator`;
   - **D4 decidida:** se borran `MembershipPolicy` (`domain/services/`, que queda vacío), el campo `membership_policy` de `Community` con su getter, y `MembershipPolicyChanged` (`model/community/events/`). No tienen comportamiento ni uso. HEX-7.8 se resuelve borrando, no moviendo;
-  - se quitan los `allow`.
+  - se quitan los `allow`, incluido el de `OwnerId::from_str` (RS-2.6).
 - **Rojo:** handler `creates_with_the_generated_id`.
 - **Riesgo:** `create_returns_200_with_id…`, que exige un UUID de 36 caracteres; lo cumple el adaptador UUID.
 - **Tamaño:** S (antes S/M: D4 retira en lugar de implementar).
@@ -1030,7 +1046,8 @@ R1 ─┬─ R2 ─────────────────────�
 | R12 (hecho) | Contraseña corta o email inválido + un valor ya tomado: de 409 a 400 (la validación va antes que el conflicto). Sin cobertura previa | ninguno. Lo fijan `fails_with_validation_on_short_password_before_checking_taken_email` y `fails_with_validation_on_invalid_username_before_checking_taken_email` (handler) |
 | R12b | D10: los tres endpoints que buscan una cuenta normalizan el identificador como el alta. `POST /auth/verify` con el email en otras mayúsculas o con espacios alrededor encuentra la cuenta (de 404 `IAM_ACCOUNT_NOT_FOUND` a la respuesta de esa cuenta: 200, o 400 si el código no sirve). `POST /auth/authenticate` con espacios alrededor del username, de 401 `IAM_LOGIN_FAILED` a la respuesta de esa cuenta. `POST /auth/identify` con el email en otras mayúsculas o con espacios alrededor, o con el username con espacios alrededor, de 404 a 200. Sin cambio: un identificador mal formado sigue respondiendo como una cuenta inexistente (404 en verify e identify, 401 `IAM_LOGIN_FAILED` con el señuelo en authenticate), y autenticar con el email sigue siendo 401 | **Cambia:** `identify_with_different_email_casing_returns_404` → `identify_with_different_email_casing_returns_200`. **Nuevos, del cambio:** `verify_finds_the_account_with_different_email_casing`, `verify_finds_the_account_with_surrounding_spaces_in_the_email`, `authenticate_finds_the_account_with_surrounding_spaces_in_the_username` e `identify_with_surrounding_spaces_returns_200`. **Nuevos, de lo que no cambia** (verdes contra `main`): `verify_with_malformed_email_returns_404`, `authenticate_with_malformed_username_returns_401_login_failed` e `identify_with_malformed_identifier_returns_404`. Ningún otro test de `app/tests/` cambia |
 | R15 (hecho) | Ninguno: el 404 `IAM_ACCOUNT_NOT_FOUND`, el 200 `{username,status}` y el 500 de D7 se conservan byte a byte | ninguno |
-| R16 | Ninguno: D2 decidida, opción a) (se conservan `IAM_INVALID_ACCOUNT_ID(_FORMAT)`) | ninguno |
+| R16 (hecho) | Ninguno: D2 decidida, opción a) (se conservan `IAM_INVALID_ACCOUNT_ID(_FORMAT)`) | ninguno |
+| R16b (hecho) | Ninguno: solo cambian las baterías de contrato | ninguno |
 | R13 (hecho) | Ninguno: D1 decidida (verificar dos veces sigue siendo 400 `IAM_ACCOUNT_INVALID_VERIFICATION`; el 409 se revisa con R30). Los códigos, mensajes y el 200 con cuerpo `null` se conservan byte a byte | ninguno |
 | R13b (hecho) | Ninguno: `VerifyAccountResponse` vacío no se serializa; sigue el 200 con cuerpo `null` (D11 a) | ninguno |
 | PR #40 (P1) | Arranque: un `JWT_SECRET` vacío o de menos de 32 bytes ya no arranca el servidor (ERR-4.9). No es una respuesta HTTP | ninguno |
@@ -1066,7 +1083,7 @@ Desde S1 la columna cuenta entradas con el formato nuevo (una por dependencia en
 | `hex_4_use_case_signatures_are_their_own_contract` | 1 (2) | — (nuevo en S3) | R17 (R13b −1, R14 −1, R15 −1, R17 −1); R13b: −1 (d37fe10); R14: −1 (7932c45); R15: −1 (2c37b03), queda 1 |
 | `hex_8_model_markers_have_no_items` | 4 | — (nuevo en S3) | R21 |
 
-En total quedan 36 entradas (61 violaciones) después de R16 (37 y 65 después de R15; 39 y 68 después de R14 y de R12b, que no cambia la línea base; 41 y 70 después de R13b; 42 y 72 después de S3; 31 y 49 después de R13; 32 y 50 después de R11 y de R12, que no cambia la línea base; 33 y 51 después de R10b; 34 y 52 después de R10a; 37 y 55 después de R9; 40 y 58 después de R8; 43 y 61 después de R7; 46 y 64 después de R18; 47 y 65 en S1), que desaparecen entre R15 y R28. Después de R29, `baseline.txt` queda solo con la cabecera.
+En total quedan 36 entradas (61 violaciones) después de R16 y de R16b, que no cambia la línea base (37 y 65 después de R15; 39 y 68 después de R14 y de R12b, que no cambia la línea base; 41 y 70 después de R13b; 42 y 72 después de S3; 31 y 49 después de R13; 32 y 50 después de R11 y de R12, que no cambia la línea base; 33 y 51 después de R10b; 34 y 52 después de R10a; 37 y 55 después de R9; 40 y 58 después de R8; 43 y 61 después de R7; 46 y 64 después de R18; 47 y 65 en S1), que desaparecen entre R15 y R28. Después de R29, `baseline.txt` queda solo con la cabecera.
 
 Suma por rebanada desde S1: R7 −3, R8 −3, R9 −3, R10 −4 (R10a −3, R10b −1), R11 −1, R13 −1, R14 −1, R15 −1, R16 −1, R17 −1, R18 −1, R19 −1, **R21 −3**, R25 −2, **R27 −7** y **R28 −14**: 47. *(S3)* Con las 11 nuevas: R13b −1, R14 −2, R15 −2, R17 −4 (−3 si el mapper de communities sigue hasta R19), R19 −2 (−3) y R21 −7, y suman 58. Las 36 de antes de S1 se repartían entre las mismas rebanadas, con R25 −2, R27 −4 y R28 −9, y sin R21.
 
@@ -1142,6 +1159,7 @@ Una fila por rebanada fusionada. **Tokens** es el consumo de la sesión que hizo
 | R12b | #48 | `e79a25f`, `38b36b6`, `8460492`, `5359976`, `1d143b2`, `3efd113` | `nightly-2026-11-19` | $4.15 (opus-5-5: 2.7k input, 41.5k output, 7.3m cache read, 249.0k cache write; 7m 37s API, 8m 31s wall) | sí (ver PR) | Línea base sin cambios (39). Cambio de contrato deliberado (D10): verify, authenticate e identify normalizan el identificador; uno mal formado sigue respondiendo como una cuenta inexistente (con el señuelo en authenticate). `identify_with_different_email_casing_returns_404` → `…_returns_200`. 413 tests, fmt y clippy en verde localmente. |
 | R15 | #49 | `cf2b905`, `2c37b03`, `6b09abd` | `nightly-2026-11-19` | $4.37 (opus-5-5: 10.7k input, 41.2k output, 7.5m cache read, 275.3k cache write; 7m 11s API, 7m 18s wall) | sí (ver PR) | Línea base −2 y la `n` del mapper de iam de 10 a 9: 39 → 37 entradas (68 → 65 violaciones). Sin cambio de contrato: `app/tests/` intacto. Incluye ERR-2.11 (se borra `AccountError::AccountNotFound`, sin productor). D13 registrada como abierta. 417 tests, fmt y clippy en verde localmente. |
 | R16 | #50 | `3646f25`, `f6bc1fd`, `c7cc244` | `nightly-2026-11-19` | $3.16 (opus-5-5: 6.2k input, 38.8k output, 5.2m cache read, 190.0k cache write; 7m 42s API, 8m 58s wall) | sí (ver PR) | Línea base −1 (`hex_1_dependencies_point_inward` de `iam` en `contexts/communities/Cargo.toml`): 37 → 36 entradas (65 → 61 violaciones); cierra el test. Sin cambio de contrato (D2 a): `app/tests/` intacto. `FakeCommunityAdapter::failing_on` de la plantilla rc.3, sin `StubCommunityAdapter`. Desviación: los códigos propios de communities pasan a `codes.rs` con el `fold` de R17. 422 tests, fmt y clippy en verde localmente. |
+| R16b | #51 | `d3ab538`, `fdc1941`, `c0d0102` | `nightly-2026-11-19` | $4.01 (opus-5-5: 4.7k input, 35.5k output, 7.3m cache read, 247.1k cache write; 7m 16s API, 8h 19m wall, casi todo inactividad entre turnos) | sí (ver PR) | Línea base sin cambios (36). Las 4 baterías con la forma async de la receta "Puerto todavía síncrono" (D12 b), con los puertos síncronos; los mismos 55 casos por nombre. Inventariadas RS-2.6 y TDD-2.8 (notas del revisor de R16). 422 tests, fmt y clippy en verde localmente. |
 
 ### 5.9 Puntos de replanificación
 

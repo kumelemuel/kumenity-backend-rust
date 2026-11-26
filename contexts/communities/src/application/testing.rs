@@ -12,9 +12,28 @@ use crate::{
     domain::model::community::community::Community,
 };
 use shared::Fault;
-use std::sync::{Mutex, MutexGuard};
+use std::{
+    future::Future,
+    pin::pin,
+    sync::{Mutex, MutexGuard},
+    task::{Context, Poll, Waker},
+};
 
 pub mod contracts;
+
+/// Ejecuta un future sin runtime externo.
+///
+/// Pensado para fakes que resuelven de inmediato; no sirve para IO real.
+pub fn block_on<F: Future>(future: F) -> F::Output {
+    let mut future = pin!(future);
+    let mut context = Context::from_waker(Waker::noop());
+    loop {
+        if let Poll::Ready(output) = future.as_mut().poll(&mut context) {
+            return output;
+        }
+        std::thread::yield_now();
+    }
+}
 
 /// Operación de `CommunityRepository`, para hacer fallar solo esa en un
 /// `FakeCommunityAdapter`.
@@ -105,6 +124,7 @@ mod tests {
 
     crate::community_repository_contract! {
         new_adapter: FakeCommunityAdapter::empty(),
+        run: block_on,
     }
 
     fn community(slug: &str) -> Community {

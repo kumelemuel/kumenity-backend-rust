@@ -4,6 +4,15 @@
 //!
 //! El puerto no declara errores (ERR-3): que la contraseña no coincida es una
 //! respuesta (`Ok(false)`); un hash ilegible es una falla técnica (`Fault`).
+//!
+//! Forma async de la receta "Puerto todavía síncrono" (D12, R16b): los casos y
+//! los helpers son `async fn` y la macro recibe `run`. Los helpers, y los casos
+//! que llaman al puerto directamente, lo hacen sin `.await` hasta R23, que lo
+//! pasa a `BoxFuture`.
+#![expect(
+    clippy::unused_async,
+    reason = "puerto todavía síncrono: se quita en su rebanada de asincronía"
+)]
 
 use crate::{
     application::ports::outbound::password_hashing_service::PasswordHashingService,
@@ -14,50 +23,55 @@ use shared::domain::value_object::ValueObject;
 const PASSWORD: &str = "correct horse battery staple";
 const ANOTHER: &str = "correct horse battery stapler";
 
-fn hash(service: &impl PasswordHashingService, password: &str) -> String {
+async fn hash(service: &impl PasswordHashingService, password: &str) -> String {
     service
         .hash(password)
         .expect("contrato: hash no falla con el adaptador sano")
 }
 
-fn verify(service: &impl PasswordHashingService, password: &str, hashed: &str) -> bool {
+async fn verify(service: &impl PasswordHashingService, password: &str, hashed: &str) -> bool {
     service
         .verify(password, hashed)
         .expect("contrato: verify no falla con un hash que produjo el adaptador")
 }
 
 /// `verify` acepta la contraseña con la que se generó el hash, y solo esa.
-pub fn verify_accepts_the_hashed_password_and_rejects_another<S: PasswordHashingService>(
+pub async fn verify_accepts_the_hashed_password_and_rejects_another<S: PasswordHashingService>(
     new_service: impl Fn() -> S,
 ) {
     let service = new_service();
-    let hashed = hash(&service, PASSWORD);
+    let hashed = hash(&service, PASSWORD).await;
 
-    assert!(verify(&service, PASSWORD, &hashed), "rechazó su contraseña");
     assert!(
-        !verify(&service, ANOTHER, &hashed),
+        verify(&service, PASSWORD, &hashed).await,
+        "rechazó su contraseña"
+    );
+    assert!(
+        !verify(&service, ANOTHER, &hashed).await,
         "aceptó otra contraseña"
     );
 }
 
 /// El hash no es la contraseña en claro.
-pub fn hash_is_not_the_password<S: PasswordHashingService>(new_service: impl Fn() -> S) {
+pub async fn hash_is_not_the_password<S: PasswordHashingService>(new_service: impl Fn() -> S) {
     let service = new_service();
 
-    assert_ne!(hash(&service, PASSWORD), PASSWORD);
+    assert_ne!(hash(&service, PASSWORD).await, PASSWORD);
 }
 
 /// El hash que produce el adaptador es un `HashedPassword` válido: el handler
 /// se lo pasa tal cual a la factory de `Account`.
-pub fn hash_is_a_valid_hashed_password<S: PasswordHashingService>(new_service: impl Fn() -> S) {
+pub async fn hash_is_a_valid_hashed_password<S: PasswordHashingService>(
+    new_service: impl Fn() -> S,
+) {
     let service = new_service();
 
-    assert!(HashedPassword::new(hash(&service, PASSWORD)).is_ok());
+    assert!(HashedPassword::new(hash(&service, PASSWORD).await).is_ok());
 }
 
 /// Un hash que el adaptador no puede leer es una falla técnica (un dato
 /// persistido corrupto), no una contraseña incorrecta.
-pub fn corrupt_hash_is_a_fault<S: PasswordHashingService>(new_service: impl Fn() -> S) {
+pub async fn corrupt_hash_is_a_fault<S: PasswordHashingService>(new_service: impl Fn() -> S) {
     let service = new_service();
 
     let result = service.verify(PASSWORD, "not-a-hash");
@@ -68,9 +82,9 @@ pub fn corrupt_hash_is_a_fault<S: PasswordHashingService>(new_service: impl Fn()
 /// Un hash del propio adaptador al que le falta la última sección (un dato
 /// persistido truncado) también es una falla técnica, aunque el formato se
 /// pueda leer: no es una contraseña incorrecta.
-pub fn truncated_hash_is_a_fault<S: PasswordHashingService>(new_service: impl Fn() -> S) {
+pub async fn truncated_hash_is_a_fault<S: PasswordHashingService>(new_service: impl Fn() -> S) {
     let service = new_service();
-    let hashed = hash(&service, PASSWORD);
+    let hashed = hash(&service, PASSWORD).await;
     let (truncated, _) = hashed
         .rsplit_once('$')
         .expect("contrato: el hash tiene secciones separadas por `$`");
@@ -81,9 +95,12 @@ pub fn truncated_hash_is_a_fault<S: PasswordHashingService>(new_service: impl Fn
 }
 
 /// Genera un `#[test]` por caso del contrato para un adaptador.
+///
+/// `run`: ejecuta el future de cada caso (`block_on` para los dobles y Argon2,
+/// que hoy bloquea; pasa a un runtime real en R23).
 #[macro_export]
 macro_rules! password_hashing_service_contract {
-    (new_service: $new_service:expr $(,)?) => {
+    (new_service: $new_service:expr, run: $run:expr $(,)?) => {
         mod password_hashing_service_contract {
             #[allow(unused_imports)]
             use super::*;
@@ -91,27 +108,31 @@ macro_rules! password_hashing_service_contract {
 
             #[test]
             fn verify_accepts_the_hashed_password_and_rejects_another() {
-                contract::verify_accepts_the_hashed_password_and_rejects_another(|| $new_service);
+                ($run)(
+                    contract::verify_accepts_the_hashed_password_and_rejects_another(|| {
+                        $new_service
+                    }),
+                );
             }
 
             #[test]
             fn hash_is_not_the_password() {
-                contract::hash_is_not_the_password(|| $new_service);
+                ($run)(contract::hash_is_not_the_password(|| $new_service));
             }
 
             #[test]
             fn hash_is_a_valid_hashed_password() {
-                contract::hash_is_a_valid_hashed_password(|| $new_service);
+                ($run)(contract::hash_is_a_valid_hashed_password(|| $new_service));
             }
 
             #[test]
             fn corrupt_hash_is_a_fault() {
-                contract::corrupt_hash_is_a_fault(|| $new_service);
+                ($run)(contract::corrupt_hash_is_a_fault(|| $new_service));
             }
 
             #[test]
             fn truncated_hash_is_a_fault() {
-                contract::truncated_hash_is_a_fault(|| $new_service);
+                ($run)(contract::truncated_hash_is_a_fault(|| $new_service));
             }
         }
     };

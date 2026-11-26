@@ -49,8 +49,10 @@ impl CommunityRepository for InMemoryCommunityAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::application::testing::block_on;
 
     crate::community_repository_contract! {
         new_adapter: InMemoryCommunityAdapter::new(),
+        run: block_on,
     }
 }

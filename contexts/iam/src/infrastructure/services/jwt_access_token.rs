@@ -98,6 +98,7 @@ fn is_about_the_token(kind: &ErrorKind) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::application::testing::block_on;
     use jsonwebtoken::get_current_timestamp;
 
     const SECRET: &str = "test-secret";
@@ -140,5 +141,6 @@ mod tests {
         new_service: JwtAccessTokenAdapter::new(SECRET.into(), 3600),
         expired_token: expired_token,
         another_issuer: JwtAccessTokenAdapter::new("another-secret".into(), 3600),
+        run: block_on,
     }
 }
