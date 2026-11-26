@@ -69,20 +69,14 @@ mod tests {
                 command::CreateCommunityCommand, create_community::CreateCommunity,
             },
             errors::error_codes::COMMUNITIES_SLUG_ALREADY_EXISTS,
-            ports::{
-                inbound::create_community_use_case::CreateCommunityUseCase,
-                outbound::community_repository::CommunityRepository,
-            },
-            testing::FakeCommunityAdapter,
+            ports::inbound::create_community_use_case::CreateCommunityUseCase,
+            testing::{CommunityOperation, FakeCommunityAdapter},
         },
-        domain::{
-            errors::error_codes::{
-                COMMUNITIES_INVALID_COMMUNITY_NAME, COMMUNITIES_INVALID_COMMUNITY_SLUG,
-            },
-            model::community::community::Community,
+        domain::errors::error_codes::{
+            COMMUNITIES_INVALID_COMMUNITY_NAME, COMMUNITIES_INVALID_COMMUNITY_SLUG,
         },
     };
-    use shared::{Fault, domain::model::verified_identity::VerifiedIdentity, error::SystemError};
+    use shared::{domain::model::verified_identity::VerifiedIdentity, error::SystemError};
     use std::sync::Arc;
 
     fn valid_auth_context() -> VerifiedIdentity {
@@ -162,23 +156,11 @@ mod tests {
         );
     }
 
-    /// `find_by_slug` responde bien y solo `save` falla: así el test llega a
-    /// `save`, que `FakeCommunityAdapter::failing()` nunca alcanza.
-    struct StubCommunityAdapter;
-
-    impl CommunityRepository for StubCommunityAdapter {
-        fn find_by_slug(&self, _slug: &str) -> Result<Option<Community>, Fault> {
-            Ok(None)
-        }
-
-        fn save(&self, _community: &Community) -> Result<(), Fault> {
-            Err(Fault::new("stub save outage"))
-        }
-    }
-
     #[test]
     fn fails_with_unexpected_when_save_fails() {
-        let use_case = CreateCommunity::new(Arc::new(StubCommunityAdapter));
+        let repo = Arc::new(FakeCommunityAdapter::empty().failing_on(CommunityOperation::Save));
+
+        let use_case = CreateCommunity::new(repo);
 
         let result = use_case.execute(valid_input(), valid_auth_context());
 
