@@ -20,7 +20,6 @@ infrastructure-uuid = { path = "infrastructure/uuid" }
 
 argon2 = "0.5.3"
 axum = "0.8.7"
-chrono = { version = "0.4", features = ["clock"] }
 dotenvy = "0.15"
 http = "1.4.0"
 http-body-util = "0.1"

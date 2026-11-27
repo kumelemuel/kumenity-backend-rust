@@ -7,7 +7,7 @@ use argon2::{
     password_hash::{self, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
 };
 use rand::rngs::OsRng;
-use shared::{Fault, domain::value_object::ValueObject};
+use shared::Fault;
 
 /// `PasswordHashingService` with Argon2 (default parameters, random salt).
 ///

@@ -43,7 +43,7 @@ use iam::{
         services::jwt_access_token::JwtAccessTokenAdapter,
     },
 };
-use shared::{Failure, IdGenerator, domain::value_object::ValueObject};
+use shared::{Failure, IdGenerator};
 use std::sync::Arc;
 
 const PASSWORD: &str = "s3cret-password";

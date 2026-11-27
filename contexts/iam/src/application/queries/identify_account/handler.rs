@@ -12,7 +12,7 @@ use crate::{
         model::account::{email::Email, username::Username},
     },
 };
-use shared::{Failure, domain::value_object::ValueObject};
+use shared::Failure;
 use std::sync::Arc;
 
 /// Orchestrates (HEX-7): builds the identifier, loads the account and maps

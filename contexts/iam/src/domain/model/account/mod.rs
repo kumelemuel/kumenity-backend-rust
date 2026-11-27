@@ -3,7 +3,6 @@ pub mod account_id;
 pub mod account_status;
 pub mod code_validation;
 pub mod email;
-pub mod events;
 pub mod hashed_password;
 pub mod username;
 
@@ -11,14 +10,11 @@ use crate::domain::{
     errors::{AccountError, AccountStatusError, CannotAuthenticate},
     model::account::{
         account_factory::AccountDraft, account_id::AccountId, account_status::AccountStatus,
-        code_validation::CodeValidation, email::Email, events::account_event::AccountEvent,
-        hashed_password::HashedPassword, username::Username,
+        code_validation::CodeValidation, email::Email, hashed_password::HashedPassword,
+        username::Username,
     },
 };
-use shared::domain::{
-    aggregate_root::{AggregateRoot, EventRecorder},
-    entity::Entity,
-};
+use shared::{AggregateRoot, Entity};
 
 #[derive(Debug, Clone)]
 pub struct Account {
@@ -27,32 +23,11 @@ pub struct Account {
     email: Email,
     password: HashedPassword,
     status: AccountStatus,
-    _events: EventRecorder<AccountEvent>,
 }
 
-impl Entity for Account {
-    type Id = AccountId;
+impl Entity for Account {}
 
-    fn id(&self) -> &Self::Id {
-        &self.id
-    }
-}
-
-impl AggregateRoot for Account {
-    type Event = AccountEvent;
-
-    fn record_event(&mut self, _event: Self::Event) {
-        todo!()
-    }
-
-    fn pull_events(&mut self) -> Vec<Self::Event> {
-        todo!()
-    }
-
-    fn version(&self) -> u64 {
-        todo!()
-    }
-}
+impl AggregateRoot for Account {}
 
 impl Account {
     fn new(
@@ -68,7 +43,6 @@ impl Account {
             email,
             password,
             status,
-            _events: EventRecorder::default(),
         }
     }
 
@@ -186,7 +160,6 @@ impl Account {
 mod tests {
     use super::*;
     use crate::domain::model::account::account_factory::AccountFactory;
-    use shared::domain::value_object::ValueObject;
     #[test]
     fn create_uses_the_given_id_and_code() {
         let draft = AccountFactory::draft(

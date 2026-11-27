@@ -3,7 +3,6 @@ use crate::domain::{
     model::account::{email::Email, username::Username},
     services::password_policy::PasswordPolicy,
 };
-use shared::domain::value_object::ValueObject;
 
 /// What a registration asks for, already checked against the rules of the
 /// domain: the password policy, and the username and email as normalized

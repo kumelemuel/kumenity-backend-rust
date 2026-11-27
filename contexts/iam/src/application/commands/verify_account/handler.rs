@@ -14,7 +14,7 @@ use crate::{
         model::account::{code_validation::CodeValidation, email::Email},
     },
 };
-use shared::{Failure, domain::value_object::ValueObject};
+use shared::Failure;
 use std::sync::Arc;
 
 /// Orchestrates (HEX-7): loads the account, builds the code, asks the

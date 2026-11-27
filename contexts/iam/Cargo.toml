@@ -10,7 +10,6 @@ testing = []
 [dependencies]
 argon2.workspace = true
 axum.workspace = true
-chrono.workspace = true
 jsonwebtoken.workspace = true
 rand.workspace = true
 serde.workspace = true

@@ -16,7 +16,7 @@ use crate::{
         model::account::{Account, account_factory::AccountFactory, account_id::AccountId},
     },
 };
-use shared::{Failure, IdGenerator, domain::value_object::ValueObject};
+use shared::{Failure, IdGenerator};
 use std::sync::Arc;
 
 /// Orchestrates (HEX-7): asks the factory for a draft, checks for conflicts
