@@ -90,9 +90,9 @@ impl RegisterAccountUseCase for RegisterAccountHandler {
 
         let hashed_password = self.password_hasher.hash(&cmd.password)?;
 
+        let id = AccountId::new(self.id_generator.next_id());
         // A hash that is not a `HashedPassword` is a bug of the hasher, not
         // something the client can fix: tree B.
-        let id = AccountId::new(self.id_generator.next_id());
         let account = AccountFactory::create(id, draft, hashed_password)
             .map_err(|_| Fault::new("password hasher returned a malformed hash"))?;
 
