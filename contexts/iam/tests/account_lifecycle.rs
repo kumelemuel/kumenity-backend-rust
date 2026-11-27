@@ -36,7 +36,10 @@ use iam::{
     domain::model::account::account_status::AccountStatus,
     infrastructure::{
         persistence::in_memory::in_memory_account::InMemoryAccountAdapter,
-        security::argon2_password_hashing::Argon2PasswordHashingAdapter,
+        security::{
+            argon2_password_hashing::Argon2PasswordHashingAdapter,
+            rand_verification_code::RandVerificationCodeAdapter,
+        },
         services::jwt_access_token::JwtAccessTokenAdapter,
     },
 };
@@ -74,6 +77,7 @@ fn iam() -> Iam {
             repository.clone(),
             hasher.clone(),
             Arc::new(FixedIdGeneratorAdapter),
+            Arc::new(RandVerificationCodeAdapter),
         ),
         verify: VerifyAccountHandler::new(repository.clone()),
         authenticate: AuthenticateAccountHandler::new(

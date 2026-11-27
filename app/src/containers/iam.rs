@@ -19,8 +19,12 @@ use iam::{
         },
     },
     infrastructure::{
-        http::routes::IamRoutes, persistence::in_memory::in_memory_account::InMemoryAccountAdapter,
-        security::argon2_password_hashing::Argon2PasswordHashingAdapter,
+        http::routes::IamRoutes,
+        persistence::in_memory::in_memory_account::InMemoryAccountAdapter,
+        security::{
+            argon2_password_hashing::Argon2PasswordHashingAdapter,
+            rand_verification_code::RandVerificationCodeAdapter,
+        },
         services::jwt_access_token::JwtAccessTokenAdapter,
     },
 };
@@ -51,6 +55,7 @@ impl IamContainer {
             account_repository.clone(),
             password_hasher.clone(),
             Arc::new(UuidIdGeneratorAdapter),
+            Arc::new(RandVerificationCodeAdapter),
         );
         // Hashed once, with the same adapter and parameters as real
         // passwords, so verifying against it costs the same (D6).
