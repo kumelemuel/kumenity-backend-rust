@@ -25,13 +25,7 @@ pub struct Account {
     status: AccountStatus,
 }
 
-impl Entity for Account {
-    type Id = AccountId;
-
-    fn id(&self) -> &Self::Id {
-        &self.id
-    }
-}
+impl Entity for Account {}
 
 impl AggregateRoot for Account {}
 

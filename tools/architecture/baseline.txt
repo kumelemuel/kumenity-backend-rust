@@ -43,5 +43,4 @@ hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/h
 hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/http/responses/signed_in.rs
 hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/http/responses/signed_up.rs
 hex_8_kernel_depends_only_on_std shared/Cargo.toml#dependencies.serde
-hex_8_model_markers_have_no_items shared/src/domain/entity.rs
 hex_8_model_markers_have_no_items shared/src/domain/value_object.rs
