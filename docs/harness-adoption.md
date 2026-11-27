@@ -174,7 +174,7 @@ Una línea por rebanada pendiente, en el orden del plan. El detalle (alcance, ID
 Las dependencias de cada rebanada pendiente están en el índice de §5.3. El diagrama completo, con las rebanadas hechas, y las notas de paralelismo están en [`archive.md`](harness-adoption/archive.md#54-dependencias-y-paralelismo-diagrama-completo). Siguen rigiendo:
 
 - `[P1]`, `[P2]` y `[P3]` son los puntos de replanificación de §5.9. No se arranca la rebanada siguiente sin cerrar el punto.
-- R21 se partió (R21a, #PR_R21A): R21b queda después, y R25 solo dependía de R21a.
+- R21 se partió (R21a, #60): R21b queda después, y R25 solo dependía de R21a.
 
 ### 5.5 Cambios de contrato HTTP (todos explícitos)
 
