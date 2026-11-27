@@ -10,9 +10,12 @@ use crate::{
             },
         },
     },
-    domain::{errors::AccountCreationError, model::account::account_factory::AccountFactory},
+    domain::{
+        errors::AccountCreationError,
+        model::account::{account_factory::AccountFactory, account_id::AccountId},
+    },
 };
-use shared::{Failure, Fault, domain::value_object::ValueObject};
+use shared::{Failure, Fault, IdGenerator, domain::value_object::ValueObject};
 use std::sync::Arc;
 
 /// Orchestrates (HEX-7): asks the factory for a draft, checks for conflicts
@@ -24,16 +27,19 @@ use std::sync::Arc;
 pub struct RegisterAccountHandler {
     account_repository: Arc<dyn AccountRepository>,
     password_hasher: Arc<dyn PasswordHashingService>,
+    id_generator: Arc<dyn IdGenerator>,
 }
 
 impl RegisterAccountHandler {
     pub fn new(
         account_repository: Arc<dyn AccountRepository>,
         password_hasher: Arc<dyn PasswordHashingService>,
+        id_generator: Arc<dyn IdGenerator>,
     ) -> Self {
         Self {
             account_repository,
             password_hasher,
+            id_generator,
         }
     }
 }
@@ -84,15 +90,16 @@ impl RegisterAccountUseCase for RegisterAccountHandler {
 
         let hashed_password = self.password_hasher.hash(&cmd.password)?;
 
+        let id = AccountId::new(self.id_generator.next_id());
         // A hash that is not a `HashedPassword` is a bug of the hasher, not
         // something the client can fix: tree B.
-        let account = AccountFactory::create(draft, hashed_password)
+        let account = AccountFactory::create(id, draft, hashed_password)
             .map_err(|_| Fault::new("password hasher returned a malformed hash"))?;
 
         self.account_repository.save(&account)?;
 
         Ok(RegisterAccountResponse {
-            id: account.id().as_uuid().to_string(),
+            id: account.id().as_str().to_owned(),
             username: account.username().value().to_owned(),
             email: account.email().value().to_owned(),
         })
@@ -104,8 +111,8 @@ mod tests {
     use super::*;
     use crate::{
         application::testing::{
-            AccountOperation, FakeAccountAdapter, FixedPasswordHashingAdapter,
-            PasswordHashingOperation,
+            AccountOperation, FakeAccountAdapter, FixedIdGeneratorAdapter,
+            FixedPasswordHashingAdapter, PasswordHashingOperation,
         },
         domain::model::account::account::Account,
     };
@@ -124,6 +131,8 @@ mod tests {
         }
     }
 
+    const ID: &str = "acc-1";
+
     const HASH: &str =
         "$2b$12$12345678901234567890123456789012345673434534534534346346346346346890123456789012";
 
@@ -131,12 +140,21 @@ mod tests {
         let draft =
             AccountFactory::draft(username.to_string(), email.to_string(), "password123456789")
                 .expect("invariante: borrador de prueba válido");
-        AccountFactory::create(draft, HASH.to_string()).expect("invariante: hash de prueba válido")
+        AccountFactory::create(
+            AccountId::new(format!("id-{username}")),
+            draft,
+            HASH.to_string(),
+        )
+        .expect("invariante: hash de prueba válido")
     }
 
     fn register_with(repo: Arc<FakeAccountAdapter>, input: RegisterAccountCommand) -> Outcome {
-        RegisterAccountHandler::new(repo, Arc::new(FixedPasswordHashingAdapter::new()))
-            .execute(input)
+        RegisterAccountHandler::new(
+            repo,
+            Arc::new(FixedPasswordHashingAdapter::new()),
+            Arc::new(FixedIdGeneratorAdapter(ID)),
+        )
+        .execute(input)
     }
 
     #[test]
@@ -144,6 +162,20 @@ mod tests {
         let result = register_with(Arc::new(FakeAccountAdapter::empty()), valid_input());
 
         assert!(result.is_ok(), "{result:?}");
+    }
+
+    #[test]
+    fn registers_with_the_generated_id() {
+        let repo = Arc::new(FakeAccountAdapter::empty());
+
+        let response = register_with(repo.clone(), valid_input()).expect("registro válido");
+
+        assert_eq!(response.id, ID);
+        let saved = repo
+            .find_by_email("john@example.com")
+            .expect("invariante: el Fake vacío no falla")
+            .expect("la cuenta quedó guardada");
+        assert_eq!(saved.id().as_str(), ID);
     }
 
     #[test]
@@ -363,7 +395,11 @@ mod tests {
     fn fails_with_unexpected_when_hash_fails() {
         let hasher =
             Arc::new(FixedPasswordHashingAdapter::new().failing_on(PasswordHashingOperation::Hash));
-        let use_case = RegisterAccountHandler::new(Arc::new(FakeAccountAdapter::empty()), hasher);
+        let use_case = RegisterAccountHandler::new(
+            Arc::new(FakeAccountAdapter::empty()),
+            hasher,
+            Arc::new(FixedIdGeneratorAdapter(ID)),
+        );
 
         let result = use_case.execute(valid_input());
 
@@ -376,7 +412,11 @@ mod tests {
     fn rejects_the_password_before_hashing_it() {
         let hasher =
             Arc::new(FixedPasswordHashingAdapter::new().failing_on(PasswordHashingOperation::Hash));
-        let use_case = RegisterAccountHandler::new(Arc::new(FakeAccountAdapter::empty()), hasher);
+        let use_case = RegisterAccountHandler::new(
+            Arc::new(FakeAccountAdapter::empty()),
+            hasher,
+            Arc::new(FixedIdGeneratorAdapter(ID)),
+        );
 
         let result = use_case.execute(with("john_doe", "john@example.com", "1234567"));
 
@@ -411,6 +451,7 @@ mod tests {
         let use_case = RegisterAccountHandler::new(
             Arc::new(FakeAccountAdapter::empty()),
             Arc::new(StubPasswordHashingAdapter),
+            Arc::new(FixedIdGeneratorAdapter(ID)),
         );
 
         let result = use_case.execute(valid_input());

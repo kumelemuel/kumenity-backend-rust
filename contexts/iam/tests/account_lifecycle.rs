@@ -40,10 +40,20 @@ use iam::{
         services::jwt_access_token::JwtAccessTokenAdapter,
     },
 };
-use shared::{Failure, domain::value_object::ValueObject};
+use shared::{Failure, IdGenerator, domain::value_object::ValueObject};
 use std::sync::Arc;
 
 const PASSWORD: &str = "s3cret-password";
+
+/// Each scenario registers a single account, so a fixed id is enough. The
+/// UUID adapter has its own tests in `infrastructure-uuid`.
+struct FixedIdGeneratorAdapter;
+
+impl IdGenerator for FixedIdGeneratorAdapter {
+    fn next_id(&self) -> String {
+        "ana-id".to_string()
+    }
+}
 
 struct Iam {
     repository: Arc<InMemoryAccountAdapter>,
@@ -60,7 +70,11 @@ fn iam() -> Iam {
     let decoy_hash = hasher.hash("lifecycle-decoy").expect("decoy hash");
     let jwt = Arc::new(JwtAccessTokenAdapter::new("lifecycle-secret".into(), 3600));
     Iam {
-        register: RegisterAccountHandler::new(repository.clone(), hasher.clone()),
+        register: RegisterAccountHandler::new(
+            repository.clone(),
+            hasher.clone(),
+            Arc::new(FixedIdGeneratorAdapter),
+        ),
         verify: VerifyAccountHandler::new(repository.clone()),
         authenticate: AuthenticateAccountHandler::new(
             repository.clone(),

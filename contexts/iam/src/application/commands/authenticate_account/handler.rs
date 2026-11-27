@@ -82,9 +82,7 @@ impl AuthenticateAccountUseCase for AuthenticateAccountHandler {
             .authenticate()
             .map_err(|AccountCannotAuthenticate| Failure::expected(CannotAuthenticate))?;
 
-        let token = self
-            .access_tokens
-            .issue(&account.id().as_uuid().to_string())?;
+        let token = self.access_tokens.issue(account.id().as_str())?;
 
         Ok(AuthenticateAccountResponse { token })
     }
@@ -121,7 +119,7 @@ mod tests {
     /// `dummy`, with `PASSWORD` hashed by `FixedPasswordHashingAdapter`.
     fn dummy_account(status: &str) -> Account {
         Account::new(
-            AccountId::generate(),
+            AccountId::new("acc-1".to_string()),
             Username::new("dummy".to_string()).expect("invariante: username de prueba válido"),
             Email::new("dummy@example.com".to_string())
                 .expect("invariante: email de prueba válido"),
@@ -377,7 +375,7 @@ mod tests {
     #[test]
     fn authenticate_account_successfully_returns_token() {
         let account = dummy_account("active");
-        let account_id = account.id().as_uuid().to_string();
+        let account_id = account.id().as_str().to_owned();
         let tokens = Arc::new(FakeAccessTokenAdapter::new());
         let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::containing([account])),
