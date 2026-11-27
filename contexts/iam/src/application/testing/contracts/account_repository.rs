@@ -16,7 +16,7 @@
 use crate::{
     application::ports::outbound::account_repository::AccountRepository,
     domain::model::account::{
-        account::Account, account_id::AccountId, account_status::AccountStatus,
+        Account, account_id::AccountId, account_status::AccountStatus,
         code_validation::CodeValidation, email::Email, hashed_password::HashedPassword,
         username::Username,
     },
@@ -27,7 +27,7 @@ const HASH: &str =
     "$2b$12$12345678901234567890123456789012345673434534534534346346346346346890123456789012";
 
 fn account_with_id(id: AccountId, username: &str, email: &str) -> Account {
-    Account::new(
+    Account::restore(
         id,
         Username::new(username.into()).expect("invariante: username de prueba válido"),
         Email::new(email.into()).expect("invariante: email de prueba válido"),

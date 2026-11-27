@@ -1,6 +1,6 @@
 use crate::{
     application::ports::outbound::account_repository::AccountRepository,
-    domain::model::account::{account::Account, account_id::AccountId},
+    domain::model::account::{Account, account_id::AccountId},
 };
 use shared::{Fault, domain::value_object::ValueObject};
 use std::{

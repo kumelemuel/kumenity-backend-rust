@@ -1,5 +1,4 @@
 use crate::domain::errors::CodeValidationError;
-use rand::Rng;
 use shared::domain::value_object::ValueObject;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -22,14 +21,6 @@ impl ValueObject for CodeValidation {
 
     fn value(&self) -> &Self::Value {
         &self.0
-    }
-}
-
-impl CodeValidation {
-    pub fn generate() -> Self {
-        let mut rng = rand::thread_rng();
-        let code: u32 = rng.gen_range(100_000..=999_999);
-        Self(code)
     }
 }
 

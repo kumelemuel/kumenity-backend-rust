@@ -7,20 +7,21 @@ use crate::{
             outbound::{
                 account_repository::AccountRepository,
                 password_hashing_service::PasswordHashingService,
+                verification_code_service::VerificationCodeService,
             },
         },
     },
     domain::{
         errors::AccountCreationError,
-        model::account::{account_factory::AccountFactory, account_id::AccountId},
+        model::account::{Account, account_factory::AccountFactory, account_id::AccountId},
     },
 };
-use shared::{Failure, Fault, IdGenerator, domain::value_object::ValueObject};
+use shared::{Failure, IdGenerator, domain::value_object::ValueObject};
 use std::sync::Arc;
 
 /// Orchestrates (HEX-7): asks the factory for a draft, checks for conflicts
-/// with its normalized values, hashes, asks the factory for the account,
-/// saves it and maps it.
+/// with its normalized values, hashes, takes the id and the verification
+/// code from their ports, creates the account, saves it and maps it.
 ///
 /// The order is fixed by `app/tests/`: the factory's rules (password,
 /// username, email), then the email conflict, then the username conflict.
@@ -28,6 +29,7 @@ pub struct RegisterAccountHandler {
     account_repository: Arc<dyn AccountRepository>,
     password_hasher: Arc<dyn PasswordHashingService>,
     id_generator: Arc<dyn IdGenerator>,
+    verification_codes: Arc<dyn VerificationCodeService>,
 }
 
 impl RegisterAccountHandler {
@@ -35,11 +37,13 @@ impl RegisterAccountHandler {
         account_repository: Arc<dyn AccountRepository>,
         password_hasher: Arc<dyn PasswordHashingService>,
         id_generator: Arc<dyn IdGenerator>,
+        verification_codes: Arc<dyn VerificationCodeService>,
     ) -> Self {
         Self {
             account_repository,
             password_hasher,
             id_generator,
+            verification_codes,
         }
     }
 }
@@ -91,10 +95,8 @@ impl RegisterAccountUseCase for RegisterAccountHandler {
         let hashed_password = self.password_hasher.hash(&cmd.password)?;
 
         let id = AccountId::new(self.id_generator.next_id());
-        // A hash that is not a `HashedPassword` is a bug of the hasher, not
-        // something the client can fix: tree B.
-        let account = AccountFactory::create(id, draft, hashed_password)
-            .map_err(|_| Fault::new("password hasher returned a malformed hash"))?;
+        let code = self.verification_codes.generate()?;
+        let account = Account::create(id, draft, hashed_password, code);
 
         self.account_repository.save(&account)?;
 
@@ -112,9 +114,12 @@ mod tests {
     use crate::{
         application::testing::{
             AccountOperation, FakeAccountAdapter, FixedIdGeneratorAdapter,
-            FixedPasswordHashingAdapter, PasswordHashingOperation,
+            FixedPasswordHashingAdapter, FixedVerificationCodeAdapter, PasswordHashingOperation,
         },
-        domain::model::account::account::Account,
+        domain::model::account::{
+            account_status::AccountStatus, code_validation::CodeValidation,
+            hashed_password::HashedPassword,
+        },
     };
 
     type Outcome = Result<RegisterAccountResponse, Failure<RegisterAccountError>>;
@@ -133,6 +138,8 @@ mod tests {
 
     const ID: &str = "acc-1";
 
+    const CODE: u32 = 456_456;
+
     const HASH: &str =
         "$2b$12$12345678901234567890123456789012345673434534534534346346346346346890123456789012";
 
@@ -140,12 +147,12 @@ mod tests {
         let draft =
             AccountFactory::draft(username.to_string(), email.to_string(), "password123456789")
                 .expect("invariante: borrador de prueba válido");
-        AccountFactory::create(
+        Account::create(
             AccountId::new(format!("id-{username}")),
             draft,
-            HASH.to_string(),
+            HashedPassword::new(HASH.to_string()).expect("invariante: hash de prueba válido"),
+            CodeValidation::new(CODE).expect("invariante: código de prueba válido"),
         )
-        .expect("invariante: hash de prueba válido")
     }
 
     fn register_with(repo: Arc<FakeAccountAdapter>, input: RegisterAccountCommand) -> Outcome {
@@ -153,6 +160,7 @@ mod tests {
             repo,
             Arc::new(FixedPasswordHashingAdapter::new()),
             Arc::new(FixedIdGeneratorAdapter(ID)),
+            Arc::new(FixedVerificationCodeAdapter::new(CODE)),
         )
         .execute(input)
     }
@@ -176,6 +184,46 @@ mod tests {
             .expect("invariante: el Fake vacío no falla")
             .expect("la cuenta quedó guardada");
         assert_eq!(saved.id().as_str(), ID);
+    }
+
+    #[test]
+    fn registers_pending_verification_with_the_generated_code() {
+        let repo = Arc::new(FakeAccountAdapter::empty());
+
+        register_with(repo.clone(), valid_input()).expect("registro válido");
+
+        let saved = repo
+            .find_by_email("john@example.com")
+            .expect("invariante: el Fake vacío no falla")
+            .expect("la cuenta quedó guardada");
+        assert_eq!(
+            *saved.status(),
+            AccountStatus::Registered {
+                code_validation: CodeValidation::new(CODE)
+                    .expect("invariante: código de prueba válido")
+            }
+        );
+    }
+
+    #[test]
+    fn fails_with_unexpected_when_generate_fails() {
+        let repo = Arc::new(FakeAccountAdapter::empty());
+        let use_case = RegisterAccountHandler::new(
+            repo.clone(),
+            Arc::new(FixedPasswordHashingAdapter::new()),
+            Arc::new(FixedIdGeneratorAdapter(ID)),
+            Arc::new(FixedVerificationCodeAdapter::failing()),
+        );
+
+        let result = use_case.execute(valid_input());
+
+        assert!(matches!(result, Err(Failure::Unexpected(_))), "{result:?}");
+        assert!(
+            repo.find_by_email("john@example.com")
+                .expect("invariante: el Fake vacío no falla")
+                .is_none(),
+            "no account is saved without its code"
+        );
     }
 
     #[test]
@@ -399,6 +447,7 @@ mod tests {
             Arc::new(FakeAccountAdapter::empty()),
             hasher,
             Arc::new(FixedIdGeneratorAdapter(ID)),
+            Arc::new(FixedVerificationCodeAdapter::new(CODE)),
         );
 
         let result = use_case.execute(valid_input());
@@ -416,6 +465,7 @@ mod tests {
             Arc::new(FakeAccountAdapter::empty()),
             hasher,
             Arc::new(FixedIdGeneratorAdapter(ID)),
+            Arc::new(FixedVerificationCodeAdapter::new(CODE)),
         );
 
         let result = use_case.execute(with("john_doe", "john@example.com", "1234567"));
@@ -429,33 +479,5 @@ mod tests {
             ),
             "{result:?}"
         );
-    }
-
-    /// Answers a hash that is not a `HashedPassword`. It breaks the
-    /// `PasswordHashingService` contract on purpose, so it does not run the
-    /// battery: it stands for an adapter with a bug.
-    struct StubPasswordHashingAdapter;
-
-    impl PasswordHashingService for StubPasswordHashingAdapter {
-        fn hash(&self, _password: &str) -> Result<String, Fault> {
-            Ok("not-a-hash".to_string())
-        }
-
-        fn verify(&self, _password: &str, _hashed_password: &str) -> Result<bool, Fault> {
-            Ok(false)
-        }
-    }
-
-    #[test]
-    fn fails_with_unexpected_when_the_hasher_returns_a_malformed_hash() {
-        let use_case = RegisterAccountHandler::new(
-            Arc::new(FakeAccountAdapter::empty()),
-            Arc::new(StubPasswordHashingAdapter),
-            Arc::new(FixedIdGeneratorAdapter(ID)),
-        );
-
-        let result = use_case.execute(valid_input());
-
-        assert!(matches!(result, Err(Failure::Unexpected(_))), "{result:?}");
     }
 }

@@ -81,7 +81,7 @@ mod tests {
     /// `dummy` / `dummy@example.com`, pending verification.
     fn registered() -> Arc<FakeAccountAdapter> {
         Arc::new(FakeAccountAdapter::containing([
-            AccountFactory::dummy_account_with_status("registered:123123".to_string()),
+            AccountFactory::dummy_account_with_status(AccountFactory::pending(123_123)),
         ]))
     }
 

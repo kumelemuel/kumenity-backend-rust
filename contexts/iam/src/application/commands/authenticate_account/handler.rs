@@ -12,7 +12,7 @@ use crate::{
     },
     domain::{
         errors::{CannotAuthenticate as AccountCannotAuthenticate, UsernameError},
-        model::account::username::Username,
+        model::account::{hashed_password::HashedPassword, username::Username},
     },
 };
 use shared::{Failure, domain::value_object::ValueObject};
@@ -27,7 +27,7 @@ pub struct AuthenticateAccountHandler {
     account_repository: Arc<dyn AccountRepository>,
     password_hasher: Arc<dyn PasswordHashingService>,
     access_tokens: Arc<dyn AccessTokenService>,
-    decoy_hash: String,
+    decoy_hash: HashedPassword,
 }
 
 impl AuthenticateAccountHandler {
@@ -35,7 +35,7 @@ impl AuthenticateAccountHandler {
         account_repository: Arc<dyn AccountRepository>,
         password_hasher: Arc<dyn PasswordHashingService>,
         access_tokens: Arc<dyn AccessTokenService>,
-        decoy_hash: String,
+        decoy_hash: HashedPassword,
     ) -> Self {
         Self {
             account_repository,
@@ -65,7 +65,7 @@ impl AuthenticateAccountUseCase for AuthenticateAccountHandler {
             // dropping the call); a `Fault` propagates like the real one.
             std::hint::black_box(
                 self.password_hasher
-                    .verify(cmd.password.as_str(), &self.decoy_hash)?,
+                    .verify(cmd.password.as_str(), self.decoy_hash.value())?,
             );
             return Err(Failure::expected(LoginFailed));
         };
@@ -104,27 +104,28 @@ mod tests {
             },
         },
         domain::model::account::{
-            account::Account, account_id::AccountId, account_status::AccountStatus, email::Email,
-            hashed_password::HashedPassword, username::Username,
+            Account, account_factory::AccountFactory, account_id::AccountId,
+            account_status::AccountStatus, email::Email, hashed_password::HashedPassword,
+            username::Username,
         },
     };
     const PASSWORD: &str = "dummy-password";
 
-    fn hash_of(password: &str) -> String {
+    fn hash_of(password: &str) -> HashedPassword {
         FixedPasswordHashingAdapter::new()
             .hash(password)
             .expect("invariante: el doble sano no falla")
     }
 
     /// `dummy`, with `PASSWORD` hashed by `FixedPasswordHashingAdapter`.
-    fn dummy_account(status: &str) -> Account {
-        Account::new(
+    fn dummy_account(status: AccountStatus) -> Account {
+        Account::restore(
             AccountId::new("acc-1".to_string()),
             Username::new("dummy".to_string()).expect("invariante: username de prueba válido"),
             Email::new("dummy@example.com".to_string())
                 .expect("invariante: email de prueba válido"),
-            HashedPassword::new(hash_of(PASSWORD)).expect("invariante: hash de prueba válido"),
-            AccountStatus::from_str(status).expect("invariante: estado de prueba válido"),
+            hash_of(PASSWORD),
+            status,
         )
     }
 
@@ -150,7 +151,7 @@ mod tests {
 
         assert_eq!(
             hasher.verify_calls(),
-            vec![("any_password".to_string(), decoy_hash)]
+            vec![("any_password".to_string(), decoy_hash.value().clone())]
         );
     }
 
@@ -185,7 +186,9 @@ mod tests {
         let hasher = Arc::new(SpyPasswordHashingAdapter::new());
         let decoy_hash = hash_of("decoy");
         let use_case = AuthenticateAccountHandler::new(
-            Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
+            Arc::new(FakeAccountAdapter::containing([dummy_account(
+                AccountStatus::Active,
+            )])),
             hasher.clone(),
             Arc::new(FakeAccessTokenAdapter::new()),
             decoy_hash.clone(),
@@ -195,7 +198,7 @@ mod tests {
 
         assert_eq!(
             hasher.verify_calls(),
-            vec![(PASSWORD.to_string(), decoy_hash)]
+            vec![(PASSWORD.to_string(), decoy_hash.value().clone())]
         );
     }
 
@@ -205,7 +208,9 @@ mod tests {
     #[test]
     fn fails_with_login_failed_when_identifier_is_malformed() {
         let use_case = AuthenticateAccountHandler::new(
-            Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
+            Arc::new(FakeAccountAdapter::containing([dummy_account(
+                AccountStatus::Active,
+            )])),
             Arc::new(SpyPasswordHashingAdapter::new()),
             Arc::new(FakeAccessTokenAdapter::new()),
             hash_of(PASSWORD),
@@ -228,7 +233,9 @@ mod tests {
     #[test]
     fn authenticates_with_surrounding_spaces_in_the_username() {
         let use_case = AuthenticateAccountHandler::new(
-            Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
+            Arc::new(FakeAccountAdapter::containing([dummy_account(
+                AccountStatus::Active,
+            )])),
             Arc::new(FixedPasswordHashingAdapter::new()),
             Arc::new(FakeAccessTokenAdapter::new()),
             hash_of("decoy"),
@@ -256,7 +263,9 @@ mod tests {
     #[test]
     fn fails_with_unexpected_when_verify_fails() {
         let use_case = AuthenticateAccountHandler::new(
-            Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
+            Arc::new(FakeAccountAdapter::containing([dummy_account(
+                AccountStatus::Active,
+            )])),
             Arc::new(
                 FixedPasswordHashingAdapter::new().failing_on(PasswordHashingOperation::Verify),
             ),
@@ -288,7 +297,9 @@ mod tests {
     #[test]
     fn fails_with_unexpected_when_issue_fails() {
         let use_case = AuthenticateAccountHandler::new(
-            Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
+            Arc::new(FakeAccountAdapter::containing([dummy_account(
+                AccountStatus::Active,
+            )])),
             Arc::new(FixedPasswordHashingAdapter::new()),
             Arc::new(FakeAccessTokenAdapter::new().failing_on(AccessTokenOperation::Issue)),
             hash_of("decoy"),
@@ -302,7 +313,9 @@ mod tests {
     #[test]
     fn fails_with_incorrect_password() {
         let use_case = AuthenticateAccountHandler::new(
-            Arc::new(FakeAccountAdapter::containing([dummy_account("active")])),
+            Arc::new(FakeAccountAdapter::containing([dummy_account(
+                AccountStatus::Active,
+            )])),
             Arc::new(FixedPasswordHashingAdapter::new()),
             Arc::new(FakeAccessTokenAdapter::new()),
             hash_of("decoy"),
@@ -328,7 +341,7 @@ mod tests {
     fn fails_with_login_failed_when_an_inactive_account_gets_a_wrong_password() {
         let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::containing([dummy_account(
-                "registered:123123",
+                AccountFactory::pending(123_123),
             )])),
             Arc::new(FixedPasswordHashingAdapter::new()),
             Arc::new(FakeAccessTokenAdapter::new()),
@@ -352,7 +365,7 @@ mod tests {
     fn fails_when_account_cannot_authenticate() {
         let use_case = AuthenticateAccountHandler::new(
             Arc::new(FakeAccountAdapter::containing([dummy_account(
-                "registered:123123",
+                AccountFactory::pending(123_123),
             )])),
             Arc::new(FixedPasswordHashingAdapter::new()),
             Arc::new(FakeAccessTokenAdapter::new()),
@@ -374,7 +387,7 @@ mod tests {
 
     #[test]
     fn authenticate_account_successfully_returns_token() {
-        let account = dummy_account("active");
+        let account = dummy_account(AccountStatus::Active);
         let account_id = account.id().as_str().to_owned();
         let tokens = Arc::new(FakeAccessTokenAdapter::new());
         let use_case = AuthenticateAccountHandler::new(
