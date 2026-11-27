@@ -32,7 +32,6 @@ hex_2_core_depends_only_on_std_and_the_kernel shared/Cargo.toml#dependencies.chr
 hex_2_core_depends_only_on_std_and_the_kernel shared/Cargo.toml#dependencies.serde
 hex_2_core_imports_only_std_and_the_kernel contexts/communities/src/domain/model/community/community_id.rs
 hex_2_core_imports_only_std_and_the_kernel contexts/communities/src/domain/model/community/owner_id.rs
-hex_2_core_imports_only_std_and_the_kernel contexts/iam/src/domain/model/account/events/account_event.rs
 hex_2_core_imports_only_std_and_the_kernel shared/src/domain/domain_event.rs
 hex_2_core_imports_only_std_and_the_kernel shared/src/infrastructure/http/api_error_response.rs
 hex_2_server_frameworks_only_at_the_edge contexts/communities/Cargo.toml#dependencies.axum 3
@@ -48,7 +47,6 @@ hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/h
 hex_6_transport_types_carry_the_transport_name contexts/iam/src/infrastructure/http/responses/signed_up.rs
 hex_8_kernel_depends_only_on_std shared/Cargo.toml#dependencies.chrono
 hex_8_kernel_depends_only_on_std shared/Cargo.toml#dependencies.serde
-hex_8_model_markers_have_no_items shared/src/domain/aggregate_root.rs
 hex_8_model_markers_have_no_items shared/src/domain/domain_event.rs
 hex_8_model_markers_have_no_items shared/src/domain/entity.rs
 hex_8_model_markers_have_no_items shared/src/domain/value_object.rs
