@@ -4,11 +4,10 @@ use shared::domain::value_object::ValueObject;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Email(String);
 
-impl ValueObject for Email {
-    type Value = String;
-    type Error = EmailError;
+impl ValueObject for Email {}
 
-    fn new(value: Self::Value) -> Result<Self, Self::Error> {
+impl Email {
+    pub fn new(value: String) -> Result<Self, EmailError> {
         let normalized = value.trim().to_lowercase();
 
         if normalized.is_empty() {
@@ -22,7 +21,7 @@ impl ValueObject for Email {
         Ok(Self(normalized))
     }
 
-    fn value(&self) -> &Self::Value {
+    pub fn value(&self) -> &String {
         &self.0
     }
 }

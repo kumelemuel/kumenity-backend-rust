@@ -2,7 +2,7 @@ use crate::{
     application::ports::outbound::account_repository::AccountRepository,
     domain::model::account::{Account, account_id::AccountId},
 };
-use shared::{Fault, domain::value_object::ValueObject};
+use shared::Fault;
 use std::{
     collections::HashMap,
     sync::{Mutex, MutexGuard},

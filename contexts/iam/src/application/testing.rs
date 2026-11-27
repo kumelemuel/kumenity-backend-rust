@@ -17,7 +17,7 @@ use crate::{
         Account, code_validation::CodeValidation, hashed_password::HashedPassword,
     },
 };
-use shared::{Fault, IdGenerator, domain::value_object::ValueObject};
+use shared::{Fault, IdGenerator};
 use std::{
     collections::HashMap,
     future::Future,

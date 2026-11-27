@@ -4,11 +4,10 @@ use shared::domain::value_object::ValueObject;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Username(String);
 
-impl ValueObject for Username {
-    type Value = String;
-    type Error = UsernameError;
+impl ValueObject for Username {}
 
-    fn new(value: Self::Value) -> Result<Self, Self::Error> {
+impl Username {
+    pub fn new(value: String) -> Result<Self, UsernameError> {
         let trimmed = value.trim();
 
         if trimmed.is_empty() {
@@ -27,7 +26,7 @@ impl ValueObject for Username {
         Ok(Self(trimmed.to_string()))
     }
 
-    fn value(&self) -> &Self::Value {
+    pub fn value(&self) -> &String {
         &self.0
     }
 }

@@ -1,7 +1,3 @@
-pub trait ValueObject: Sized + Clone + PartialEq {
-    type Value;
-    type Error;
-
-    fn new(value: Self::Value) -> Result<Self, Self::Error>;
-    fn value(&self) -> &Self::Value;
-}
+/// Marcador de value object: igualdad por valor, inmutable. Sin ítems
+/// (HEX-8): cada value object expone su propio `new` y su propio acceso.
+pub trait ValueObject: Clone + Eq {}

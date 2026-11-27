@@ -160,7 +160,6 @@ impl Account {
 mod tests {
     use super::*;
     use crate::domain::model::account::account_factory::AccountFactory;
-    use shared::domain::value_object::ValueObject;
     #[test]
     fn create_uses_the_given_id_and_code() {
         let draft = AccountFactory::draft(

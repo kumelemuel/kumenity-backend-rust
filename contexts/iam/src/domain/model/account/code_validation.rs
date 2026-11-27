@@ -7,11 +7,10 @@ pub struct CodeValidation(u32);
 const MIN: u32 = 100_000;
 const MAX: u32 = 999_999;
 
-impl ValueObject for CodeValidation {
-    type Value = u32;
-    type Error = CodeValidationError;
+impl ValueObject for CodeValidation {}
 
-    fn new(value: Self::Value) -> Result<Self, Self::Error> {
+impl CodeValidation {
+    pub fn new(value: u32) -> Result<Self, CodeValidationError> {
         if (MIN..=MAX).contains(&value) {
             Ok(Self(value))
         } else {
@@ -19,7 +18,7 @@ impl ValueObject for CodeValidation {
         }
     }
 
-    fn value(&self) -> &Self::Value {
+    pub fn value(&self) -> &u32 {
         &self.0
     }
 }

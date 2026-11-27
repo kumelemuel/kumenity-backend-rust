@@ -15,7 +15,7 @@ use crate::{
         model::account::{hashed_password::HashedPassword, username::Username},
     },
 };
-use shared::{Failure, domain::value_object::ValueObject};
+use shared::Failure;
 use std::sync::Arc;
 
 /// Orchestrates (HEX-7): loads the account, checks the password, asks the

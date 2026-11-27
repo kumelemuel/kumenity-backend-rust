@@ -4,11 +4,10 @@ use shared::domain::value_object::ValueObject;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HashedPassword(String);
 
-impl ValueObject for HashedPassword {
-    type Value = String;
-    type Error = HashedPasswordError;
+impl ValueObject for HashedPassword {}
 
-    fn new(value: Self::Value) -> Result<Self, Self::Error> {
+impl HashedPassword {
+    pub fn new(value: String) -> Result<Self, HashedPasswordError> {
         if value.trim().is_empty() {
             return Err(HashedPasswordError::Invalid);
         }
@@ -20,7 +19,7 @@ impl ValueObject for HashedPassword {
         Ok(Self(value))
     }
 
-    fn value(&self) -> &Self::Value {
+    pub fn value(&self) -> &String {
         &self.0
     }
 }

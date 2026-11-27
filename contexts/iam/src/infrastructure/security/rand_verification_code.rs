@@ -3,7 +3,7 @@ use crate::{
     domain::model::account::code_validation::CodeValidation,
 };
 use rand::Rng;
-use shared::{Fault, domain::value_object::ValueObject};
+use shared::Fault;
 
 /// `VerificationCodeService` with `rand`: a six-digit code drawn uniformly
 /// from the thread's generator, seeded by the operating system.

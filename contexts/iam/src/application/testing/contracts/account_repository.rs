@@ -21,7 +21,6 @@ use crate::{
         username::Username,
     },
 };
-use shared::domain::value_object::ValueObject;
 
 const HASH: &str =
     "$2b$12$12345678901234567890123456789012345673434534534534346346346346346890123456789012";

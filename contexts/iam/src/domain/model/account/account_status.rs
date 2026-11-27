@@ -61,7 +61,6 @@ impl AccountStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use shared::domain::value_object::ValueObject;
 
     #[test]
     fn registered_can_transition_to_active() {

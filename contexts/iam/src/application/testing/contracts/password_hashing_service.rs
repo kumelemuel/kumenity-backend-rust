@@ -19,7 +19,6 @@ use crate::{
     application::ports::outbound::password_hashing_service::PasswordHashingService,
     domain::model::account::hashed_password::HashedPassword,
 };
-use shared::domain::value_object::ValueObject;
 
 const PASSWORD: &str = "correct horse battery staple";
 const ANOTHER: &str = "correct horse battery stapler";
