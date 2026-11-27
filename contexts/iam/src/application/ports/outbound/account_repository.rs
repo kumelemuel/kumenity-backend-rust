@@ -1,4 +1,4 @@
-use crate::domain::model::account::account::Account;
+use crate::domain::model::account::Account;
 use shared::Fault;
 
 /// Persistencia de cuentas. No declara errores (ERR-3): cualquier falla técnica

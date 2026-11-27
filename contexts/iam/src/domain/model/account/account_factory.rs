@@ -52,7 +52,7 @@ mod tests {
     use crate::domain::{
         errors::{EmailError, UsernameError, password_policy::PasswordPolicyError},
         model::account::{
-            account::Account, account_id::AccountId, account_status::AccountStatus,
+            Account, account_id::AccountId, account_status::AccountStatus,
             code_validation::CodeValidation, hashed_password::HashedPassword,
         },
     };

@@ -14,7 +14,7 @@ use crate::{
         verification_code_service::VerificationCodeService,
     },
     domain::model::account::{
-        account::Account, code_validation::CodeValidation, hashed_password::HashedPassword,
+        Account, code_validation::CodeValidation, hashed_password::HashedPassword,
     },
 };
 use shared::{Fault, IdGenerator, domain::value_object::ValueObject};

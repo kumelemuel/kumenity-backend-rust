@@ -1,5 +1,4 @@
 use crate::domain::{errors::AccountStatusError, model::account::code_validation::CodeValidation};
-use shared::domain::value_object::ValueObject;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccountStatus {
@@ -8,19 +7,6 @@ pub enum AccountStatus {
     Suspended,
     Deactivated,
     Deleted,
-}
-
-impl ValueObject for AccountStatus {
-    type Value = AccountStatus;
-    type Error = AccountStatusError;
-
-    fn new(_value: Self::Value) -> Result<Self, Self::Error> {
-        todo!()
-    }
-
-    fn value(&self) -> &Self::Value {
-        todo!()
-    }
 }
 
 impl AccountStatus {

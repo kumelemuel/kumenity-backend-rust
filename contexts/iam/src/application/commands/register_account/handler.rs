@@ -13,9 +13,7 @@ use crate::{
     },
     domain::{
         errors::AccountCreationError,
-        model::account::{
-            account::Account, account_factory::AccountFactory, account_id::AccountId,
-        },
+        model::account::{Account, account_factory::AccountFactory, account_id::AccountId},
     },
 };
 use shared::{Failure, IdGenerator, domain::value_object::ValueObject};

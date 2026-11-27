@@ -104,7 +104,7 @@ mod tests {
             },
         },
         domain::model::account::{
-            account::Account, account_factory::AccountFactory, account_id::AccountId,
+            Account, account_factory::AccountFactory, account_id::AccountId,
             account_status::AccountStatus, email::Email, hashed_password::HashedPassword,
             username::Username,
         },

@@ -16,7 +16,7 @@
 use crate::{
     application::ports::outbound::account_repository::AccountRepository,
     domain::model::account::{
-        account::Account, account_id::AccountId, account_status::AccountStatus,
+        Account, account_id::AccountId, account_status::AccountStatus,
         code_validation::CodeValidation, email::Email, hashed_password::HashedPassword,
         username::Username,
     },
