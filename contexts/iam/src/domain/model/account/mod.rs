@@ -14,7 +14,7 @@ use crate::domain::{
         username::Username,
     },
 };
-use shared::domain::{aggregate_root::AggregateRoot, entity::Entity};
+use shared::{AggregateRoot, Entity};
 
 #[derive(Debug, Clone)]
 pub struct Account {
