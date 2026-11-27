@@ -2,7 +2,9 @@
 //! `RegisterAccount`. Lo pasan el doble y todos los adaptadores reales.
 //!
 //! El puerto no declara errores (ERR-3): cualquier falla es `Fault`, así que no
-//! hay casos por variante.
+//! hay casos por variante. El rango del código lo asegura `CodeValidation`,
+//! así que la batería no lo afirma (como `HashedPassword` en la de
+//! `PasswordHashingService`, TDD-2.7).
 //!
 //! Nace con la forma async de la receta "Puerto todavía síncrono" (§5.1 de
 //! `docs/harness-adoption.md`): los casos son `async fn` y la macro recibe
@@ -13,22 +15,17 @@
 )]
 
 use crate::application::ports::outbound::verification_code_service::VerificationCodeService;
-use shared::domain::value_object::ValueObject;
 
-/// El código que genera tiene seis dígitos: es el que la cuenta espera en
-/// `confirm_registration`.
-pub async fn generates_six_digit_codes<S: VerificationCodeService>(new_service: impl Fn() -> S) {
+/// Un adaptador sano responde un código. Que tenga seis dígitos lo asegura
+/// el tipo: `generate` responde un `CodeValidation`, que no admite otro rango.
+pub async fn healthy_adapter_answers_a_code<S: VerificationCodeService>(
+    new_service: impl Fn() -> S,
+) {
     let service = new_service();
 
-    let code = service
-        .generate()
-        .expect("contrato: generate no falla con el adaptador sano");
+    let result = service.generate();
 
-    assert!(
-        (100_000..=999_999).contains(code.value()),
-        "{}",
-        code.value()
-    );
+    assert!(result.is_ok(), "{result:?}");
 }
 
 /// Genera un `#[test]` por caso del contrato para un adaptador.
@@ -44,8 +41,8 @@ macro_rules! verification_code_service_contract {
             use $crate::application::testing::contracts::verification_code_service as contract;
 
             #[test]
-            fn generates_six_digit_codes() {
-                ($run)(contract::generates_six_digit_codes(|| $new_service));
+            fn healthy_adapter_answers_a_code() {
+                ($run)(contract::healthy_adapter_answers_a_code(|| $new_service));
             }
         }
     };
