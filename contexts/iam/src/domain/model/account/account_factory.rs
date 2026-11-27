@@ -165,22 +165,31 @@ mod tests {
     }
 
     impl AccountFactory {
+        /// Pending verification with the code 123123.
         pub(crate) fn dummy_account() -> Account {
-            Self::account("john_doe", "john@example.com", "registered:123123")
+            Self::account("john_doe", "john@example.com", Self::pending(123_123))
         }
 
-        pub fn dummy_account_with_status(status: String) -> Account {
-            Self::account("dummy", "dummy@example.com", &status)
+        pub fn dummy_account_with_status(status: AccountStatus) -> Account {
+            Self::account("dummy", "dummy@example.com", status)
         }
 
-        fn account(username: &str, email: &str, status: &str) -> Account {
-            Account::new(
+        /// `Registered`, waiting for `code`.
+        pub(crate) fn pending(code: u32) -> AccountStatus {
+            AccountStatus::Registered {
+                code_validation: CodeValidation::new(code)
+                    .expect("invariante: código de prueba válido"),
+            }
+        }
+
+        fn account(username: &str, email: &str, status: AccountStatus) -> Account {
+            Account::restore(
                 AccountId::new(format!("id-{username}")),
                 Username::new(username.to_string()).expect("invariante: username de prueba válido"),
                 Email::new(email.to_string()).expect("invariante: email de prueba válido"),
                 HashedPassword::new(DUMMY_HASH.to_string())
                     .expect("invariante: hash de prueba válido"),
-                AccountStatus::from_str(status).expect("invariante: estado de prueba válido"),
+                status,
             )
         }
     }

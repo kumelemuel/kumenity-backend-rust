@@ -62,6 +62,19 @@ impl Account {
             _events: EventRecorder::default(),
         }
     }
+
+    /// An account as it was saved: the adapter rebuilds it from its value
+    /// objects, without the rules of a registration (HEX-7.5).
+    pub fn restore(
+        id: AccountId,
+        username: Username,
+        email: Email,
+        password: HashedPassword,
+        status: AccountStatus,
+    ) -> Self {
+        Self::new(id, username, email, password, status)
+    }
+
     pub fn id(&self) -> &AccountId {
         &self.id
     }
@@ -161,16 +174,24 @@ mod tests {
 
     #[test]
     fn non_active_accounts_cannot_authenticate() {
-        for status in ["suspended", "deactivated", "deleted"] {
-            let account = AccountFactory::dummy_account_with_status(status.to_string());
+        for status in [
+            AccountStatus::Suspended,
+            AccountStatus::Deactivated,
+            AccountStatus::Deleted,
+        ] {
+            let account = AccountFactory::dummy_account_with_status(status);
 
-            assert_eq!(account.authenticate(), Err(CannotAuthenticate), "{status}");
+            assert_eq!(
+                account.authenticate(),
+                Err(CannotAuthenticate),
+                "{status:?}"
+            );
         }
     }
 
     #[test]
     fn active_account_can_authenticate() {
-        let account = AccountFactory::dummy_account_with_status("active".to_string());
+        let account = AccountFactory::dummy_account_with_status(AccountStatus::Active);
 
         assert_eq!(account.authenticate(), Ok(()));
     }
@@ -196,7 +217,7 @@ mod tests {
 
     #[test]
     fn deleted_user_cannot_be_deactivated() {
-        let mut user = AccountFactory::dummy_account_with_status("deleted".to_string());
+        let mut user = AccountFactory::dummy_account_with_status(AccountStatus::Deleted);
 
         assert!(user.deactivate().is_err());
     }
@@ -220,7 +241,7 @@ mod tests {
         let code = CodeValidation::new(123123).unwrap();
 
         for state in states {
-            let mut user = AccountFactory::dummy_account_with_status(state.as_str().to_string());
+            let mut user = AccountFactory::dummy_account_with_status(state);
             let result = user.confirm_registration(code);
             assert!(result.is_err());
         }
@@ -228,7 +249,7 @@ mod tests {
 
     #[test]
     fn registered_user_can_be_confirmed_with_correct_code_validation() {
-        let mut user = AccountFactory::dummy_account_with_status("registered:123123".to_string());
+        let mut user = AccountFactory::dummy_account_with_status(AccountFactory::pending(123_123));
 
         let code = CodeValidation::new(123123).unwrap();
 
@@ -262,9 +283,15 @@ mod tests {
     }
 
     #[test]
-    fn reconstituted_user_preserves_status() {
-        let user = AccountFactory::dummy_account_with_status("suspended".to_string());
+    fn restored_account_preserves_status() {
+        let account = Account::restore(
+            AccountId::new("acc-1".to_string()),
+            Username::new("john_doe".to_string()).expect("invariante: username de prueba válido"),
+            Email::new("john@example.com".to_string()).expect("invariante: email de prueba válido"),
+            HashedPassword::new("x".repeat(60)).expect("invariante: hash de prueba válido"),
+            AccountStatus::Suspended,
+        );
 
-        assert_eq!(user.status(), &AccountStatus::Suspended);
+        assert_eq!(account.status(), &AccountStatus::Suspended);
     }
 }
