@@ -16,4 +16,3 @@
 
 err_1_application_errors_do_not_implement_std_error | errores declarados de puertos | los 4 puertos salientes devuelven Fault (R7 a R10) y ninguno declara un error; se borra si un puerto declara uno (ERR-3.4)
 hex_4_event_subscribers_are_named_and_placed | implementaciones de un EventSubscriber en application (fuera de tests) | no hay eventos que consumir; D4 retira el andamiaje
-hex_8_capability_adapters_are_shared_infrastructure | implementaciones de producción de capacidades del kernel | nada implementa IdGenerator, Clock ni FaultReporter en producción; se borra en R20, con UuidIdGeneratorAdapter
