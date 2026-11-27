@@ -15,7 +15,7 @@ use crate::{
         model::account::{account_factory::AccountFactory, account_id::AccountId},
     },
 };
-use shared::{Failure, Fault, IdGenerator, domain::value_object::ValueObject};
+use shared::{Failure, IdGenerator, domain::value_object::ValueObject};
 use std::sync::Arc;
 
 /// Orchestrates (HEX-7): asks the factory for a draft, checks for conflicts
@@ -91,10 +91,7 @@ impl RegisterAccountUseCase for RegisterAccountHandler {
         let hashed_password = self.password_hasher.hash(&cmd.password)?;
 
         let id = AccountId::new(self.id_generator.next_id());
-        // A hash that is not a `HashedPassword` is a bug of the hasher, not
-        // something the client can fix: tree B.
-        let account = AccountFactory::create(id, draft, hashed_password)
-            .map_err(|_| Fault::new("password hasher returned a malformed hash"))?;
+        let account = AccountFactory::create(id, draft, hashed_password);
 
         self.account_repository.save(&account)?;
 
@@ -114,7 +111,7 @@ mod tests {
             AccountOperation, FakeAccountAdapter, FixedIdGeneratorAdapter,
             FixedPasswordHashingAdapter, PasswordHashingOperation,
         },
-        domain::model::account::account::Account,
+        domain::model::account::{account::Account, hashed_password::HashedPassword},
     };
 
     type Outcome = Result<RegisterAccountResponse, Failure<RegisterAccountError>>;
@@ -143,9 +140,8 @@ mod tests {
         AccountFactory::create(
             AccountId::new(format!("id-{username}")),
             draft,
-            HASH.to_string(),
+            HashedPassword::new(HASH.to_string()).expect("invariante: hash de prueba válido"),
         )
-        .expect("invariante: hash de prueba válido")
     }
 
     fn register_with(repo: Arc<FakeAccountAdapter>, input: RegisterAccountCommand) -> Outcome {
@@ -429,33 +425,5 @@ mod tests {
             ),
             "{result:?}"
         );
-    }
-
-    /// Answers a hash that is not a `HashedPassword`. It breaks the
-    /// `PasswordHashingService` contract on purpose, so it does not run the
-    /// battery: it stands for an adapter with a bug.
-    struct StubPasswordHashingAdapter;
-
-    impl PasswordHashingService for StubPasswordHashingAdapter {
-        fn hash(&self, _password: &str) -> Result<String, Fault> {
-            Ok("not-a-hash".to_string())
-        }
-
-        fn verify(&self, _password: &str, _hashed_password: &str) -> Result<bool, Fault> {
-            Ok(false)
-        }
-    }
-
-    #[test]
-    fn fails_with_unexpected_when_the_hasher_returns_a_malformed_hash() {
-        let use_case = RegisterAccountHandler::new(
-            Arc::new(FakeAccountAdapter::empty()),
-            Arc::new(StubPasswordHashingAdapter),
-            Arc::new(FixedIdGeneratorAdapter(ID)),
-        );
-
-        let result = use_case.execute(valid_input());
-
-        assert!(matches!(result, Err(Failure::Unexpected(_))), "{result:?}");
     }
 }

@@ -4,6 +4,7 @@
 //!
 //! El puerto no declara errores (ERR-3): que la contraseña no coincida es una
 //! respuesta (`Ok(false)`); un hash ilegible es una falla técnica (`Fault`).
+//! Que el hash sea un `HashedPassword` lo asegura el tipo de `hash` (TDD-2.7).
 //!
 //! Forma async de la receta "Puerto todavía síncrono" (D12, R16b): los casos y
 //! los helpers son `async fn` y la macro recibe `run`. Los helpers, y los casos
@@ -23,7 +24,7 @@ use shared::domain::value_object::ValueObject;
 const PASSWORD: &str = "correct horse battery staple";
 const ANOTHER: &str = "correct horse battery stapler";
 
-async fn hash(service: &impl PasswordHashingService, password: &str) -> String {
+async fn hash(service: &impl PasswordHashingService, password: &str) -> HashedPassword {
     service
         .hash(password)
         .expect("contrato: hash no falla con el adaptador sano")
@@ -43,11 +44,11 @@ pub async fn verify_accepts_the_hashed_password_and_rejects_another<S: PasswordH
     let hashed = hash(&service, PASSWORD).await;
 
     assert!(
-        verify(&service, PASSWORD, &hashed).await,
+        verify(&service, PASSWORD, hashed.value()).await,
         "rechazó su contraseña"
     );
     assert!(
-        !verify(&service, ANOTHER, &hashed).await,
+        !verify(&service, ANOTHER, hashed.value()).await,
         "aceptó otra contraseña"
     );
 }
@@ -56,17 +57,7 @@ pub async fn verify_accepts_the_hashed_password_and_rejects_another<S: PasswordH
 pub async fn hash_is_not_the_password<S: PasswordHashingService>(new_service: impl Fn() -> S) {
     let service = new_service();
 
-    assert_ne!(hash(&service, PASSWORD).await, PASSWORD);
-}
-
-/// El hash que produce el adaptador es un `HashedPassword` válido: el handler
-/// se lo pasa tal cual a la factory de `Account`.
-pub async fn hash_is_a_valid_hashed_password<S: PasswordHashingService>(
-    new_service: impl Fn() -> S,
-) {
-    let service = new_service();
-
-    assert!(HashedPassword::new(hash(&service, PASSWORD).await).is_ok());
+    assert_ne!(hash(&service, PASSWORD).await.value(), PASSWORD);
 }
 
 /// Un hash que el adaptador no puede leer es una falla técnica (un dato
@@ -86,6 +77,7 @@ pub async fn truncated_hash_is_a_fault<S: PasswordHashingService>(new_service: i
     let service = new_service();
     let hashed = hash(&service, PASSWORD).await;
     let (truncated, _) = hashed
+        .value()
         .rsplit_once('$')
         .expect("contrato: el hash tiene secciones separadas por `$`");
 
@@ -118,11 +110,6 @@ macro_rules! password_hashing_service_contract {
             #[test]
             fn hash_is_not_the_password() {
                 ($run)(contract::hash_is_not_the_password(|| $new_service));
-            }
-
-            #[test]
-            fn hash_is_a_valid_hashed_password() {
-                ($run)(contract::hash_is_a_valid_hashed_password(|| $new_service));
             }
 
             #[test]

@@ -12,7 +12,7 @@ use crate::{
     },
     domain::{
         errors::{CannotAuthenticate as AccountCannotAuthenticate, UsernameError},
-        model::account::username::Username,
+        model::account::{hashed_password::HashedPassword, username::Username},
     },
 };
 use shared::{Failure, domain::value_object::ValueObject};
@@ -27,7 +27,7 @@ pub struct AuthenticateAccountHandler {
     account_repository: Arc<dyn AccountRepository>,
     password_hasher: Arc<dyn PasswordHashingService>,
     access_tokens: Arc<dyn AccessTokenService>,
-    decoy_hash: String,
+    decoy_hash: HashedPassword,
 }
 
 impl AuthenticateAccountHandler {
@@ -35,7 +35,7 @@ impl AuthenticateAccountHandler {
         account_repository: Arc<dyn AccountRepository>,
         password_hasher: Arc<dyn PasswordHashingService>,
         access_tokens: Arc<dyn AccessTokenService>,
-        decoy_hash: String,
+        decoy_hash: HashedPassword,
     ) -> Self {
         Self {
             account_repository,
@@ -65,7 +65,7 @@ impl AuthenticateAccountUseCase for AuthenticateAccountHandler {
             // dropping the call); a `Fault` propagates like the real one.
             std::hint::black_box(
                 self.password_hasher
-                    .verify(cmd.password.as_str(), &self.decoy_hash)?,
+                    .verify(cmd.password.as_str(), self.decoy_hash.value())?,
             );
             return Err(Failure::expected(LoginFailed));
         };
@@ -111,7 +111,7 @@ mod tests {
     };
     const PASSWORD: &str = "dummy-password";
 
-    fn hash_of(password: &str) -> String {
+    fn hash_of(password: &str) -> HashedPassword {
         FixedPasswordHashingAdapter::new()
             .hash(password)
             .expect("invariante: el doble sano no falla")
@@ -124,7 +124,7 @@ mod tests {
             Username::new("dummy".to_string()).expect("invariante: username de prueba válido"),
             Email::new("dummy@example.com".to_string())
                 .expect("invariante: email de prueba válido"),
-            HashedPassword::new(hash_of(PASSWORD)).expect("invariante: hash de prueba válido"),
+            hash_of(PASSWORD),
             status,
         )
     }
@@ -151,7 +151,7 @@ mod tests {
 
         assert_eq!(
             hasher.verify_calls(),
-            vec![("any_password".to_string(), decoy_hash)]
+            vec![("any_password".to_string(), decoy_hash.value().clone())]
         );
     }
 
@@ -198,7 +198,7 @@ mod tests {
 
         assert_eq!(
             hasher.verify_calls(),
-            vec![(PASSWORD.to_string(), decoy_hash)]
+            vec![(PASSWORD.to_string(), decoy_hash.value().clone())]
         );
     }
 

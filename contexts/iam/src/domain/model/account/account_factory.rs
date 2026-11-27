@@ -1,5 +1,5 @@
 use crate::domain::{
-    errors::{AccountCreationError, HashedPasswordError},
+    errors::AccountCreationError,
     model::account::{
         account::Account, account_id::AccountId, account_status::AccountStatus,
         code_validation::CodeValidation, email::Email, hashed_password::HashedPassword,
@@ -12,8 +12,8 @@ use shared::domain::value_object::ValueObject;
 /// What a registration asks for, already checked against the rules of the
 /// domain: the password policy, and the username and email as normalized
 /// value objects. It is the only way through `AccountFactory::create`.
-/// `Account::new` is still public until R20 (HEX-7.5), and that the hash
-/// comes from the password the policy accepted is up to the caller (TDD-2.7).
+/// `Account::new` is still public until R20b (HEX-7.5), and that the hash
+/// comes from the password the policy accepted is up to the caller.
 ///
 /// The raw password is not kept: once the policy accepts it, only its hash
 /// goes into the account.
@@ -52,23 +52,12 @@ impl AccountFactory {
 
     /// The id comes from the `IdGenerator` (HEX-7.6): the domain does not
     /// generate it.
-    pub fn create(
-        id: AccountId,
-        draft: AccountDraft,
-        hashed_password: String,
-    ) -> Result<Account, HashedPasswordError> {
-        let password = HashedPassword::new(hashed_password)?;
+    pub fn create(id: AccountId, draft: AccountDraft, password: HashedPassword) -> Account {
         let status = AccountStatus::Registered {
             code_validation: CodeValidation::generate(),
         };
 
-        Ok(Account::new(
-            id,
-            draft.username,
-            draft.email,
-            password,
-            status,
-        ))
+        Account::new(id, draft.username, draft.email, password, status)
     }
 }
 
@@ -89,6 +78,10 @@ mod tests {
 
     fn id() -> AccountId {
         AccountId::new("acc-1".to_string())
+    }
+
+    fn valid_hash() -> HashedPassword {
+        HashedPassword::new(VALID_HASH.into()).expect("invariante: hash de prueba válido")
     }
 
     fn valid_draft() -> AccountDraft {
@@ -128,18 +121,10 @@ mod tests {
     }
 
     #[test]
-    fn create_rejects_malformed_hash() {
-        let result = AccountFactory::create(id(), valid_draft(), "short".into());
-
-        assert_eq!(result.err(), Some(HashedPasswordError::Invalid));
-    }
-
-    #[test]
     fn create_keeps_the_drafted_username_and_email() {
         let draft = valid_draft();
 
-        let account = AccountFactory::create(id(), draft.clone(), VALID_HASH.into())
-            .expect("invariante: hash de prueba válido");
+        let account = AccountFactory::create(id(), draft.clone(), valid_hash());
 
         assert_eq!(account.username(), draft.username());
         assert_eq!(account.email(), draft.email());

@@ -1,10 +1,13 @@
-use crate::application::ports::outbound::password_hashing_service::PasswordHashingService;
+use crate::{
+    application::ports::outbound::password_hashing_service::PasswordHashingService,
+    domain::model::account::hashed_password::HashedPassword,
+};
 use argon2::{
     Argon2,
     password_hash::{self, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
 };
 use rand::rngs::OsRng;
-use shared::Fault;
+use shared::{Fault, domain::value_object::ValueObject};
 
 /// `PasswordHashingService` with Argon2 (default parameters, random salt).
 ///
@@ -30,14 +33,18 @@ impl Argon2PasswordHashingAdapter {
 }
 
 impl PasswordHashingService for Argon2PasswordHashingAdapter {
-    fn hash(&self, raw_password: &str) -> Result<String, Fault> {
+    fn hash(&self, raw_password: &str) -> Result<HashedPassword, Fault> {
         let salt = SaltString::generate(&mut OsRng);
 
-        Ok(self
+        let phc = self
             .argon2
             .hash_password(raw_password.as_bytes(), &salt)
             .map_err(|e| fault("hashing failed", e))?
-            .to_string())
+            .to_string();
+        // A PHC string from Argon2 carries the algorithm, the parameters, the
+        // salt and the output: always longer than `HashedPassword` asks.
+        Ok(HashedPassword::new(phc)
+            .expect("invariante: un hash PHC de Argon2 es un HashedPassword"))
     }
 
     fn verify(&self, password: &str, hashed_password: &str) -> Result<bool, Fault> {

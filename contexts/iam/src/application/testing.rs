@@ -12,7 +12,7 @@ use crate::{
         dtos::access_token_payloads::AccessTokenVerdict,
         password_hashing_service::PasswordHashingService,
     },
-    domain::model::account::account::Account,
+    domain::model::account::{account::Account, hashed_password::HashedPassword},
 };
 use shared::{Fault, IdGenerator, domain::value_object::ValueObject};
 use std::{
@@ -194,9 +194,12 @@ impl FixedPasswordHashingAdapter {
 }
 
 impl PasswordHashingService for FixedPasswordHashingAdapter {
-    fn hash(&self, password: &str) -> Result<String, Fault> {
+    fn hash(&self, password: &str) -> Result<HashedPassword, Fault> {
         self.check(PasswordHashingOperation::Hash)?;
-        Ok(format!("{FIXED_HASH_PREFIX}{password}"))
+        Ok(
+            HashedPassword::new(format!("{FIXED_HASH_PREFIX}{password}"))
+                .expect("invariante: el prefijo ya es más largo que lo que pide HashedPassword"),
+        )
     }
 
     fn verify(&self, password: &str, hashed_password: &str) -> Result<bool, Fault> {
@@ -231,7 +234,7 @@ impl SpyPasswordHashingAdapter {
 }
 
 impl PasswordHashingService for SpyPasswordHashingAdapter {
-    fn hash(&self, password: &str) -> Result<String, Fault> {
+    fn hash(&self, password: &str) -> Result<HashedPassword, Fault> {
         self.hasher.hash(password)
     }
 
