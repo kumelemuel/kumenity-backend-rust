@@ -1384,7 +1384,7 @@ Una fila por rebanada fusionada. **Tokens** es el consumo de la sesión que hizo
 | R19 | #53 | `0a3c49a`, `11f8c92` | `nightly-2026-11-19` | $2.79 (opus-5-5: 12.7k input, 27.7k output, 4.5m cache read, 182.9k cache write; 7m 6s API, 13m 50s wall) | sí (ver PR) | Línea base −2: 32 → 30 entradas (55 → 45 violaciones); cierra `hex_1_driving_adapters_see_only_use_cases` y `hex_8_kernel_traits_…`. Sin cambio de contrato: `app/tests/` intacto. `reconstitute` (ERR-1.5) adelantado de R20 a pedido del usuario: era el último llamador de `SystemError` fuera de los mappers. 429 tests, fmt y clippy en verde localmente. |
 | P2 | #54 (docs) | ver PR | `nightly-2026-11-19` | $10.61 (opus-5-5: 82.7k input, 114.3k output, 21.9m cache read, 564.1k cache write; 24m 6s API, 35m 42s wall). Incluye la auditoría completa del revisor | sí: auditoría completa (ver §5.9) | Punto de replanificación después de R19. Solo documentación. |
 | R20a | #55 | `bae89e9`, `5b49e36`, `d461bbc` | `nightly-2026-11-19` | $5.05 (opus-5-5: 2.9k input, 40.7k output, 7.7m cache read, 358.6k cache write; 8m 14s API, 4h 24m wall, casi todo esperando al usuario por la exención y por el límite de uso) | sí (ver PR) | Línea base −1 (`uuid` de iam): 30 → 29. Tercera exención de `material-exempt.txt` borrada a pedido del usuario. 428 tests, fmt y clippy en verde localmente. |
-| S4 | pendiente | ver PR | `nightly-2026-11-19` | pendiente | no: no toca código de producción | Fuera del plan original y adelantada: `tools/architecture` desde ai-harness `v1.0.0-rc.4`. Línea base 29 → 35 (43 → 49 violaciones): 29 se mantienen, 6 nuevas de `hex_2_core_imports_…`, nada desaparece (§5.10). `material-exempt.txt` sin cambios. R22b propuesta. fmt, clippy, 428 tests y `ARCH_REQUIRE_MATERIAL=1` en verde localmente. |
+| S4 | #56 | `65a5227`, `f1f3b1d` | `nightly-2026-11-19` | pendiente | no: no toca código de producción | Fuera del plan original y adelantada: `tools/architecture` desde ai-harness `v1.0.0-rc.4`. Línea base 29 → 35 (43 → 49 violaciones): 29 se mantienen, 6 nuevas de `hex_2_core_imports_…`, nada desaparece (§5.10). `material-exempt.txt` sin cambios. R22b propuesta. fmt, clippy, 428 tests y `ARCH_REQUIRE_MATERIAL=1` en verde localmente. |
 
 **Costos que no se pueden completar (revisado en P2).** Se buscó el `/cost` en el cuerpo y los comentarios de #18 a #53, y en los mensajes de commit. Solo apareció el de #32 (arriba). Siguen sin registro:
 - R1 (#24, #25);
@@ -1451,7 +1451,7 @@ Una por PR propio, sin cambios de código (`/craft-backend:adoption sincronizar 
 | 2026-11-22 | `v1.0.0-rc.1` | #31 | 36 → 47 | 29 | 7 → 18 (formato `#sección.paquete`, `n` por capa virtual) | ninguna |
 | 2026-11-23 | `v1.0.0-rc.2` | #33 | 47 → 47 | 47 | ninguna | ninguna |
 | 2026-11-25 | `v1.0.0-rc.3` | #45 | 31 → 42 | 31 | ninguna | 11: HEX-1.7, HEX-1.8, ERR-2.1, HEX-4.2, HEX-4.5 (nuevo), HEX-8.9, HEX-8.10, HEX-8.11 (nuevo), HEX-8.12 (nuevo) |
-| 2026-11-26 | `v1.0.0-rc.4` | pendiente | 29 → 35 | 29 | ninguna | 6: HEX-2.3, HEX-2.4, HEX-2.6, HEX-2.7, HEX-8.2, HEX-8.8 (ningún ID nuevo) |
+| 2026-11-26 | `v1.0.0-rc.4` | #56 | 29 → 35 | 29 | ninguna | 6: HEX-2.3, HEX-2.4, HEX-2.6, HEX-2.7, HEX-8.2, HEX-8.8 (ningún ID nuevo) |
 
 #### S4: `v1.0.0-rc.4`
 
