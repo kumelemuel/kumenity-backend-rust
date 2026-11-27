@@ -1384,7 +1384,7 @@ Una fila por rebanada fusionada. **Tokens** es el consumo de la sesión que hizo
 | R19 | #53 | `0a3c49a`, `11f8c92` | `nightly-2026-11-19` | $2.79 (opus-5-5: 12.7k input, 27.7k output, 4.5m cache read, 182.9k cache write; 7m 6s API, 13m 50s wall) | sí (ver PR) | Línea base −2: 32 → 30 entradas (55 → 45 violaciones); cierra `hex_1_driving_adapters_see_only_use_cases` y `hex_8_kernel_traits_…`. Sin cambio de contrato: `app/tests/` intacto. `reconstitute` (ERR-1.5) adelantado de R20 a pedido del usuario: era el último llamador de `SystemError` fuera de los mappers. 429 tests, fmt y clippy en verde localmente. |
 | P2 | #54 (docs) | ver PR | `nightly-2026-11-19` | $10.61 (opus-5-5: 82.7k input, 114.3k output, 21.9m cache read, 564.1k cache write; 24m 6s API, 35m 42s wall). Incluye la auditoría completa del revisor | sí: auditoría completa (ver §5.9) | Punto de replanificación después de R19. Solo documentación. |
 | R20a | #55 | `bae89e9`, `5b49e36`, `d461bbc` | `nightly-2026-11-19` | $5.05 (opus-5-5: 2.9k input, 40.7k output, 7.7m cache read, 358.6k cache write; 8m 14s API, 4h 24m wall, casi todo esperando al usuario por la exención y por el límite de uso) | sí (ver PR) | Línea base −1 (`uuid` de iam): 30 → 29. Tercera exención de `material-exempt.txt` borrada a pedido del usuario. 428 tests, fmt y clippy en verde localmente. |
-| S4 | #56 | `65a5227`, `f1f3b1d` | `nightly-2026-11-19` | pendiente | no: no toca código de producción | Fuera del plan original y adelantada: `tools/architecture` desde ai-harness `v1.0.0-rc.4`. Línea base 29 → 35 (43 → 49 violaciones): 29 se mantienen, 6 nuevas de `hex_2_core_imports_…`, nada desaparece (§5.10). `material-exempt.txt` sin cambios. R22b propuesta. fmt, clippy, 428 tests y `ARCH_REQUIRE_MATERIAL=1` en verde localmente. |
+| S4 | #56 | `65a5227`, `f1f3b1d`, `f181983` | `nightly-2026-11-19` | $3.60 (opus-5-5: 122 input, 49.1k output, 6.3m cache read, 169.1k cache write; 8m 9s API, 14h 7m wall, casi todo inactividad entre turnos) | no: no toca código de producción | Fuera del plan original y adelantada: `tools/architecture` desde ai-harness `v1.0.0-rc.4`. Línea base 29 → 35 (43 → 49 violaciones): 29 se mantienen, 6 nuevas de `hex_2_core_imports_…`, nada desaparece (§5.10). `material-exempt.txt` sin cambios. R22b propuesta. fmt, clippy, 428 tests y `ARCH_REQUIRE_MATERIAL=1` en verde localmente. |
 
 **Costos que no se pueden completar (revisado en P2).** Se buscó el `/cost` en el cuerpo y los comentarios de #18 a #53, y en los mensajes de commit. Solo apareció el de #32 (arriba). Siguen sin registro:
 - R1 (#24, #25);
@@ -1402,11 +1402,11 @@ Tampoco tienen fila los PRs anteriores al plan (#18 a #23: caracterización, tri
 | 2: puertos salientes | R7, R8, R9, R10a, R10b | — | $21.76 |
 | 3: contratos por caso de uso | R11, R12, R12b, R13, R13b, R14, R15, R16, R16b, R17, R18, R19 | — | $47.70 |
 | 4: dominio | R20a | — | $5.05 |
-| Sincronizaciones | S1, S3 (parcial) | S2, primera sesión de S3 | $4.90 |
+| Sincronizaciones | S1, S3 (parcial), S4 | S2, primera sesión de S3 | $8.50 |
 | P1 (con #40) | P1 | — | $4.32 |
 | P2 | P2 | — | $10.61 |
 | Fuera del plan | #32 | — | $0.85 |
-| **Total** | | | **$104.57** |
+| **Total** | | | **$108.17** |
 
 R18 se cuenta en la fase 3, donde está en §5.3, aunque se hizo antes que R7. En promedio, la fase 2 costó $4.35 por rebanada y la fase 3, $3.98. En la fase 3, R11, R14 y R17 (M) costaron entre $5.03 y $6.12. R19, también M, costó $2.79, porque fue casi todo borrado. Las S y XS, entre $1.80 y $4.44.
 
