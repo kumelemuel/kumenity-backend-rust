@@ -30,6 +30,12 @@ hex_2_core_depends_only_on_std_and_the_kernel contexts/iam/Cargo.toml#dependenci
 hex_2_core_depends_only_on_std_and_the_kernel contexts/iam/Cargo.toml#dependencies.serde 2
 hex_2_core_depends_only_on_std_and_the_kernel shared/Cargo.toml#dependencies.chrono
 hex_2_core_depends_only_on_std_and_the_kernel shared/Cargo.toml#dependencies.serde
+hex_2_core_imports_only_std_and_the_kernel contexts/communities/src/domain/model/community/community_id.rs
+hex_2_core_imports_only_std_and_the_kernel contexts/communities/src/domain/model/community/owner_id.rs
+hex_2_core_imports_only_std_and_the_kernel contexts/iam/src/domain/model/account/code_validation.rs
+hex_2_core_imports_only_std_and_the_kernel contexts/iam/src/domain/model/account/events/account_event.rs
+hex_2_core_imports_only_std_and_the_kernel shared/src/domain/domain_event.rs
+hex_2_core_imports_only_std_and_the_kernel shared/src/infrastructure/http/api_error_response.rs
 hex_2_server_frameworks_only_at_the_edge contexts/communities/Cargo.toml#dependencies.axum 3
 hex_2_server_frameworks_only_at_the_edge contexts/iam/Cargo.toml#dependencies.axum 3
 hex_6_transport_types_carry_the_transport_name contexts/communities/src/infrastructure/http/requests/create.rs

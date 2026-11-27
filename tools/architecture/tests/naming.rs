@@ -292,8 +292,19 @@ fn use_case_signature_violations(t: &syn::ItemTrait) -> Vec<(usize, String)> {
             violations.push((line, format!("`{name}::execute` no devuelve un `Result`: devuelve `Result<{response}, Failure<{error}>>`")));
             continue;
         };
+        if is_unit(ok) {
+            violations.push((
+                line,
+                format!(
+                    "`{name}::execute` responde `()`: responde `{response}`, un struct vacío \
+                     (`pub struct {response};`) si el caso de uso no devuelve datos, en \
+                     commands/{snake}/ o queries/{snake}/",
+                    snake = snake_case(stem)
+                ),
+            ));
+        }
         let ok = type_name(ok);
-        if ok != response {
+        if ok != response && ok != "()" {
             violations.push((
                 line,
                 format!("`{name}::execute` responde `{ok}`: responde `{response}`"),
@@ -317,6 +328,20 @@ fn use_case_signature_violations(t: &syn::ItemTrait) -> Vec<(usize, String)> {
     violations
 }
 
+fn is_unit(ty: &syn::Type) -> bool {
+    matches!(ty, syn::Type::Tuple(t) if t.elems.is_empty())
+}
+
+/// ¿`execute` responde `Result<(), …>`? Esa causa ya es una violación de la
+/// firma: el `Response` que falta no se cuenta otra vez.
+fn responds_unit(t: &syn::ItemTrait) -> bool {
+    t.items.iter().any(|item| {
+        matches!(item, syn::TraitItem::Fn(f) if f.sig.ident == "execute"
+            && matches!(&f.sig.output, syn::ReturnType::Type(_, out)
+                if result_args(out).is_some_and(|(ok, _)| is_unit(ok))))
+    })
+}
+
 /// Último segmento de un tipo de ruta (`a::b::C<…>` → `C`), con `&` si es una
 /// referencia.
 fn type_name(ty: &syn::Type) -> String {
@@ -328,6 +353,7 @@ fn type_name(ty: &syn::Type) -> String {
             .map(|s| s.ident.to_string())
             .unwrap_or_default(),
         syn::Type::Reference(r) => format!("&{}", type_name(&r.elem)),
+        syn::Type::Tuple(t) if t.elems.is_empty() => "()".into(),
         _ => "un tipo que no es una ruta".into(),
     }
 }
@@ -538,6 +564,29 @@ fn hex_4_use_case_signatures_are_their_own_contract() {
     );
 }
 
+/// Un caso de uso sin datos responde un `{Verb}{Noun}Response` vacío, no `()`:
+/// una sola violación, que nombra `()` (no además "no está definido").
+#[test]
+fn hex_4_a_unit_response_is_one_violation() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mixed");
+
+    let (violations, use_cases) = signature_violations(&common::crates_at(&fixture));
+
+    assert_eq!(use_cases, 2, "{violations:#?}");
+    assert_eq!(violations.len(), 2, "{violations:#?}");
+    for (case, snake) in [("ShipOrder", "ship_order"), ("VerifyOrder", "verify_order")] {
+        let expected = format!(
+            "`{case}UseCase::execute` responde `()`: responde `{case}Response`, un struct \
+             vacío (`pub struct {case}Response;`) si el caso de uso no devuelve datos, en \
+             commands/{snake}/ o queries/{snake}/"
+        );
+        assert!(
+            violations.iter().any(|v| v.contains(&expected)),
+            "{expected}\n{violations:#?}"
+        );
+    }
+}
+
 /// En legacy, `commands/` es `src/application/commands`.
 #[test]
 fn hex_4_use_case_signatures_are_checked_in_legacy_contexts() {
@@ -643,10 +692,8 @@ fn signature_violations(all: &[Crate]) -> (Vec<String>, usize) {
                 let input = [format!("{stem}Command"), format!("{stem}Query")];
                 let error = format!("{stem}Error");
                 let response = [format!("{stem}Response")];
-                for v in [misplaced(&input), misplaced(&response)]
-                    .into_iter()
-                    .flatten()
-                {
+                let response_missing = (!responds_unit(t)).then(|| misplaced(&response)).flatten();
+                for v in [misplaced(&input), response_missing].into_iter().flatten() {
                     violations.push(format!("{file}:{line}: {v}"));
                 }
                 if uses_type(t, &error) {
@@ -1399,6 +1446,28 @@ fn hex_8_renames_resolve_to_the_original_name() {
     assert_eq!(renames.get("Clock"), None);
 }
 
+/// Nombres con que el código de `from` escribe el crate `to`: la clave de la
+/// dependencia si la renombra (`identity = { package = "iam" }`), si no el
+/// `[lib] name` de `to`, si no su paquete; con `_`. Vacío si `from` no lo
+/// declara: entonces Cargo ya impide nombrarlo.
+fn extern_names(from: &Crate, to: &Crate) -> Vec<String> {
+    let lib = to
+        .manifest
+        .get("lib")
+        .and_then(|l| l.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or(&to.name)
+        .to_string();
+    common::declared_dependencies(&from.manifest)
+        .into_iter()
+        .map(|(_, key, _)| key)
+        .zip(from.dependencies())
+        .filter(|(_, package)| *package == to.name)
+        .map(|(key, package)| if key == package { lib.clone() } else { key })
+        .map(|name| name.replace('-', "_"))
+        .collect()
+}
+
 /// HEX-1: violaciones de los adaptadores driving (`api`, también la capa
 /// virtual `infrastructure/http` de un contexto legacy) que nombran el dominio
 /// o un puerto saliente, y cuántos archivos revisó.
@@ -1429,20 +1498,31 @@ fn driving_import_violations(all: &[Crate]) -> (Vec<String>, usize) {
     let mut files = 0;
     for api in all.iter().filter(|c| c.layer == Layer::Api) {
         // Raíces del dominio y de application que ve este `api`: las de su
-        // contexto, `crate::…` en legacy, o todas para un `api` central.
+        // contexto, `crate::…` en legacy, o todas para un `api` central. Más las
+        // de los otros contextos legacy (`iam::domain`): Cargo solo lo impide
+        // si el manifiesto no declara el crate, y `hex_1_dependencies_*` lo
+        // cuenta por manifiesto, no por archivo.
         let roots = |layer: Layer| -> Vec<Vec<String>> {
+            let module = if layer == Layer::Domain {
+                "domain"
+            } else {
+                "application"
+            };
+            let other_legacy = all
+                .iter()
+                .filter(|c| c.layer == layer && c.legacy && c.context != api.context)
+                .flat_map(|c| extern_names(api, c))
+                .map(|name| vec![name, module.to_string()]);
             if api.legacy {
-                let name = if layer == Layer::Domain {
-                    "domain"
-                } else {
-                    "application"
-                };
-                return vec![vec!["crate".into(), name.into()]];
+                return std::iter::once(vec!["crate".into(), module.into()])
+                    .chain(other_legacy)
+                    .collect();
             }
             all.iter()
                 .filter(|c| c.layer == layer && !c.legacy)
                 .filter(|c| api.context.is_none() || c.context == api.context)
                 .map(|c| vec![c.name.replace('-', "_")])
+                .chain(other_legacy)
                 .collect()
         };
         let (domains, applications) = (roots(Layer::Domain), roots(Layer::Application));
@@ -1719,10 +1799,35 @@ fn hex_1_driving_adapters_are_checked_in_legacy_contexts() {
     assert_eq!(
         shown,
         [
+            "nombra un puerto saliente (`iam::application::ports::outbound::PasswordHashingService`)",
+            "nombra el dominio (`iam::domain::Account`)",
             "nombra un puerto saliente (`crate::application::ports::outbound::PasswordHashingService`)",
             "nombra el dominio (`crate::domain::Account`)",
             "nombra un puerto saliente (`ports::outbound::PasswordHashingService`)",
             "nombra el dominio (`super::super::domain::Account`)",
+        ],
+        "{violations:#?}"
+    );
+}
+
+/// Un `api` separado (o central) tampoco nombra un contexto legacy, con el
+/// nombre que el código le da: la clave renombrada o el `[lib] name`.
+#[test]
+fn hex_1_driving_adapters_see_other_legacy_contexts() {
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/mixed");
+
+    let (violations, _) = driving_import_violations(&common::crates_at(&fixture));
+
+    let shown: Vec<&str> = violations
+        .iter()
+        .map(|v| v.split(": ").nth(1).unwrap_or(v))
+        .collect();
+    assert_eq!(
+        shown,
+        [
+            "nombra un puerto saliente (`identity::application::ports::outbound::PasswordHashingService`)",
+            "nombra el dominio (`identity::domain::Account`)",
+            "nombra el dominio (`vault_core::domain::Secret`)",
         ],
         "{violations:#?}"
     );
