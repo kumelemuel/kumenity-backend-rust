@@ -14,6 +14,7 @@ tower-http.workspace = true
 
 communities.workspace = true
 iam.workspace = true
+infrastructure-uuid.workspace = true
 shared.workspace = true
 
 [dev-dependencies]

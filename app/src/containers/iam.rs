@@ -24,6 +24,7 @@ use iam::{
         services::jwt_access_token::JwtAccessTokenAdapter,
     },
 };
+use infrastructure_uuid::UuidIdGeneratorAdapter;
 use shared::Fault;
 use std::{
     hash::{BuildHasher, Hasher, RandomState},
@@ -46,8 +47,11 @@ impl IamContainer {
         let account_repository = Arc::new(InMemoryAccountAdapter::new());
         let password_hasher = Arc::new(Argon2PasswordHashingAdapter::new());
 
-        let register_account =
-            RegisterAccountHandler::new(account_repository.clone(), password_hasher.clone());
+        let register_account = RegisterAccountHandler::new(
+            account_repository.clone(),
+            password_hasher.clone(),
+            Arc::new(UuidIdGeneratorAdapter),
+        );
         // Hashed once, with the same adapter and parameters as real
         // passwords, so verifying against it costs the same (D6).
         let decoy_hash = password_hasher.hash(&random_decoy_password())?;

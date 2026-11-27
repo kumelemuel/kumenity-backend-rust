@@ -40,7 +40,8 @@ fn account_with_id(id: AccountId, username: &str, email: &str) -> Account {
 }
 
 fn account(username: &str, email: &str) -> Account {
-    account_with_id(AccountId::generate(), username, email)
+    // Distinct per username, so each account of a case has its own id.
+    account_with_id(AccountId::new(format!("id-{username}")), username, email)
 }
 
 type Snapshot = (AccountId, Username, Email, HashedPassword, AccountStatus);
@@ -191,7 +192,7 @@ pub async fn save_replaces_the_account_with_the_same_id<R: AccountRepository>(
     new_adapter: impl Fn() -> R,
 ) {
     let adapter = new_adapter();
-    let id = AccountId::generate();
+    let id = AccountId::new("acc-1".into());
     save(
         &adapter,
         &account_with_id(id.clone(), "first", "first@example.com"),

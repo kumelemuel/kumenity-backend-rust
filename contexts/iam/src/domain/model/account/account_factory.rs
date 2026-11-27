@@ -50,7 +50,10 @@ impl AccountFactory {
         Ok(AccountDraft { username, email })
     }
 
+    /// The id comes from the `IdGenerator` (HEX-7.6): the domain does not
+    /// generate it.
     pub fn create(
+        id: AccountId,
         draft: AccountDraft,
         hashed_password: String,
     ) -> Result<Account, HashedPasswordError> {
@@ -60,7 +63,7 @@ impl AccountFactory {
         };
 
         Ok(Account::new(
-            AccountId::generate(),
+            id,
             draft.username,
             draft.email,
             password,
@@ -82,6 +85,10 @@ mod tests {
         password: &str,
     ) -> Result<AccountDraft, AccountCreationError> {
         AccountFactory::draft(username.into(), email.into(), password)
+    }
+
+    fn id() -> AccountId {
+        AccountId::new("acc-1".to_string())
     }
 
     fn valid_draft() -> AccountDraft {
@@ -122,7 +129,7 @@ mod tests {
 
     #[test]
     fn create_rejects_malformed_hash() {
-        let result = AccountFactory::create(valid_draft(), "short".into());
+        let result = AccountFactory::create(id(), valid_draft(), "short".into());
 
         assert_eq!(result.err(), Some(HashedPasswordError::Invalid));
     }
@@ -131,7 +138,7 @@ mod tests {
     fn create_keeps_the_drafted_username_and_email() {
         let draft = valid_draft();
 
-        let account = AccountFactory::create(draft.clone(), VALID_HASH.into())
+        let account = AccountFactory::create(id(), draft.clone(), VALID_HASH.into())
             .expect("invariante: hash de prueba válido");
 
         assert_eq!(account.username(), draft.username());
@@ -168,7 +175,7 @@ mod tests {
 
         fn account(username: &str, email: &str, status: &str) -> Account {
             Account::new(
-                AccountId::generate(),
+                AccountId::new(format!("id-{username}")),
                 Username::new(username.to_string()).expect("invariante: username de prueba válido"),
                 Email::new(email.to_string()).expect("invariante: email de prueba válido"),
                 HashedPassword::new(DUMMY_HASH.to_string())

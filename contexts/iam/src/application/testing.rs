@@ -14,7 +14,7 @@ use crate::{
     },
     domain::model::account::account::Account,
 };
-use shared::{Fault, domain::value_object::ValueObject};
+use shared::{Fault, IdGenerator, domain::value_object::ValueObject};
 use std::{
     collections::HashMap,
     future::Future,
@@ -340,6 +340,15 @@ impl AccessTokenService for FakeAccessTokenAdapter {
             },
             _ => AccessTokenVerdict::Invalid,
         })
+    }
+}
+
+/// Answers always the same id (TDD-2: `Fixed`, fixed answer).
+pub struct FixedIdGeneratorAdapter(pub &'static str);
+
+impl IdGenerator for FixedIdGeneratorAdapter {
+    fn next_id(&self) -> String {
+        self.0.to_string()
     }
 }
 

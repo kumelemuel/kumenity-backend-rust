@@ -119,7 +119,7 @@ mod tests {
     /// `dummy`, with `PASSWORD` hashed by `FixedPasswordHashingAdapter`.
     fn dummy_account(status: &str) -> Account {
         Account::new(
-            AccountId::generate(),
+            AccountId::new("acc-1".to_string()),
             Username::new("dummy".to_string()).expect("invariante: username de prueba válido"),
             Email::new("dummy@example.com".to_string())
                 .expect("invariante: email de prueba válido"),
