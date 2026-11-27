@@ -11,8 +11,11 @@ use crate::{
         access_token_service::AccessTokenService, account_repository::AccountRepository,
         dtos::access_token_payloads::AccessTokenVerdict,
         password_hashing_service::PasswordHashingService,
+        verification_code_service::VerificationCodeService,
     },
-    domain::model::account::{account::Account, hashed_password::HashedPassword},
+    domain::model::account::{
+        account::Account, code_validation::CodeValidation, hashed_password::HashedPassword,
+    },
 };
 use shared::{Fault, IdGenerator, domain::value_object::ValueObject};
 use std::{
@@ -346,6 +349,39 @@ impl AccessTokenService for FakeAccessTokenAdapter {
     }
 }
 
+/// Doble de `VerificationCodeService`: responde siempre el mismo código, o
+/// falla. Una sola operación, así que no tiene `failing_on`.
+pub struct FixedVerificationCodeAdapter {
+    code: CodeValidation,
+    failing: bool,
+}
+
+impl FixedVerificationCodeAdapter {
+    pub fn new(code: u32) -> Self {
+        Self {
+            code: CodeValidation::new(code).expect("invariante: código de prueba de seis dígitos"),
+            failing: false,
+        }
+    }
+
+    /// Simula una falla técnica no declarada (árbol B).
+    pub fn failing() -> Self {
+        Self {
+            failing: true,
+            ..Self::new(123_123)
+        }
+    }
+}
+
+impl VerificationCodeService for FixedVerificationCodeAdapter {
+    fn generate(&self) -> Result<CodeValidation, Fault> {
+        if self.failing {
+            return Err(Fault::new("fixed verification code outage"));
+        }
+        Ok(self.code)
+    }
+}
+
 /// Answers always the same id (TDD-2: `Fixed`, fixed answer).
 pub struct FixedIdGeneratorAdapter(pub &'static str);
 
@@ -386,6 +422,15 @@ mod tests {
 
         crate::password_hashing_service_contract! {
             new_service: FixedPasswordHashingAdapter::new(),
+            run: block_on,
+        }
+    }
+
+    mod fixed_verification_code {
+        use super::*;
+
+        crate::verification_code_service_contract! {
+            new_service: FixedVerificationCodeAdapter::new(123_123),
             run: block_on,
         }
     }
