@@ -1,5 +1,5 @@
 use crate::domain::errors::hashed_password::HashedPasswordError;
-use shared::domain::value_object::ValueObject;
+use shared::ValueObject;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HashedPassword(String);

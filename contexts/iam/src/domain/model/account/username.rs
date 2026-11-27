@@ -1,5 +1,5 @@
 use crate::domain::errors::username::UsernameError;
-use shared::domain::value_object::ValueObject;
+use shared::ValueObject;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Username(String);

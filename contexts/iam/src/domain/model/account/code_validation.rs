@@ -1,5 +1,5 @@
 use crate::domain::errors::CodeValidationError;
-use shared::domain::value_object::ValueObject;
+use shared::ValueObject;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CodeValidation(u32);

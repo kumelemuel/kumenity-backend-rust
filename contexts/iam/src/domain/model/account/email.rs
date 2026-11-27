@@ -1,5 +1,5 @@
 use crate::domain::errors::EmailError;
-use shared::domain::value_object::ValueObject;
+use shared::ValueObject;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Email(String);
