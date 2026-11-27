@@ -75,10 +75,11 @@ impl AccountStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use shared::domain::value_object::ValueObject;
 
     #[test]
     fn registered_can_transition_to_active() {
-        let code_validation = CodeValidation::generate();
+        let code_validation = CodeValidation::new(123_123).expect("invariante: código válido");
         let status = AccountStatus::Registered { code_validation };
         let next = status.transition_to(AccountStatus::Active);
 
@@ -114,7 +115,7 @@ mod tests {
 
     #[test]
     fn cannot_transition_from_registered_to_suspended() {
-        let code_validation = CodeValidation::generate();
+        let code_validation = CodeValidation::new(123_123).expect("invariante: código válido");
         let status = AccountStatus::Registered { code_validation };
 
         let result = status.transition_to(AccountStatus::Suspended);
@@ -124,7 +125,7 @@ mod tests {
 
     #[test]
     fn only_active_user_can_authenticate() {
-        let code_validation = CodeValidation::generate();
+        let code_validation = CodeValidation::new(123_123).expect("invariante: código válido");
         assert!(AccountStatus::Active.can_authenticate());
         assert!(!AccountStatus::Registered { code_validation }.can_authenticate());
         assert!(!AccountStatus::Suspended.can_authenticate());

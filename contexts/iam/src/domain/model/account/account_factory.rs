@@ -1,19 +1,14 @@
 use crate::domain::{
     errors::AccountCreationError,
-    model::account::{
-        account::Account, account_id::AccountId, account_status::AccountStatus,
-        code_validation::CodeValidation, email::Email, hashed_password::HashedPassword,
-        username::Username,
-    },
+    model::account::{email::Email, username::Username},
     services::password_policy::PasswordPolicy,
 };
 use shared::domain::value_object::ValueObject;
 
 /// What a registration asks for, already checked against the rules of the
 /// domain: the password policy, and the username and email as normalized
-/// value objects. It is the only way through `AccountFactory::create`.
-/// `Account::new` is still public until R20b (HEX-7.5), and that the hash
-/// comes from the password the policy accepted is up to the caller.
+/// value objects. It is the only way through `Account::create`; that the
+/// hash comes from the password the policy accepted is up to the caller.
 ///
 /// The raw password is not kept: once the policy accepts it, only its hash
 /// goes into the account.
@@ -49,24 +44,18 @@ impl AccountFactory {
 
         Ok(AccountDraft { username, email })
     }
-
-    /// The id comes from the `IdGenerator` (HEX-7.6): the domain does not
-    /// generate it.
-    pub fn create(id: AccountId, draft: AccountDraft, password: HashedPassword) -> Account {
-        let status = AccountStatus::Registered {
-            code_validation: CodeValidation::generate(),
-        };
-
-        Account::new(id, draft.username, draft.email, password, status)
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::errors::{EmailError, UsernameError, password_policy::PasswordPolicyError};
-
-    const VALID_HASH: &str = "$argon2id$v=19$m=65536,t=2,p=1$hashhashhashhashhashhashhashhashhash";
+    use crate::domain::{
+        errors::{EmailError, UsernameError, password_policy::PasswordPolicyError},
+        model::account::{
+            account::Account, account_id::AccountId, account_status::AccountStatus,
+            code_validation::CodeValidation, hashed_password::HashedPassword,
+        },
+    };
 
     fn draft(
         username: &str,
@@ -74,18 +63,6 @@ mod tests {
         password: &str,
     ) -> Result<AccountDraft, AccountCreationError> {
         AccountFactory::draft(username.into(), email.into(), password)
-    }
-
-    fn id() -> AccountId {
-        AccountId::new("acc-1".to_string())
-    }
-
-    fn valid_hash() -> HashedPassword {
-        HashedPassword::new(VALID_HASH.into()).expect("invariante: hash de prueba válido")
-    }
-
-    fn valid_draft() -> AccountDraft {
-        draft("john_doe", "john@example.com", "password123").expect("invariante: borrador válido")
     }
 
     #[test]
@@ -118,16 +95,6 @@ mod tests {
             result.err(),
             Some(AccountCreationError::Email(EmailError::Invalid))
         );
-    }
-
-    #[test]
-    fn create_keeps_the_drafted_username_and_email() {
-        let draft = valid_draft();
-
-        let account = AccountFactory::create(id(), draft.clone(), valid_hash());
-
-        assert_eq!(account.username(), draft.username());
-        assert_eq!(account.email(), draft.email());
     }
 
     /// Order fixed by `register_validates_password_before_username_and_email`.

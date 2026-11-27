@@ -46,7 +46,7 @@ impl AggregateRoot for Account {
 }
 
 impl Account {
-    pub fn new(
+    fn new(
         id: AccountId,
         username: Username,
         email: Email,
@@ -202,6 +202,26 @@ mod tests {
                 code_validation: code
             }
         );
+    }
+
+    #[test]
+    fn create_keeps_the_drafted_username_and_email() {
+        let draft = AccountFactory::draft(
+            "john_doe".to_string(),
+            "john@example.com".to_string(),
+            "password123",
+        )
+        .expect("invariante: borrador de prueba válido");
+
+        let account = Account::create(
+            AccountId::new("acc-1".to_string()),
+            draft.clone(),
+            HashedPassword::new("x".repeat(60)).expect("invariante: hash de prueba válido"),
+            CodeValidation::new(123_123).expect("invariante: código de prueba válido"),
+        );
+
+        assert_eq!(account.username(), draft.username());
+        assert_eq!(account.email(), draft.email());
     }
 
     #[test]
