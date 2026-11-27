@@ -1,9 +1,9 @@
 use crate::domain::{
     errors::{AccountError, AccountStatusError, CannotAuthenticate},
     model::account::{
-        account_id::AccountId, account_status::AccountStatus, code_validation::CodeValidation,
-        email::Email, events::account_event::AccountEvent, hashed_password::HashedPassword,
-        username::Username,
+        account_factory::AccountDraft, account_id::AccountId, account_status::AccountStatus,
+        code_validation::CodeValidation, email::Email, events::account_event::AccountEvent,
+        hashed_password::HashedPassword, username::Username,
     },
 };
 use shared::domain::{
@@ -61,6 +61,26 @@ impl Account {
             status,
             _events: EventRecorder::default(),
         }
+    }
+
+    /// A new registration: pending verification with `code`. The id comes
+    /// from the `IdGenerator` and the code from the `VerificationCodeService`
+    /// (HEX-7.6, HEX-2.3): the domain draws neither.
+    pub fn create(
+        id: AccountId,
+        draft: AccountDraft,
+        password: HashedPassword,
+        code: CodeValidation,
+    ) -> Self {
+        Self::new(
+            id,
+            draft.username,
+            draft.email,
+            password,
+            AccountStatus::Registered {
+                code_validation: code,
+            },
+        )
     }
 
     /// An account as it was saved: the adapter rebuilds it from its value
@@ -158,6 +178,32 @@ mod tests {
     use super::*;
     use crate::domain::model::account::account_factory::AccountFactory;
     use shared::domain::value_object::ValueObject;
+    #[test]
+    fn create_uses_the_given_id_and_code() {
+        let draft = AccountFactory::draft(
+            "john_doe".to_string(),
+            "john@example.com".to_string(),
+            "password123",
+        )
+        .expect("invariante: borrador de prueba válido");
+        let code = CodeValidation::new(456_456).expect("invariante: código de prueba válido");
+
+        let account = Account::create(
+            AccountId::new("acc-7".to_string()),
+            draft,
+            HashedPassword::new("x".repeat(60)).expect("invariante: hash de prueba válido"),
+            code,
+        );
+
+        assert_eq!(account.id().as_str(), "acc-7");
+        assert_eq!(
+            *account.status(),
+            AccountStatus::Registered {
+                code_validation: code
+            }
+        );
+    }
+
     #[test]
     fn registering_user_starts_in_registered_status() {
         let user = AccountFactory::dummy_account();

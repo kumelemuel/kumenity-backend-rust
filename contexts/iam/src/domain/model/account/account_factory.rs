@@ -19,8 +19,8 @@ use shared::domain::value_object::ValueObject;
 /// goes into the account.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AccountDraft {
-    username: Username,
-    email: Email,
+    pub(super) username: Username,
+    pub(super) email: Email,
 }
 
 impl AccountDraft {
